@@ -3,11 +3,9 @@
 
 #include <utility>
 
-#include "StarPrecalc.h"
 #include "Logging.h"
 #include "SongBrowser.h"
 #include "BeatmapCarousel.h"
-#include "SongDifficultyButton.h"
 // ---
 
 #include "AnimationHandler.h"
@@ -20,9 +18,6 @@
 #include "Osu.h"
 #include "Skin.h"
 #include "SoundEngine.h"
-#include "UI.h"
-#include "UIContextMenu.h"
-#include "ContainerRanges.h"
 
 using namespace neomod::sbr;
 
@@ -30,15 +25,6 @@ using namespace neomod::sbr;
 
 CarouselButton::CarouselButton(float xPos, float yPos, float xSize, float ySize, std::nullptr_t nullp)
     : CBaseUIButton(nullp, xPos, yPos, xSize, ySize) {
-    this->setHandleRightMouse(true);
-    this->font = osu->getSongBrowserFont();
-    this->bVisible = false;
-    this->fTargetRelPosY = yPos;
-    this->rect.setSize(CarouselButton::scaledBaseSize);
-}
-
-CarouselButton::CarouselButton(float xPos, float yPos, float xSize, float ySize, std::string name)
-    : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name)) {
     this->setHandleRightMouse(true);
     this->font = osu->getSongBrowserFont();
     this->bVisible = false;
@@ -98,7 +84,7 @@ void CarouselButton::draw() {
 }
 
 void CarouselButton::drawMenuButtonBackground() {
-    g->setColor(this->bSelected ? this->getActiveBackgroundColor() : this->getInactiveBackgroundColor());
+    g->setColor(this->isSelected() ? this->getActiveBackgroundColor() : this->getInactiveBackgroundColor());
     g->pushTransform();
     {
         g->scale(bgImageScale, bgImageScale);
@@ -144,7 +130,7 @@ void CarouselButton::updateLayoutEx() {
                                                      (g_carousel->getSize().y / 2)),
                                             0.0f, 1.0f)
                  : 1.f) +
-            (this->bSelected && !cv::songbrowser_button_anim_y_curve.getBool() ? 0.5f : 0.0f);
+            (this->isSelected() && !cv::songbrowser_button_anim_y_curve.getBool() ? 0.5f : 0.0f);
 
         if(std::abs(this->fCenterOffsetAnimation - centerOffsetAnimationTarget) > 0.001f) {
             this->fCenterOffsetAnimation.set(centerOffsetAnimationTarget, 0.5f, anim::QuadOut);
@@ -222,24 +208,20 @@ CarouselButton *CarouselButton::setVisible(bool visible) {
     return this;
 }
 
-void CarouselButton::select(SelOpts opts) {
-    const bool wasSelected = this->bSelected;
-    this->bSelected = true;
-
-    // callback
-    if(!opts.noCallbacks) this->onSelected(wasSelected, opts);
-}
-
-void CarouselButton::deselect() { this->bSelected = false; }
+void CarouselButton::assign(CarouselNode node, bool /*shownBefore*/) { this->node = node; }
 
 void CarouselButton::resetAnimations() { this->setMoveAwayState(MOVE_AWAY_STATE::MOVE_CENTER, false); }
+
+bool CarouselButton::isSelected() const { return g_songbrowser->isSelected(this->node); }
+
+void CarouselButton::onRightMouseUpInside() { g_songbrowser->openContextMenu(this->node, mouse->getPos()); }
 
 void CarouselButton::onClicked(MouseButtonFlags buttons) {
     CBaseUIButton::onClicked(buttons);
     if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) {
         soundEngine->play(osu->getSkin()->s_select_difficulty);
 
-        this->select();
+        g_songbrowser->select(this->node);
     }
 }
 
@@ -321,46 +303,5 @@ void CarouselButton::setMoveAwayState(CarouselButton::MOVE_AWAY_STATE moveAwaySt
     }
 }
 
-void CarouselButton::setChildren(std::vector<SongButton *> children) {
-    this->lastChildSortStarPrecalcIdx = 0xFF;
-    this->children = std::move(children);
-}
-
-void CarouselButton::addChild(SongButton *child) {
-    this->lastChildSortStarPrecalcIdx = 0xFF;
-    this->children.push_back(child);
-}
-
-void CarouselButton::addChildren(std::vector<SongButton *> children) {
-    this->lastChildSortStarPrecalcIdx = 0xFF;
-    Mc::ranges::append(this->children, std::move(children));
-}
-
-bool CarouselButton::childrenNeedSorting() const {
-    return this->lastChildSortStarPrecalcIdx != StarPrecalc::active_idx;
-}
-
 Color CarouselButton::getActiveBackgroundColor() const { return ARGB_CV_TO_COL(songbrowser_button_active_color); }
 Color CarouselButton::getInactiveBackgroundColor() const { return ARGB_CV_TO_COL(songbrowser_button_inactive_color); }
-
-bool CarouselButton::isIndependentDiffButton() const {
-    if(!this->parentSongButton || !this->parentSongButton->isSelected()) return true;
-
-    const auto *songDiffBtn = this->as<const SongDifficultyButton>();
-    assert(songDiffBtn != nullptr);  // only SongDifficultyButtons have parentSongButton set
-
-    // TODO: this logic is very weird and only works "accidentally";
-    // you'd think returning true IFF (sibling->isSearchMatch() && sibling == this) would be enough,
-    // but it doesn't work as expected...
-
-    // check if this is the only visible sibling
-    int visibleSiblings = 0;
-    for(const auto *sibling : songDiffBtn->getSiblingsAndSelf()) {
-        if(sibling->isSearchMatch()) {
-            visibleSiblings++;
-            if(visibleSiblings > 1) return false;  // early exit
-        }
-    }
-
-    return (visibleSiblings == 1);
-}

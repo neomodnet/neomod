@@ -6,33 +6,14 @@
 class CollectionButton final : public CarouselButton {
     NOCOPY_NOMOVE(CollectionButton)
    public:
-    CollectionButton(float xPos, float yPos, float xSize, float ySize, std::string name, std::string collectionName,
-                     std::vector<SongButton *> children = {});
+    CollectionButton();
     ~CollectionButton() override = default;
 
     void draw() override;
 
-    void triggerContextMenu(vec2 pos);
-
     [[nodiscard]] Color getActiveBackgroundColor() const override;
     [[nodiscard]] Color getInactiveBackgroundColor() const override;
 
-    [[nodiscard]] std::string_view getCollectionName() const { return this->sCollectionName; }
-    void setCollectionName(std::string_view newName) { this->sCollectionName = newName; }
-
-    [[nodiscard]] i32 getNumVisibleChildren() const { return this->numVisibleChildren; }
-    void setNumVisibleChildren(i32 numVis) { this->numVisibleChildren = numVis; }
-
    private:
-    void onSelected(bool wasSelected, SelOpts opts) override;
-    void onRightMouseUpInside() override;
-
-    void onContextMenu(std::string_view text, int id = -1);
-    void onRenameCollectionConfirmed(std::string_view text, int id = -1);
-    void onDeleteCollectionConfirmed(std::string_view text, int id = -1);
-
-    std::string sCollectionName;
-
-    float fTitleScale;
-    i32 numVisibleChildren{0};
+    static constexpr const float fTitleScale{0.35f};
 };

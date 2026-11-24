@@ -2,6 +2,11 @@
 // Copyright (c) 2025, WH, All rights reserved.
 
 #include "CBaseUIScrollView.h"
+#include "CarouselData.h"
+#include "Hashing.h"
+
+#include <array>
+#include <memory>
 
 class SongBrowser;
 class CarouselButton;
@@ -20,16 +25,19 @@ class BeatmapCarousel final : public CBaseUIScrollView {
     void updateInput(CBaseUIEventCtx &c) override;
     void onCapturedMouseMove() override;
 
-    // the rows in display order, top to bottom. only the rows near the view are in the container,
-    // so nothing per frame walks all of them
-    void setRows(std::vector<CarouselButton *> rows);
-    void clearRows() { this->setRows({}); }
-    [[nodiscard]] inline const std::vector<CarouselButton *> &getRows() const { return this->rows; }
+    // the rows in display order with their target y (ascending)
+    void setRows(std::vector<CarouselNode> rows, std::vector<f32> rowY);
+    void clearRows();
+    // new target y for the same rows
+    void setRowPositions(std::vector<f32> rowY);
 
-    // call after the rows got new target positions: updates the scroll size and the rows in the container
-    void onRowsMoved();
+    [[nodiscard]] inline const std::vector<CarouselNode> &getRows() const { return this->rows; }
+    [[nodiscard]] inline f32 getRowY(size_t row) const { return this->rowY[row]; }
+    // the row index for node, or getRows().size() if it isn't a row
+    [[nodiscard]] size_t findRow(CarouselNode node) const;
 
-    // the hovered row pushes the rows above it up and the rows below it down
+    void resetAnimations();
+
     void setHoveredRow(CarouselButton *row);
     void clearHoveredRow(CarouselButton *row);
 
@@ -38,20 +46,26 @@ class BeatmapCarousel final : public CBaseUIScrollView {
     [[nodiscard]] inline bool isScrollingFast() const { return this->bIsScrollingFast; }
 
    private:
-    // puts the rows near the view into the container, returns whether that changed anything
     bool updateWindow();
     void applyMoveAwayState(CarouselButton *row, bool animate) const;
+    CarouselButton *acquireButton(CarouselNode node);
+    void releaseButton(CarouselButton *button);
 
-    std::vector<CarouselButton *> rows;
-    // target y of each row, ascending
+    std::vector<CarouselNode> rows;
     std::vector<f32> rowY;
-    // the rows in the container are [windowBegin, windowEnd)
+
     size_t windowBegin{0};
     size_t windowEnd{0};
+    std::vector<CarouselButton *> windowButtons;
+    bool bWindowDirty{false};
 
-    CarouselButton *hoveredRow{nullptr};
-    // the first onRowsMoved() after setRows() hides the rows that are still visible from before
-    bool bRowsReplaced{false};
+    std::vector<std::unique_ptr<CarouselButton>> buttons;
+    std::array<std::vector<CarouselButton *>, 4> freeButtons;
+
+    Hash::flat::set<u32> diffsShownSinceReset;
+
+    CarouselNode hoveredRow;
+    f32 hoveredRowY{0.f};
 
     // updated at the end of update()
     bool bIsScrollingFast{false};

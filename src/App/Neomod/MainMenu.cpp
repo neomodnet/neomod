@@ -979,7 +979,7 @@ void MainMenu::updateInput(CBaseUIEventCtx &c) {
 }
 
 void MainMenu::selectRandomBeatmap() {
-    if(db->isFinished() && !db->getBeatmapSets().empty() && !ui->getSongBrowser()->parentButtons.empty()) {
+    if(db->isFinished() && !db->getBeatmapSets().empty() && ui->getSongBrowser()->isCarouselBuilt()) {
         if(ui->getSongBrowser()->selectRandomBeatmap()) {
             this->playPickFromStart();
             RichPresence::onMainMenu();

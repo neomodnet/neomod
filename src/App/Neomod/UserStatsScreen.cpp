@@ -20,7 +20,7 @@
 #include "UI.h"
 #include "UIContextMenu.h"
 #include "UserCard.h"
-#include "SongDifficultyButton.h"
+#include "CarouselData.h"
 #include "score.h"
 
 #include <ranges>
@@ -104,7 +104,7 @@ void UserStatsScreen::rebuildScoreButtons() {
         button->setScore(*score, map, n, std::move(title), weight);
         button->setClickCallback(SA::MakeDelegate([](ScoreButton *button) -> void {
             const FinishedScore &btnsc = button->getScore();
-            SongDifficultyButton *diff_btn = ui->getSongBrowser()->getDiffButtonByHash(btnsc.beatmap_hash);
+            const CarouselNode diff_btn = ui->getSongBrowser()->getDiffNodeByHash(btnsc.beatmap_hash);
             ui->setScreen(ui->getSongBrowser());
             ui->getSongBrowser()->selectSongButton(diff_btn);
             ui->getSongBrowser()->highlightScore(btnsc);

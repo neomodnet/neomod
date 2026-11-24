@@ -36,7 +36,7 @@
 #include "i18n.h"
 #include "UserStatsScreen.h"
 #include "Logging.h"
-#include "SongDifficultyButton.h"
+#include "CarouselData.h"
 #include "Graphics.h"
 #include "score.h"
 
@@ -595,7 +595,7 @@ void ScoreButton::onContextMenu(std::string_view text, int id) {
 
     if(ui->getUserStatsScreen()->isVisible()) {
         ui->setScreen(ui->getSongBrowser());
-        SongDifficultyButton *song_button = g_songbrowser->getDiffButtonByHash(sc.beatmap_hash);
+        const CarouselNode song_button = g_songbrowser->getDiffNodeByHash(sc.beatmap_hash);
         g_songbrowser->selectSongButton(song_button);
     }
 

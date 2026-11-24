@@ -1,74 +1,33 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "SongButton.h"
 
-#include "ContainerRanges.h"
 #include "Font.h"
-#include "SString.h"
-#include "ScoreButton.h"
 #include "SongBrowser.h"
-#include "SongDifficultyButton.h"
 #include "BeatmapCarousel.h"
 
 // ---
 
 #include "BackgroundImageHandler.h"
-#include "Bancho.h"
-#include "Collections.h"
 #include "OsuConVars.h"
-#include "Database.h"
 #include "DatabaseBeatmap.h"
-#include "EditorScreen.h"
-#include "MakeDelegateWrapper.h"
-#include "Environment.h"
 #include "Engine.h"
-#include "Mouse.h"
 #include "Osu.h"
 #include "Skin.h"
 #include "SkinImage.h"
-#include "UIContextMenu.h"
 #include "Graphics.h"
-#include "UI.h"
-#include "i18n.h"
 #include "score.h"
 
 #include "fmt/format.h"
 
-#include <algorithm>
-#include <utility>
-#include <ranges>
-
 using namespace neomod::sbr;
 
-// passthrough for SongDifficultyButton
-SongButton::SongButton(float xPos, float yPos, float xSize, float ySize)
-    : CarouselButton(xPos, yPos, xSize, ySize, nullptr), grade(ScoreGrade::N) {}
+SongButton::SongButton() : CarouselButton(0, 0, 0, 0, nullptr) {}
 
-SongButton::SongButton(float xPos, float yPos, float xSize, float ySize, BeatmapSet *beatmapSet)
-    : SongButton(xPos, yPos, xSize, ySize) {
-    assert(beatmapSet && !beatmapSet->getDifficulties().empty());
+SongButton::~SongButton() = default;
 
-    this->databaseBeatmap = beatmapSet;
-    this->beatmapSet = beatmapSet;
+const DatabaseBeatmap *SongButton::getDatabaseBeatmap() const { return g_songbrowser->getBeatmap(this->node); }
 
-    // settings
-    this->setHideIfSelected(true);
-
-    // build and add children
-    const auto &diffs = this->databaseBeatmap->getDifficulties();
-
-    this->children.reserve(diffs.size());
-    for(auto &diff : diffs) {
-        this->children.emplace_back(new SongDifficultyButton(0, 0, 0, 0, diff.get(), this));
-    }
-
-    this->updateLayoutEx();
-}
-
-SongButton::~SongButton() {
-    for(auto &i : this->children) {
-        delete i;
-    }
-}
+ScoreGrade SongButton::getGrade() const { return g_songbrowser->getGrade(this->node); }
 
 void SongButton::draw() {
     if(!this->bVisible) {
@@ -77,23 +36,16 @@ void SongButton::draw() {
 
     CarouselButton::draw();
 
-    if(this->databaseBeatmap &&  // delay requesting the image itself a bit
+    const DatabaseBeatmap *map = this->getDatabaseBeatmap();
+    if(map &&  // delay requesting the image itself a bit
        this->fVisibleFor >= ((std::clamp<f32>(cv::songbrowser_thumbnail_delay.getFloat(), 0.f, 2.f)) / 4.f)) {
         // draw background image
-        this->drawBeatmapBackgroundThumbnail(
-            osu->getBackgroundImageHandler()->getLoadBackgroundImage(this->databaseBeatmap));
+        this->drawBeatmapBackgroundThumbnail(osu->getBackgroundImageHandler()->getLoadBackgroundImage(map));
     }
 
-    if(this->grade != ScoreGrade::N) this->drawGrade();
+    if(this->getGrade() != ScoreGrade::N) this->drawGrade();
     this->drawTitle();
     this->drawSubTitle();
-}
-
-void SongButton::updateInput(CBaseUIEventCtx &c) {
-    if(!this->bVisible) {
-        return;
-    }
-    CarouselButton::updateInput(c);
 }
 
 void SongButton::tick() {
@@ -107,31 +59,6 @@ void SongButton::tick() {
         this->fVisibleFor += engine->getFrameTime();
     else
         this->fVisibleFor = 0.f;
-
-    if(this->children.empty()) return;
-
-    // HACKHACK: calling these two every frame is a bit insane, but too lazy to write delta detection logic atm. (UI
-    // desync is not a problem since parent buttons are invisible while selected, so no resorting happens in that state)
-    this->sortChildren();
-
-    SongDifficultyButton *bottomChild = nullptr;
-    // use the bottom child (hardest diff, assuming default sorting, and respecting the current search matches)
-    for(sSz i = static_cast<sSz>(this->childDiffBtns().size()) - 1; i >= 0; --i) {
-        auto *child = this->childDiffBtns()[i];
-        // NOTE: if no search is active, then all search matches return true by default
-        if(!child->isSearchMatch()) continue;
-        bottomChild = child;
-        break;
-    }
-    // no children visible
-    if(!bottomChild) return;
-
-    const auto *currentRepresentativeBeatmap = this->databaseBeatmap;
-    auto *newRepresentativeBeatmap = bottomChild->databaseBeatmap;
-
-    if(currentRepresentativeBeatmap == nullptr || currentRepresentativeBeatmap != newRepresentativeBeatmap) {
-        this->databaseBeatmap = newRepresentativeBeatmap;
-    }
 }
 
 void SongButton::drawBeatmapBackgroundThumbnail(const Image *image) {
@@ -191,7 +118,7 @@ void SongButton::drawGrade() {
     const vec2 pos = this->getActualPos();
     const vec2 size = this->getActualSize();
 
-    const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->grade);
+    const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->getGrade());
     g->pushTransform();
     {
         const float scale = this->calculateGradeScale();
@@ -207,11 +134,13 @@ void SongButton::drawTitle(float deselectedAlpha, bool forceSelectedStyle) {
     const vec2 size = this->getActualSize();
 
     const float titleScale = (size.y * this->fTitleScale) / this->font->getHeight();
-    g->setColor((this->bSelected || forceSelectedStyle) ? osu->getSkin()->c_song_select_active_text
-                                                        : osu->getSkin()->c_song_select_inactive_text);
-    if(!(this->bSelected || forceSelectedStyle)) g->setAlpha(deselectedAlpha);
+    const bool selected = this->isSelected();
+    g->setColor((selected || forceSelectedStyle) ? osu->getSkin()->c_song_select_active_text
+                                                 : osu->getSkin()->c_song_select_inactive_text);
+    if(!(selected || forceSelectedStyle)) g->setAlpha(deselectedAlpha);
 
-    const std::string_view title{this->databaseBeatmap ? this->databaseBeatmap->getTitle() : ""sv};
+    const DatabaseBeatmap *map = this->getDatabaseBeatmap();
+    const std::string_view title{map ? map->getTitle() : ""sv};
 
     g->pushTransform();
     {
@@ -230,12 +159,14 @@ void SongButton::drawSubTitle(float deselectedAlpha, bool forceSelectedStyle) {
 
     const float titleScale = (size.y * this->fTitleScale) / this->font->getHeight();
     const float subTitleScale = (size.y * this->fSubTitleScale) / this->font->getHeight();
-    g->setColor((this->bSelected || forceSelectedStyle) ? osu->getSkin()->c_song_select_active_text
-                                                        : osu->getSkin()->c_song_select_inactive_text);
-    if(!(this->bSelected || forceSelectedStyle)) g->setAlpha(deselectedAlpha);
+    const bool selected = this->isSelected();
+    g->setColor((selected || forceSelectedStyle) ? osu->getSkin()->c_song_select_active_text
+                                                 : osu->getSkin()->c_song_select_inactive_text);
+    if(!(selected || forceSelectedStyle)) g->setAlpha(deselectedAlpha);
 
-    const std::string_view artist{this->databaseBeatmap ? this->databaseBeatmap->getArtist() : ""sv};
-    const std::string_view mapper{this->databaseBeatmap ? this->databaseBeatmap->getCreator() : ""sv};
+    const DatabaseBeatmap *map = this->getDatabaseBeatmap();
+    const std::string_view artist{map ? map->getArtist() : ""sv};
+    const std::string_view mapper{map ? map->getCreator() : ""sv};
 
     g->pushTransform();
     {
@@ -250,16 +181,6 @@ void SongButton::drawSubTitle(float deselectedAlpha, bool forceSelectedStyle) {
     g->popTransform();
 }
 
-bool SongButton::sortChildren() {
-    if(this->childrenNeedSorting()) {
-        this->lastChildSortStarPrecalcIdx = StarPrecalc::active_idx;
-        Mc::ranges::sort(this->children, SongBrowser::sort_by_difficulty);
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void SongButton::updateLayoutEx() {
     CarouselButton::updateLayoutEx();
 
@@ -269,11 +190,12 @@ void SongButton::updateLayoutEx() {
     this->fTextOffset = 0.0f;
     this->fGradeOffset = 0.0f;
 
-    if(this->grade != ScoreGrade::N) this->fTextOffset += this->calculateGradeWidth();
+    const ScoreGrade grade = this->getGrade();
+    if(grade != ScoreGrade::N) this->fTextOffset += this->calculateGradeWidth();
 
     if(osu->getSkin()->version < 2.2f) {
         this->fTextOffset += size.x * 0.02f * 2.0f;
-        if(this->grade != ScoreGrade::N) this->fGradeOffset += this->calculateGradeWidth() / 2.f;
+        if(grade != ScoreGrade::N) this->fGradeOffset += this->calculateGradeWidth() / 2.f;
     } else {
         const f32 thumbnailYRatio = g_songbrowser->thumbnailYRatio;
         this->fTextOffset += size.y * thumbnailYRatio + size.x * 0.02f;
@@ -284,9 +206,7 @@ void SongButton::updateLayoutEx() {
 SongButton *SongButton::setVisible(bool visible) {
     if(visible) {
         // update grade on children if necessary
-        for(auto *child : this->childDiffBtns()) {
-            child->maybeUpdateGrade();
-        }
+        if(this->node.isSet()) g_songbrowser->maybeUpdateSetGrades(this->node.idx);
     } else {
         // reset visible time
         this->fVisibleFor = 0.f;
@@ -295,272 +215,13 @@ SongButton *SongButton::setVisible(bool visible) {
     return this;
 }
 
-void SongButton::onSelected(bool wasSelected, SelOpts opts) {
-    CarouselButton::onSelected(wasSelected, opts);
-
-    // resort children (since they might have been updated in the meantime)
-    if(this->sortChildren()) {
-        // update button positions so the resort is actually applied
-        g_songbrowser->partiallyUpdateSongButtonLayout(
-            reinterpret_cast<std::vector<CarouselButton *> &>(this->children), this->fTargetRelPosY);
-    }
-
-    // update grade on children if necessary
-    for(auto *child : this->childDiffBtns()) {
-        child->maybeUpdateGrade();
-    }
-
-    g_songbrowser->onSelectionChange(this, false);
-
-    // now, automatically select the bottom child (hardest diff, assuming default sorting, and respecting the current
-    // search matches)
-    if(!opts.noSelectBottomChild) {
-        for(sSz i = static_cast<sSz>(this->children.size()) - 1; i >= 0; --i) {
-            auto *child = this->children[i];
-            // NOTE: if no search is active, then all search matches return true by default
-            if(!child->isSearchMatch()) continue;
-            SelOpts childOpts{.noSelectBottomChild = true, .parentUnselected = !wasSelected};
-            child->select(childOpts);
-            break;
-        }
-    }
-}
-
-void SongButton::onRightMouseUpInside() { this->triggerContextMenu(mouse->getPos()); }
-
-void SongButton::triggerContextMenu(vec2 pos) {
-    assert(g_songbrowser->contextMenu);
-    auto *cmenu{g_songbrowser->contextMenu};
-
-    cmenu->setPos(pos);
-    cmenu->setRelPos(pos);
-    cmenu->begin(0, true);
-    {
-        if(this->databaseBeatmap)
-            cmenu->addButtonJustified("[=] Open Beatmap Folder", TEXT_JUSTIFICATION::LEFT, 0)
-                ->setClickCallback(SA::MakeDelegate<&SongButton::onOpenBeatmapFolderClicked>(this));
-
-        // a childless button stands for a single difficulty. not in a room, where the song browser picks its map, and
-        // not for a map outside the folders the editor opens maps from
-        if(this->databaseBeatmap && this->children.empty() && !BanchoState::is_in_a_multi_room() &&
-           !db->locate(*this->databaseBeatmap).file.empty())
-            cmenu->addButtonJustified(fmt::format("[=] {}", _("Edit")), TEXT_JUSTIFICATION::LEFT, 8)
-                ->setClickCallback(SA::MakeDelegate<&SongButton::onEditClicked>(this));
-
-        if(this->databaseBeatmap != nullptr && this->databaseBeatmap->getDifficulties().size() < 1)
-            cmenu->addButtonJustified("[+] Add to Collection", TEXT_JUSTIFICATION::LEFT, 1);
-
-        cmenu->addButtonJustified("[+Set] Add to Collection", TEXT_JUSTIFICATION::LEFT, 2);
-
-        if(g_songbrowser->getGroupingMode() == SongBrowser::GroupType::COLLECTIONS) {
-            CBaseUIButton *spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
-            spacer->setEnabled(false);
-            spacer->setTextColor(0xff888888);
-            spacer->setTextDarkColor(0xff000000);
-
-            if(this->databaseBeatmap == nullptr || this->databaseBeatmap->getDifficulties().size() < 1) {
-                cmenu->addButtonJustified("[-] Remove from Collection", TEXT_JUSTIFICATION::LEFT, 3);
-            }
-
-            cmenu->addButtonJustified("[-Set] Remove from Collection", TEXT_JUSTIFICATION::LEFT, 4);
-        }
-
-        CBaseUIButton *spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
-        spacer->setEnabled(false);
-        spacer->setTextColor(0xff888888);
-        spacer->setTextDarkColor(0xff000000);
-
-        if(this->databaseBeatmap) {
-            cmenu->addButtonJustified("[=] Export Beatmapset", TEXT_JUSTIFICATION::LEFT, 5);
-
-            spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
-            spacer->setEnabled(false);
-            spacer->setTextColor(0xff888888);
-            spacer->setTextDarkColor(0xff000000);
-
-            // the osu!stable songs folder is osu!stable's to manage: its sets get the items, greyed out
-            const BeatmapSet *set =
-                this->databaseBeatmap->getParentSet() ? this->databaseBeatmap->getParentSet() : this->databaseBeatmap;
-            const bool deletable = set->type == DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET;
-            auto grey_out = [](CBaseUIButton *button) {
-                button->setEnabled(false);
-                button->setTextColor(0xff888888);
-                button->setTextDarkColor(0xff000000);
-            };
-
-            // (a childless button stands for a single difficulty, a parent button for its set)
-            if(this->children.empty()) {
-                auto *button = cmenu->addButtonJustified("[-] Delete Beatmap", TEXT_JUSTIFICATION::LEFT, 6);
-                if(!deletable) grey_out(button);
-            }
-            auto *button = cmenu->addButtonJustified("[-Set] Delete Beatmapset", TEXT_JUSTIFICATION::LEFT, 7);
-            if(!deletable) grey_out(button);
-        }
-    }
-    cmenu->end(false, false);
-    cmenu->setClickCallback(SA::MakeDelegate<&SongButton::onContextMenu>(this));
-    cmenu->clampToRightScreenEdge();
-    cmenu->clampToBottomScreenEdge();
-}
-
-void SongButton::onContextMenu(std::string_view text, int id) {
-    assert(g_songbrowser->contextMenu);
-    auto *cmenu{g_songbrowser->contextMenu};
-
-    if(id == 1 || id == 2) {
-        // 1 = add map to collection
-        // 2 = add set to collection
-        cmenu->begin(0, true);
-        {
-            cmenu->addButtonJustified("[+] Create new Collection?", TEXT_JUSTIFICATION::LEFT, -id * 2);
-
-            auto sorted_collections = Collections::get_loaded();
-
-            // sort by name
-            Mc::ranges::stable_sort(sorted_collections, SString::strcase_comp, &Collections::Collection::get_name);
-
-            for(const auto &collection : sorted_collections) {
-                if(!collection.get_maps().empty()) {
-                    CBaseUIButton *spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
-                    spacer->setEnabled(false);
-                    spacer->setTextColor(0xff888888);
-                    spacer->setTextDarkColor(0xff000000);
-
-                    break;
-                }
-            }
-
-            auto map_hash = this->databaseBeatmap->getMD5();
-            for(const auto &collection : sorted_collections) {
-                if(collection.get_maps().empty()) continue;
-
-                bool can_add_to_collection = true;
-
-                if(id == 1) {
-                    if(Mc::ranges::contains(collection.get_maps(), map_hash)) {
-                        // Map already is present in the collection
-                        can_add_to_collection = false;
-                    }
-                }
-
-                if(id == 2) {
-                    // XXX: Don't mark as valid if the set is fully present in the collection
-                }
-
-                auto collectionButton =
-                    cmenu->addButtonJustified(collection.get_name(), TEXT_JUSTIFICATION::CENTERED, id);
-                if(!can_add_to_collection) {
-                    collectionButton->setEnabled(false);
-                    collectionButton->setTextColor(0xff555555);
-                    collectionButton->setTextDarkColor(0xff000000);
-                }
-            }
-        }
-        cmenu->end(false, true);
-        cmenu->setClickCallback(SA::MakeDelegate<&SongButton::onAddToCollectionConfirmed>(this));
-        cmenu->clampToRightScreenEdge();
-        cmenu->clampToBottomScreenEdge();
-    } else if(id == 3 || id == 4 || id == 5) {
-        // 3 = remove map from collection
-        // 4 = remove set from collection
-        // 5 = export beatmapset
-        g_songbrowser->onSongButtonContextMenu(this, text, id);
-    } else if(id == 6 || id == 7) {
-        // 6 = delete beatmap (from disk)
-        // 7 = delete beatmapset (from disk)
-        cmenu->begin(0, true);
-        {
-            cmenu
-                ->addButtonJustified(id == 6 ? "Really delete this beatmap?" : "Really delete this beatmapset?",
-                                     TEXT_JUSTIFICATION::LEFT)
-                ->setEnabled(false);
-
-            CBaseUIButton *spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
-            spacer->setEnabled(false);
-            spacer->setTextColor(0xff888888);
-            spacer->setTextDarkColor(0xff000000);
-
-            cmenu->addButtonJustified("Yes", TEXT_JUSTIFICATION::LEFT, id);
-            cmenu->addButtonJustified("No", TEXT_JUSTIFICATION::LEFT);
-        }
-        cmenu->end(false, false);
-        cmenu->setClickCallback(SA::MakeDelegate<&SongButton::onDeleteBeatmapConfirmed>(this));
-        cmenu->clampToRightScreenEdge();
-        cmenu->clampToBottomScreenEdge();
-    }
-}
-
-void SongButton::onAddToCollectionConfirmed(std::string_view text, int id) {
-    assert(g_songbrowser->contextMenu);
-    auto *cmenu{g_songbrowser->contextMenu};
-
-    if(id == -2 || id == -4) {
-        cmenu->begin(0, true);
-        {
-            CBaseUIButton *label = cmenu->addButtonJustified("Enter Collection Name:", TEXT_JUSTIFICATION::CENTERED);
-            label->setEnabled(false);
-
-            CBaseUIButton *spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
-            spacer->setEnabled(false);
-            spacer->setTextColor(0xff888888);
-            spacer->setTextDarkColor(0xff000000);
-
-            cmenu->addTextbox("", id);
-
-            spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
-            spacer->setEnabled(false);
-            spacer->setTextColor(0xff888888);
-            spacer->setTextDarkColor(0xff000000);
-
-            label = cmenu->addButtonJustified("(Press ENTER to confirm.)", TEXT_JUSTIFICATION::CENTERED, id);
-            label->setTextColor(0xff555555);
-            label->setTextDarkColor(0xff000000);
-        }
-        cmenu->end(false, false);
-        cmenu->setClickCallback(SA::MakeDelegate<&SongButton::onCreateNewCollectionConfirmed>(this));
-        cmenu->clampToRightScreenEdge();
-        cmenu->clampToBottomScreenEdge();
-    } else {
-        // just forward it
-        g_songbrowser->onSongButtonContextMenu(this, text, id);
-    }
-}
-
-void SongButton::onCreateNewCollectionConfirmed(std::string_view text, int id) {
-    if(id == -2 || id == -4) {
-        // just forward it
-        g_songbrowser->onSongButtonContextMenu(this, text, id);
-    }
-}
-
-void SongButton::onDeleteBeatmapConfirmed(std::string_view text, int id) {
-    // ("No" carries no id.) NOTE: deleting removes this button, so nothing may touch it after the call
-    if(id == 6 || id == 7) {
-        g_songbrowser->onSongButtonContextMenu(this, text, id);
-    }
-}
-
 float SongButton::calculateGradeScale() {
     const vec2 size = this->getActualSize();
-    const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->grade);
+    const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->getGrade());
     return Osu::getRectScaleToFitResolution(gradeImg.getSizeBaseRaw(), vec2(size.x, size.y * this->fGradeScale));
 }
 
 float SongButton::calculateGradeWidth() {
-    const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->grade);
+    const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->getGrade());
     return gradeImg.getSizeBaseRaw().x * this->calculateGradeScale();
-}
-
-void SongButton::onEditClicked() {
-    g_songbrowser->contextMenu->setVisible2(false);
-    if(!this->databaseBeatmap) return;
-    ui->getEditorScreen()->enter(db->locate(*this->databaseBeatmap));
-}
-
-void SongButton::onOpenBeatmapFolderClicked() {
-    assert(g_songbrowser->contextMenu);
-
-    g_songbrowser->contextMenu->setVisible2(false);  // why is this manual setVisible not required in mcosu?
-    if(!this->databaseBeatmap) return;
-    env->openFileBrowser(this->databaseBeatmap->getFolder());
 }

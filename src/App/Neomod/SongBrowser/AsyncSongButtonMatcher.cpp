@@ -152,22 +152,6 @@ static Query parse_query(std::string_view search) {
     return query;
 }
 
-// ---- matching (done once per index entry) -----------------------------------
-
-// the text of index entry i is [textEnd[i - 1], textEnd[i])
-std::string_view entry_text(const SearchIndex &index, size_t i) {
-    const u32 begin = i == 0 ? 0 : index.textEnd[i - 1];
-    return std::string_view{index.text}.substr(begin, index.textEnd[i] - begin);
-}
-
-// the nth \0-terminated field of an entry text
-std::string_view entry_field(std::string_view text, int n) {
-    size_t begin = 0;
-    for(; n > 0; n--) begin = text.find('\0', begin) + 1;
-    return text.substr(begin, text.find('\0', begin) - begin);
-}
-
-// evaluate one stat filter against an index entry.
 bool eval_expression(const Expression &expr, const SearchIndex &index, size_t i, float stars, float speed) {
     const auto length_ms = index.lengthMS[i];
     const auto num_objects = index.circles[i] + index.sliders[i] + index.spinners[i];
@@ -182,8 +166,8 @@ bool eval_expression(const Expression &expr, const SearchIndex &index, size_t i,
         return is_percent ? (float)count / (float)num_objects * 100.0f : (float)count;
     };
 
-    float lhs = 5.0f;           // the keyword's numeric value for this diff
-    std::string_view lhs_text;  // its string value (lowercased, CREATOR and ARTIST are the string-valued keywords)
+    float lhs = 5.0f;  // the keyword's numeric value for this diff
+    std::string_view lhs_text;
     switch(expr.keyword) {
         using enum KWID;
         case AR:
@@ -226,14 +210,13 @@ bool eval_expression(const Expression &expr, const SearchIndex &index, size_t i,
             lhs = (float)length_ms / 1000.0f;
             break;
         case STARS:
-            // snapshotted on the main thread at submit time
             lhs = std::round(stars * 100.0f) / 100.0f;  // 2 decimal places
             break;
         case STR_CREATOR:
-            lhs_text = entry_field(entry_text(index, i), 2);
+            lhs_text = index.view(index.creator[i]);
             break;
         case STR_ARTIST:
-            lhs_text = entry_field(entry_text(index, i), 1);
+            lhs_text = index.view(index.artist[i]);
             break;
     }
 
@@ -256,20 +239,17 @@ bool eval_expression(const Expression &expr, const SearchIndex &index, size_t i,
     std::unreachable();
 }
 
-// an entry matches when it satisfies every stat filter and its text contains every needle.
-// the needles are lowercased like the latin fields, the unicode fields are matched as they are
 bool matches(const SearchIndex &index, size_t i, float stars, const Query &query, float speed) {
     for(const auto &expr : query.expressions)
         if(!eval_expression(expr, index, i, stars, speed)) return false;
 
-    const std::string_view text = entry_text(index, i);
+    const std::string_view text = index.view(index.haystack[i]);
     for(const auto &needle : query.needles)
         if(!text.contains(needle)) return false;
 
     return true;
 }
 
-// whether everything matching next also matches prev, so only the matches of prev need checking again
 bool narrows(const Query &prev, const Query &next) {
     for(const auto &e : prev.expressions) {
         if(!Mc::ranges::any_of(next.expressions, [&e](const Expression &n) {
@@ -285,19 +265,23 @@ bool narrows(const Query &prev, const Query &next) {
     return true;
 }
 
-void append_lower(std::string &out, std::string_view str) {
-    const size_t begin = out.size();
+SearchIndex::TextRange append_lower(std::string &out, std::string_view str) {
+    const u32 begin = (u32)out.size();
     out.append(str);
     for(size_t i = begin; i < out.size(); i++) out[i] = (char)SString::ascii_tolower((unsigned char)out[i]);
+    const u32 end = (u32)out.size();
     out.push_back('\0');
+    return {begin, end};
 }
 
 }  // namespace
 
-void SearchIndex::add(const DatabaseBeatmap &diff) {
+void SearchIndex::add(const DatabaseBeatmap &diff, u32 id) {
+    this->ids.push_back(id);
+    const u32 begin = (u32)this->text.size();
     append_lower(this->text, diff.getTitleLatin());
-    append_lower(this->text, diff.getArtistLatin());
-    append_lower(this->text, diff.getCreator());
+    this->artist.push_back(append_lower(this->text, diff.getArtistLatin()));
+    this->creator.push_back(append_lower(this->text, diff.getCreator()));
     append_lower(this->text, diff.getDifficultyName());
     append_lower(this->text, diff.getSource());
     append_lower(this->text, diff.getTags());
@@ -310,7 +294,7 @@ void SearchIndex::add(const DatabaseBeatmap &diff) {
         this->text.append(unicode);
         this->text.push_back('\0');
     }
-    this->textEnd.push_back((u32)this->text.size());
+    this->haystack.push_back({begin, (u32)this->text.size()});
 
     this->ar.push_back(diff.getAR());
     this->cs.push_back(diff.getCS());
@@ -341,12 +325,13 @@ bool filtersByStars(std::string_view query) {
                               [](const Expression &e) { return e.keyword == KWID::STARS; });
 }
 
-Async::CancellableHandle<SearchResult> submitSearchMatch(std::shared_ptr<const SearchIndex> index,
-                                                         std::vector<f32> stars, std::string query, f32 speed,
-                                                         std::shared_ptr<const SearchResult> previous) {
+Async::CancellableHandle<std::optional<SearchResult>> submitSearchMatch(std::shared_ptr<const SearchIndex> index,
+                                                                        std::vector<f32> stars, std::string query,
+                                                                        f32 speed,
+                                                                        std::shared_ptr<const SearchResult> previous) {
     return Async::submit_cancellable(
         [index = std::move(index), stars = std::move(stars), query = std::move(query), speed,
-         previous = std::move(previous)](const Sync::stop_token &tok) -> SearchResult {
+         previous = std::move(previous)](const Sync::stop_token &tok) -> std::optional<SearchResult> {
             const Query parsed = parse_query(query);
             const bool narrowing = previous && previous->index == index && previous->speed == speed &&
                                    narrows(parse_query(previous->query), parsed);
@@ -357,11 +342,7 @@ Async::CancellableHandle<SearchResult> submitSearchMatch(std::shared_ptr<const S
                 if(narrowing && !previous->matches[i]) continue;
                 result.matches[i] = matches(*index, i, stars.empty() ? 0.f : stars[i], parsed, speed);
 
-                // cancellation point, a cancelled search has no matches
-                if((i & 1023) == 0 && tok.stop_requested()) {
-                    result.matches.clear();
-                    break;
-                }
+                if((i & 1023) == 0 && tok.stop_requested()) return std::nullopt;
             }
             return result;
         },

@@ -5,6 +5,7 @@
 #include "AnimationHandler.h"
 #include "AsyncCancellable.h"
 #include "AsyncSongButtonMatcher.h"
+#include "CarouselData.h"
 #include "Registration.h"
 #include "MapFetcher.h"
 #include "MD5Hash.h"
@@ -28,10 +29,6 @@ class UIContextMenu;
 class UISearchOverlay;
 class InfoLabel;
 class ScoreButton;
-class CarouselButton;
-class SongButton;
-class SongDifficultyButton;
-class CollectionButton;
 
 class CBaseUIContainer;
 class CBaseUIImageButton;
@@ -72,7 +69,6 @@ extern BeatmapCarousel *g_carousel;
 // TODOs:
 // - make more of the stuff in here private and have an actual exposed public API surface
 // - move all of the scrolling/button management logic to BeatmapCarousel
-// - use a more well-defined data structure for buttons that doesn't require a shitton of confusing redundant work
 class SongBrowser final : public ScreenBackable {
     NOCOPY_NOMOVE(SongBrowser)
    private:
@@ -87,20 +83,14 @@ class SongBrowser final : public ScreenBackable {
     GlobalSongBrowserCtorDtor global_songbrowser_;
 
     friend BeatmapCarousel;
-    friend SongButton;
-    friend SongDifficultyButton;
-    friend CollectionButton;
-    friend CarouselButton;
     friend ScoreButton;
 
    public:
-    using CollBtnContainer = std::vector<std::unique_ptr<CollectionButton>>;
+    // group indices (into CarouselData::groups) for one grouping, in display order
+    using GroupList = std::vector<u32>;
 
     using SortType = SortTypes::type;
     using GroupType = GroupTypes::type;
-
-    // used also by SongButton
-    static bool sort_by_difficulty(SongButton const *a, SongButton const *b);
 
     static f32 getUIScale();
     static i32 getUIScale(f32 m) { return (i32)(m * getUIScale()); }
@@ -133,12 +123,24 @@ class SongBrowser final : public ScreenBackable {
     void selectSelectedBeatmapSongButton();
     void onPlayEnd(bool quit = true);  // called when a beatmap is finished playing (or the player quit)
 
-    void onSelectionChange(CarouselButton *button, bool rebuild);
+    void onSelectionChange(CarouselNode node, bool rebuild);
     void onDifficultySelected(DatabaseBeatmap *map, bool play = false);
 
     void onScoreContextMenu(ScoreButton *scoreButton, int id);
-    void onSongButtonContextMenu(SongButton *songButton, std::string_view text, int id);
-    void onCollectionButtonContextMenu(CollectionButton *collectionButton, std::string_view text, int id);
+
+    using SelOpts = CarouselSelOpts;
+    void select(CarouselNode node, SelOpts opts = {});
+    [[nodiscard]] bool isSelected(CarouselNode node) const;
+    // only difficulties can not match the search
+    [[nodiscard]] bool isSearchMatch(CarouselNode node) const;
+    [[nodiscard]] DatabaseBeatmap *getBeatmap(CarouselNode node) const;
+    [[nodiscard]] ScoreGrade getGrade(CarouselNode node) const;
+    // a difficulty shown on its own instead of under its selected set (every other row is independent)
+    [[nodiscard]] bool isIndependentDiff(CarouselNode node) const;
+    [[nodiscard]] inline const CarouselData &getCarouselData() const { return this->data; }
+    void openContextMenu(CarouselNode node, vec2 pos);
+    void maybeUpdateGrade(u32 diff);
+    void maybeUpdateSetGrades(u32 set);
 
     void highlightScore(const FinishedScore &scoreToHighlight);
     // returns whether there was another song to select
@@ -155,17 +157,16 @@ class SongBrowser final : public ScreenBackable {
     // place, removed) onto its buttons, keeping the selection where possible
     void applyReconcile(const ReconcileResult &r);
 
-    void requestNextScrollToSongButtonJumpFix(SongDifficultyButton *diffButton);
-    [[nodiscard]] bool isButtonVisible(CarouselButton *songButton) const;
+    void requestNextScrollToSongButtonJumpFix(u32 diff);
+    [[nodiscard]] bool isButtonVisible(CarouselNode node) const;
     bool scrollToBestButton();  // returns true if a scroll happened
-    void scrollToSongButton(CarouselButton *songButton, bool alignOnTop = false, bool knownVisible = false);
+    void scrollToSongButton(CarouselNode node, bool alignOnTop = false, bool knownVisible = false);
     void rebuildSongButtons();
     void recreateCollectionsButtons();
     void onGotNewLeaderboard(const MD5Hash &lbHash);
     // recomputes the grade every difficulty and set button shows
     void refreshGrades();
     void rebuildScoreButtons();
-    void partiallyUpdateSongButtonLayout(const std::vector<CarouselButton *> &btns, f32 y);
     void updateSongButtonLayout();
 
     enum class SetVisibility : u8 {
@@ -174,15 +175,14 @@ class SongBrowser final : public ScreenBackable {
         SHOW_PARENT    // 2+ children or parent selected (show parent+children)
     };
 
-    [[nodiscard]] SetVisibility getSetVisibility(const SongButton *parent) const;
-
-    [[nodiscard]] inline const CollBtnContainer &getCollectionButtons() const { return this->collectionButtons; }
+    [[nodiscard]] SetVisibility getSetVisibility(u32 set) const;
 
     [[nodiscard]] inline bool isInSearch() const { return this->bInSearch; }
     [[nodiscard]] inline bool isRightClickScrolling() const { return this->bSongBrowserRightClickScrolling; }
 
     [[nodiscard]] inline InfoLabel *getInfoLabel() const { return this->songInfo; }
-    [[nodiscard]] SongDifficultyButton *getDiffButtonByHash(const MD5Hash &diff_hash) const;
+    [[nodiscard]] CarouselNode getDiffNodeByHash(const MD5Hash &diff_hash) const;
+    [[nodiscard]] inline bool isCarouselBuilt() const { return !this->setOrder.empty(); }
 
     // Map sorting/filtering
     struct MAP_SORTING_METHOD {
@@ -255,7 +255,7 @@ class SongBrowser final : public ScreenBackable {
 
     void onScoreClicked(ScoreButton *button);
 
-    void selectSongButton(CarouselButton *songButton);
+    void selectSongButton(CarouselNode node);
     // returns whether there was a previous random beatmap to go back to
     bool selectPreviousRandomBeatmap();
     void playSelectedDifficulty();
@@ -282,7 +282,32 @@ class SongBrowser final : public ScreenBackable {
     void unlinkBeatmapSet(const BeatmapSet *set);
     void rebuildAfterSetChange();
 
-    CollBtnContainer *getCollectionButtonsForGroup(GroupType group);
+    GroupList *getCollectionButtonsForGroup(GroupType group);
+
+    void setSelected(CarouselNode node, bool selected);
+    void onSetSelected(u32 set, bool wasSelected, SelOpts opts);
+    void onDiffSelected(u32 diff, bool wasSelected, SelOpts opts);
+    bool sortSetChildren(u32 set);
+    // sorts the set difficulties and makes the bottom matching one represent the set
+    void updateSetRepresentative(u32 set);
+    void updateSetRepresentatives();
+    void updateGrade(u32 diff);
+    [[nodiscard]] f32 getNodeY(CarouselNode node) const;
+    [[nodiscard]] std::vector<f32> layoutRows(const std::vector<CarouselNode> &rows) const;
+
+    void openSongContextMenu(vec2 pos);
+    void onSongContextMenu(std::string_view text, int id = -1);
+    void onAddToCollectionConfirmed(std::string_view text, int id = -1);
+    void onCreateNewCollectionConfirmed(std::string_view text, int id = -1);
+    void onDeleteBeatmapConfirmed(std::string_view text, int id = -1);
+    void onSongContextMenuAction(std::string_view text, int id);
+    void onOpenBeatmapFolderClicked();
+    void onEditClicked();
+    void openGroupContextMenu(vec2 pos);
+    void onGroupContextMenu(std::string_view text, int id = -1);
+    void onRenameCollectionConfirmed(std::string_view text, int id = -1);
+    void onDeleteCollectionConfirmed(std::string_view text, int id = -1);
+    void onGroupContextMenuAction(std::string_view text, int id);
 
     void drawStrainGraphOverlay();
     StrainGraph strainGraph;
@@ -327,7 +352,7 @@ class SongBrowser final : public ScreenBackable {
     // vElements + the manually-managed containers (topbars, score browser, carousel, ...);
     // rebuilt on each getAllChildren() call (not for per-frame use)
     mutable std::vector<CBaseUIElement *> allChildren;
-    CarouselButton *selectedButton = nullptr;
+    CarouselNode selectedButton;
     bool bSongBrowserRightClickScrollCheck;
     bool bSongBrowserRightClickScrolling;
     bool bNextScrollToSongButtonJumpFixScheduled;
@@ -343,16 +368,16 @@ class SongBrowser final : public ScreenBackable {
 
    private:
     // song browser selection state logic
-    SongButton *selectionPreviousSongButton;
-    SongDifficultyButton *selectionPreviousSongDiffButton;
-    CollectionButton *selectionPreviousCollectionButton;
+    CarouselNode selectionPreviousSongButton;
+    CarouselNode selectionPreviousSongDiffButton;
+    CarouselNode selectionPreviousCollectionButton;
+    CarouselNode contextMenuNode;
 
     // beatmap database
-   public:
-    std::vector<SongButton *> parentButtons;
+    CarouselData data;
+    std::vector<u32> setOrder;
 
-   private:
-    std::vector<CarouselButton *> visibleSongButtons;
+    std::vector<CarouselNode> visibleSongButtons;
     class BeatmapLoadingOverlay;
     friend BeatmapLoadingOverlay;
     UIOverlay *loadingOverlay{nullptr};
@@ -367,16 +392,16 @@ class SongBrowser final : public ScreenBackable {
     struct PendingReselect;
     std::unique_ptr<PendingReselect> reselect;
 
-    CollBtnContainer titleCollectionButtons;
-    CollBtnContainer artistCollectionButtons;
-    CollBtnContainer creatorCollectionButtons;
+    GroupList titleCollectionButtons;
+    GroupList artistCollectionButtons;
+    GroupList creatorCollectionButtons;
 
-    CollBtnContainer dateaddedCollectionButtons;  // not implemented yet
-    CollBtnContainer difficultyCollectionButtons;
-    CollBtnContainer bpmCollectionButtons;
-    CollBtnContainer lengthCollectionButtons;
+    GroupList dateaddedCollectionButtons;  // not implemented yet
+    GroupList difficultyCollectionButtons;
+    GroupList bpmCollectionButtons;
+    GroupList lengthCollectionButtons;
 
-    CollBtnContainer collectionButtons;
+    GroupList collectionButtons;
 
     std::string sLastOsuFolder;
 
@@ -412,10 +437,8 @@ class SongBrowser final : public ScreenBackable {
     bool bShouldRecountMatchesAfterSearch{true};
     i32 currentVisibleSearchMatches{0};
     std::optional<GroupType> searchPrevGroup{std::nullopt};
-    Async::CancellableHandle<AsyncSongButtonMatcher::SearchResult> searchHandle;
-    // built on the first search after the sets changed, searchIndexButtons[i] is the button of index entry i
+    Async::CancellableHandle<std::optional<AsyncSongButtonMatcher::SearchResult>> searchHandle;
     std::shared_ptr<const AsyncSongButtonMatcher::SearchIndex> searchIndex;
-    std::vector<SongButton *> searchIndexButtons;
     std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> lastSearch;
     void invalidateSearchIndex();
 };

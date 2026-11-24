@@ -1,8 +1,6 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "SongDifficultyButton.h"
 
-#include <utility>
-
 #include "BeatmapCarousel.h"
 #include "Font.h"
 #include "SongBrowser.h"
@@ -11,41 +9,15 @@
 
 #include "AnimationHandler.h"
 #include "BackgroundImageHandler.h"
-#include "Bancho.h"
-#include "BeatmapInterface.h"
 #include "OsuConVars.h"
-#include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
-#include "ReplayFile.h"
 #include "Graphics.h"
 #include "Osu.h"
 #include "Skin.h"
-#include "SoundEngine.h"
+#include "score.h"
 
 using namespace neomod::sbr;
-
-SongDifficultyButton::SongDifficultyButton(float xPos, float yPos, float xSize, float ySize, BeatmapDifficulty* diff,
-                                           SongButton* parentSongButton)
-    : SongButton(xPos, yPos, xSize, ySize) {
-    // must exist and be a difficulty
-    assert(diff && diff->getDifficulties().empty());
-
-    this->databaseBeatmap = diff;
-    this->parentSongButton = parentSongButton;
-
-    // settings
-    this->setHideIfSelected(false);
-    this->bUpdateGradeScheduled = true;
-
-    if(g_songbrowser->curSortMethod == SongBrowser::SortType::RANKACHIEVED) {
-        this->updateGrade();
-    }
-
-    this->updateLayoutEx();
-}
-
-SongDifficultyButton::~SongDifficultyButton() = default;
 
 void SongDifficultyButton::draw() {
     // NOTE(spec): we don't need this check because the updateClipping() call in the scrollview already sets visibility
@@ -56,7 +28,9 @@ void SongDifficultyButton::draw() {
     // we intentionally leapfrog SongButtons for some methods
     CarouselButton::draw();  // NOLINT(bugprone-parent-virtual-call)
 
-    const bool isIndependentDiff = this->isIndependentDiffButton();
+    const bool isIndependentDiff = g_songbrowser->isIndependentDiff(this->node);
+    const bool selected = this->isSelected();
+    const DatabaseBeatmap* map = this->getDatabaseBeatmap();
 
     const auto& skin = osu->getSkin();
 
@@ -67,11 +41,10 @@ void SongDifficultyButton::draw() {
     // delay requesting the image itself a bit
     if(this->fVisibleFor >= ((std::clamp<f32>(cv::songbrowser_thumbnail_delay.getFloat(), 0.f, 2.f)) / 4.f)) {
         // draw background image
-        this->drawBeatmapBackgroundThumbnail(
-            osu->getBackgroundImageHandler()->getLoadBackgroundImage(this->databaseBeatmap));
+        this->drawBeatmapBackgroundThumbnail(osu->getBackgroundImageHandler()->getLoadBackgroundImage(map));
     }
 
-    if(this->grade != ScoreGrade::N) this->drawGrade();
+    if(this->getGrade() != ScoreGrade::N) this->drawGrade();
 
     this->drawTitle(!isIndependentDiff ? 0.2f : 1.0f);
     this->drawSubTitle(!isIndependentDiff ? 0.2f : 1.0f);
@@ -81,7 +54,7 @@ void SongDifficultyButton::draw() {
     const float titleScale = (size.y * this->fTitleScale) / this->font->getHeight();
     const float subTitleScale = (size.y * this->fSubTitleScale) / this->font->getHeight();
     const float diffScale = (size.y * this->fDiffScale) / fontBold->getHeight();
-    g->setColor(this->bSelected ? skin->c_song_select_active_text : skin->c_song_select_inactive_text);
+    g->setColor(selected ? skin->c_song_select_active_text : skin->c_song_select_inactive_text);
     g->pushTransform();
     {
         g->scale(diffScale, diffScale);
@@ -89,13 +62,13 @@ void SongDifficultyButton::draw() {
                      pos.y + size.y * this->fTextMarginScale + this->font->getHeight() * titleScale +
                          size.y * this->fTextSpacingScale + this->font->getHeight() * subTitleScale * 0.85f +
                          size.y * this->fTextSpacingScale + fontBold->getHeight() * diffScale * 0.8f);
-        g->drawString(fontBold, this->databaseBeatmap->getDifficultyName());
+        g->drawString(fontBold, map->getDifficultyName());
     }
     g->popTransform();
 
     // draw stars
     // NOTE: stars can sometimes be infinity! (e.g. broken osu!.db database)
-    float stars = this->databaseBeatmap->getStarRating(StarPrecalc::active_idx);
+    float stars = map->getStarRating(StarPrecalc::active_idx);
     if(stars > 0) {
         const float starOffsetY = (size.y * 0.85);
         const float starWidth = (size.y * 0.2);
@@ -104,7 +77,7 @@ void SongDifficultyButton::draw() {
         const float partialStarScale =
             std::max(0.5f, std::clamp<float>(stars - numFullStars, 0.0f, 1.0f));  // at least 0.5x
 
-        g->setColor(this->bSelected ? skin->c_song_select_active_text : skin->c_song_select_inactive_text);
+        g->setColor(selected ? skin->c_song_select_active_text : skin->c_song_select_inactive_text);
 
         // full stars
         for(int i = 0; i < numFullStars; i++) {
@@ -151,13 +124,6 @@ void SongDifficultyButton::draw() {
     }
 }
 
-void SongDifficultyButton::updateInput(CBaseUIEventCtx& c) {
-    if(!this->bVisible) {
-        return;
-    }
-    CarouselButton::updateInput(c);  // NOLINT(bugprone-parent-virtual-call)
-}
-
 void SongDifficultyButton::tick() {
     CarouselButton::tick();  // NOLINT(bugprone-parent-virtual-call)
     if(!this->bVisible) {
@@ -171,7 +137,7 @@ void SongDifficultyButton::tick() {
         this->fVisibleFor = 0.f;
 
     // dynamic settings (moved from constructor to here)
-    const bool newOffsetPercentSelectionState = (this->bSelected || !this->isIndependentDiffButton());
+    const bool newOffsetPercentSelectionState = this->isIndented();
 
     if(this->lastOffsetState == OffsetState::UNINITIALIZED ||
        newOffsetPercentSelectionState != (this->lastOffsetState == OffsetState::SELECTED)) {
@@ -186,9 +152,25 @@ void SongDifficultyButton::tick() {
 
     this->setOffsetPercent(std::lerp(0.0f, 0.075f, this->fOffsetPercentAnim));
 
-    if(this->bUpdateGradeScheduled) {
-        this->updateGrade();
+    g_songbrowser->maybeUpdateGrade(this->node.idx);
+}
+
+bool SongDifficultyButton::isIndented() const {
+    return this->isSelected() || !g_songbrowser->isIndependentDiff(this->node);
+}
+
+void SongDifficultyButton::assign(CarouselNode node, bool shownBefore) {
+    SongButton::assign(node, shownBefore);
+    this->fOffsetPercentAnim.stop();
+    if(shownBefore) {
+        const bool offset = this->isIndented();
+        this->lastOffsetState = offset ? OffsetState::SELECTED : OffsetState::DESELECTED;
+        this->fOffsetPercentAnim = offset ? 1.f : 0.f;
+    } else {
+        this->lastOffsetState = OffsetState::UNINITIALIZED;
+        this->fOffsetPercentAnim = 0.f;
     }
+    this->setOffsetPercent(std::lerp(0.0f, 0.075f, this->fOffsetPercentAnim));
 }
 
 void SongDifficultyButton::resetAnimations() {
@@ -200,74 +182,8 @@ void SongDifficultyButton::resetAnimations() {
     this->fOffsetPercentAnim = 0.f;
 }
 
-void SongDifficultyButton::onClicked(MouseButtonFlags buttons) {
-    // NOTE: Intentionally not calling Button::onClicked(buttons), since that one plays another sound
-    CBaseUIButton::onClicked(buttons);  // NOLINT(bugprone-parent-virtual-call)
-
-    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) {
-        soundEngine->play(osu->getSkin()->s_select_difficulty);
-
-        this->select();
-    }
-}
-
-void SongDifficultyButton::onSelected(bool wasSelected, SelOpts opts) {
-    CarouselButton::onSelected(wasSelected, opts);  // NOLINT(bugprone-parent-virtual-call)
-
-    const bool wasParentActuallySelected =
-        !this->isIndependentDiffButton() && !(opts.parentUnselected) && this->parentSongButton->isSelected();
-
-    this->updateGrade();
-
-    // debugLog(
-    //     "wasParentActuallySelected {} isIndependentDiffButton {} parentSongButton {} "
-    //     "parentSongButton->isSelected {}",
-    //     wasParentActuallySelected, isIndependentDiffButton(), !!parentSongButton, parentSongButton->isSelected());
-
-    if(!wasParentActuallySelected) {
-        // debugLog("running scroll jump fix for {}",
-        //          this->databaseBeatmap ? this->databaseBeatmap->getFilePath() : "???");
-        g_songbrowser->requestNextScrollToSongButtonJumpFix(this);
-    }
-
-    g_songbrowser->onSelectionChange(this, true);
-    g_songbrowser->onDifficultySelected(this->databaseBeatmap, wasSelected);
-    g_songbrowser->scrollToSongButton(this, /*alignOnTop=*/false, /*knownVisible=*/true);
-}
-
-void SongDifficultyButton::updateGrade() {
-    if(!cv::scores_enabled.getBool()) {
-        return;
-    }
-    this->bUpdateGradeScheduled = false;
-
-    const bool currentName = cv::songbrowser_grades_current_name.getBool();
-    const bool currentServer = cv::songbrowser_grades_current_server.getBool();
-    const std::string_view server = BanchoState::is_online() ? std::string_view{BanchoState::endpoint} : "";
-
-    ScoreGrade maxGrade{ScoreGrade::N};
-    {
-        Sync::shared_lock lock(db->scores_mtx);
-        const auto& dbScoreIt = db->getScores().find(this->databaseBeatmap->getMD5());
-        if(dbScoreIt != db->getScores().end()) {
-            for(const auto& score : dbScoreIt->second) {
-                if(currentName && score.playerName != BanchoState::get_username()) continue;
-                if(currentServer && score.server != server) continue;
-                if(score.grade < maxGrade) {
-                    maxGrade = score.grade;
-                }
-            }
-        }
-    }
-
-    this->grade = maxGrade;
-    if(this->parentSongButton->getGrade() > maxGrade) {
-        this->parentSongButton->setGrade(maxGrade);
-    }
-}
-
 Color SongDifficultyButton::getInactiveBackgroundColor() const {
-    if(this->isIndependentDiffButton())
+    if(g_songbrowser->isIndependentDiff(this->node))
         return SongButton::getInactiveBackgroundColor();
     else
         return ARGB_CV_TO_COL(songbrowser_button_difficulty_inactive_color);

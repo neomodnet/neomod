@@ -627,7 +627,7 @@ msgid "File"
 msgstr "Файл"
 
 #: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
-#: src/App/Neomod/MainMenu.cpp src/App/Neomod/SongBrowser/SongButton.cpp
+#: src/App/Neomod/MainMenu.cpp src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Edit"
 msgstr "Редагування"
 

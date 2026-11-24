@@ -89,6 +89,8 @@ class CBaseUIScrollView : public CBaseUIElement {
         return this;
     }
 
+    static constexpr f32 CLIPPING_SCALE{1.15f};
+
     CBaseUIScrollView *setScrollSizeToContent(int border = 5);
     // for views that know their content extent without walking the container
     CBaseUIScrollView *setScrollSize(dvec2 scrollSize);
