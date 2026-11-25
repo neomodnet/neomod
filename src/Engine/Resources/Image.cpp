@@ -455,11 +455,23 @@ bool Image::resize(i32 w, i32 h) {
                  this->iHeight, w, h);
         return false;
     }
+    const i32 keptTilesX = (std::min(w, this->iWidth) + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
+    const i32 keptTilesY = (std::min(h, this->iHeight) + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
     this->iWidth = w;
     this->iHeight = h;
-
-    this->bDirtyFull = true;
     this->bResized = true;
+
+    if(this->bDirtyFull || this->dirtyGrid.empty()) {
+        this->bDirtyFull = true;
+        return true;
+    }
+
+    this->dirtyGridW = (this->iWidth + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
+    this->dirtyGridH = (this->iHeight + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
+    this->dirtyGrid.assign(static_cast<size_t>(this->dirtyGridW) * this->dirtyGridH, 0);
+    for(i32 ty = 0; ty < keptTilesY; ty++) {
+        std::memset(&this->dirtyGrid[static_cast<size_t>(ty) * this->dirtyGridW], 1, keptTilesX);
+    }
     return true;
 }
 

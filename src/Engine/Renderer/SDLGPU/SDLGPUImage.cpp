@@ -133,7 +133,8 @@ void SDLGPUImage::initAsync() {
         texInfo.type = SDL_GPU_TEXTURETYPE_2D;
         texInfo.format = (SDL_GPUTextureFormat)SDLGPUInterface::DEFAULT_TEXTURE_FORMAT;
         texInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-        if(this->bMipmapped) texInfo.usage |= SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;  // needed for GenerateMipmaps
+        // needed for GenerateMipmaps and the clear after a resize
+        if(this->bMipmapped || this->wasResized()) texInfo.usage |= SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
         texInfo.width = (u32)this->iWidth;
         texInfo.height = (u32)this->iHeight;
         texInfo.layer_count_or_depth = 1;
@@ -256,6 +257,16 @@ void SDLGPUImage::uploadPixelData() {
     // upload via copy pass, then generate mipmaps
     SDL_GPUFence *fence = nullptr;
     if(auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device)) {
+        if(this->wasResized() && !fullImage) {
+            SDL_GPUColorTargetInfo clearTarget{};
+            clearTarget.texture = m_texture;
+            clearTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+            clearTarget.store_op = SDL_GPU_STOREOP_STORE;
+            if(auto *clearPass = SDL_BeginGPURenderPass(cmdBuf, &clearTarget, 1, nullptr)) {
+                SDL_EndGPURenderPass(clearPass);
+            }
+        }
+
         auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf);
         if(copyPass) {
             if(fullImage) {

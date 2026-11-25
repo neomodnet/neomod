@@ -13,6 +13,7 @@
 #include "Logging.h"
 
 #include "OpenGLHeaders.h"
+#include "OpenGLStateCache.h"
 #include "SDLGLInterface.h"
 
 OpenGLImage::~OpenGLImage() {
@@ -72,16 +73,35 @@ void OpenGLImage::init() {
         // rebind
         if(!glTextureWasEmpty) glBindTexture(GL_TEXTURE_2D, this->GLTexture);
 
-        if(glTextureWasEmpty || this->wasResized()) {
+        auto dirtyRects = this->getDirtyRects();
+        const bool fullImage = dirtyRects.size() == 1 && dirtyRects[0].getWidth() == this->iWidth &&
+                               dirtyRects[0].getHeight() == this->iHeight;
+        const bool newStorage = glTextureWasEmpty || this->wasResized();
+
+        if(newStorage && fullImage) {
             // first upload or new size: must use glTexImage2D to (re)allocate texture storage
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->rawImage.getX(), this->rawImage.getY(), 0, GL_RGBA,
                          GL_UNSIGNED_BYTE, this->rawImage.get());
         } else {
-            // reupload: use glTexSubImage2D with dirty rects to avoid full reupload
-            auto dirtyRects = this->getDirtyRects();
-            const bool fullImage = dirtyRects.size() == 1 && dirtyRects[0].getWidth() == this->iWidth &&
-                                   dirtyRects[0].getHeight() == this->iHeight;
+            if(newStorage) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->rawImage.getX(), this->rawImage.getY(), 0, GL_RGBA,
+                             GL_UNSIGNED_BYTE, nullptr);
 
+                GLuint clearFramebuffer = 0;
+                glGenFramebuffers(1, &clearFramebuffer);
+                const unsigned int prevFramebuffer = GLStateCache::getCurrentFramebuffer();
+                GLStateCache::bindFramebuffer(clearFramebuffer);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->GLTexture, 0);
+                const bool scissor = glIsEnabled(GL_SCISSOR_TEST);
+                if(scissor) glDisable(GL_SCISSOR_TEST);
+                glClearColor(0.f, 0.f, 0.f, 0.f);
+                glClear(GL_COLOR_BUFFER_BIT);
+                if(scissor) glEnable(GL_SCISSOR_TEST);
+                GLStateCache::bindFramebuffer(prevFramebuffer);
+                glDeleteFramebuffers(1, &clearFramebuffer);
+            }
+
+            // reupload: use glTexSubImage2D with dirty rects to avoid full reupload
             if(fullImage) {
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, this->rawImage.getX(), this->rawImage.getY(), GL_RGBA,
                                 GL_UNSIGNED_BYTE, this->rawImage.get());

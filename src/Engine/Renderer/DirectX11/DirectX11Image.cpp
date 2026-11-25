@@ -110,17 +110,26 @@ void DirectX11Image::init() {
                                     (this->bShared ? D3D11_RESOURCE_MISC_SHARED : 0);
         }
 
+        auto dirtyRects = this->getDirtyRects();
+        const UINT srcRowPitch = static_cast<UINT>(this->iWidth * Image::NUM_CHANNELS);
+        const bool fullImage = dirtyRects.size() == 1 && dirtyRects[0].getWidth() == this->iWidth &&
+                               dirtyRects[0].getHeight() == this->iHeight;
+        const bool clearNewTexture = this->texture == nullptr && !fullImage;
+        bool uploaded = false;
+
         // upload new/overwrite data (not mipmapped) (1/2)
         if(this->texture == nullptr) {
             // initData
             {
                 initData.pSysMem = (void*)this->rawImage.get();
-                initData.SysMemPitch = static_cast<UINT>(this->iWidth * Image::NUM_CHANNELS * sizeof(unsigned char));
+                initData.SysMemPitch = srcRowPitch;
                 initData.SysMemSlicePitch = 0;
             }
+            if(clearNewTexture) textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
             hr = device->CreateTexture2D(
                 &textureDesc,
-                (!this->bMipmapped && this->totalBytes() >= this->iWidth * this->iHeight * Image::NUM_CHANNELS
+                (!clearNewTexture && !this->bMipmapped &&
+                         this->totalBytes() >= this->iWidth * this->iHeight * Image::NUM_CHANNELS
                      ? &initData
                      : nullptr),
                 &this->texture);
@@ -133,14 +142,21 @@ void DirectX11Image::init() {
                                 MAKE_DXGI_HRESULT(hr), this->sFilePath));
                 return;
             }
-            this->resetDirtyRegion();
-        } else {
-            // reupload: use UpdateSubresource with dirty rects to avoid full reupload
-            auto dirtyRects = this->getDirtyRects();
-            const UINT srcRowPitch = static_cast<UINT>(this->iWidth * Image::NUM_CHANNELS);
-            const bool fullImage = dirtyRects.size() == 1 && dirtyRects[0].getWidth() == this->iWidth &&
-                                   dirtyRects[0].getHeight() == this->iHeight;
 
+            if(clearNewTexture) {
+                ID3D11RenderTargetView* clearView = nullptr;
+                if(SUCCEEDED(device->CreateRenderTargetView(this->texture, nullptr, &clearView))) {
+                    constexpr FLOAT transparent[4]{0.f, 0.f, 0.f, 0.f};
+                    context->ClearRenderTargetView(clearView, transparent);
+                    clearView->Release();
+                }
+            } else {
+                uploaded = true;
+            }
+        }
+
+        // reupload: use UpdateSubresource with dirty rects to avoid full reupload
+        if(!uploaded) {
             if(fullImage) {
                 context->UpdateSubresource(this->texture, 0, nullptr, this->rawImage.get(), srcRowPitch, 0);
             } else {
@@ -158,9 +174,8 @@ void DirectX11Image::init() {
                     context->UpdateSubresource(this->texture, 0, &box, src, srcRowPitch, 0);
                 }
             }
-
-            this->resetDirtyRegion();
         }
+        this->resetDirtyRegion();
     }
 
     // free memory (not mipmapped) (1/2)

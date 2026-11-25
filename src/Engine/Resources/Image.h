@@ -182,7 +182,8 @@ class Image : public Resource {
     // reset after uploading to gpu
     void resetDirtyRegion();
 
-    // whether resize() changed the size since the last upload, so the gpu texture has to be recreated
+    // whether resize() changed the size since the last upload, so the gpu texture has to be recreated, transparent
+    // everywhere outside getDirtyRects()
     [[nodiscard]] inline bool wasResized() const { return this->bResized; }
 
    private:
