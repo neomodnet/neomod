@@ -73,7 +73,7 @@ struct HitObjectLook {
     HitResultAnim result1;
     HitResultAnim result2;
 
-    i32 deltaMS{0};  // this must be signed
+    f64 deltaMS{0.0};
     i32 approachTimeMS{0};
     i32 fadeInTimeMS{0};  // extra time added before the approachTime to let the object smoothly become visible
 
@@ -186,8 +186,6 @@ struct SliderState {
 };
 
 struct SpinnerState {
-    f32 percent{0.f};
-
     f32 drawRot{0.f};
     f32 rotations{0.f};
     i32 halfSpinsNeeded{-1};
@@ -209,7 +207,7 @@ struct SpinnerState {
     i32 firstSpinTimeMS{-1};  // first half rotation (fades out "SPIN!")
     i32 bonusTimeMS{-1};      // latest bonus spin (bonus counter, glow flash)
     i32 bonusSpins{0};
-    i32 lastDrawMusicPosMS{0};
+    f64 lastDrawMusicPosMS{0.0};
     bool hitSuccess{false};  // non-miss result ("spinner-osu")
 };
 
@@ -366,8 +364,6 @@ class HitObjects {
 // where the slider is along its curve at curPosMS, and its repeats and reverse arrows: the slider state that both
 // judging and drawing follow
 void updateSlide(SliderState &slider, i32 clickTimeMS, f64 curPosMS, bool visible);
-// the part of its time a spinner has left at curPosMS (1 until it starts)
-[[nodiscard]] f32 spinnerTimeLeftPercent(const HitObjects &objects, uSz index, i32 curPosMS);
 
 inline HitObjectType HitObject::getType() const { return this->objects->types[this->index]; }
 inline i32 HitObject::getEndTime() const { return this->objects->endTimes[this->index]; }

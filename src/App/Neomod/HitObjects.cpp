@@ -336,7 +336,7 @@ void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32
         (flags::has<ModFlags::FreezeFrame>(mods) ? objects.comboStartTimes[index] : objects.clickTimes[index]);
     l.fadeInTimeMS = fadeInTimeMS;
     l.approachTimeMS = lookApproachTime(l, l.fadeInTimeMS, approachTimeMS);
-    l.deltaMS = objects.clickTimes[index] - (i32)std::round(curPosMS);
+    l.deltaMS = objects.clickTimes[index] - curPosMS;
 
     if(isVisibleWith(objects, index, curPosMS, mods, l.approachTimeMS)) {
         // approach circle scale
@@ -590,12 +590,6 @@ void updateSlide(SliderState &s, i32 clickTimeMS, f64 curPosMS, bool visible) {
     }
 }
 
-f32 spinnerTimeLeftPercent(const HitObjects &objects, uSz index, i32 curPosMS) {
-    const i32 deltaMS = objects.clickTimes[index] - curPosMS;
-    return 1.0f - std::clamp<f32>((f32)deltaMS / -(f32)std::max(objects.endTimes[index] - objects.clickTimes[index], 1),
-                                  0.0f, 1.0f);
-}
-
 namespace HitObjectDrawing {
 
 LookTiming lookTiming(const GameplayJudge &judge, const PlayfieldView *view) {
@@ -708,7 +702,6 @@ void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS,
                        fadeInTimeFor(view.getSpeedAdjustedAnimationSpeed()));
 
             objects.finished[index] = timeMS >= objects.endTimes[index];
-            s.percent = spinnerTimeLeftPercent(objects, index, std::min(timeMS, objects.endTimes[index]));
 
             // at rest, without a result
             s.drawRot = 0.0f;
@@ -1619,7 +1612,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
     const f32 fadeOutMultiplier = cv::spinner_fade_out_time_multiplier.getFloat();
     const i32 fadeOutTimeMS =
         (i32)(GameRules::getFadeOutTime(view.getBaseAnimationSpeed()) * 1000.0f * fadeOutMultiplier);
-    const i32 deltaEnd = l.deltaMS + (objects.endTimes[index] - objects.clickTimes[index]);
+    const f64 deltaEnd = l.deltaMS + (objects.endTimes[index] - objects.clickTimes[index]);
 
     const Skin *skin = view.getSkin();
     const vec2 center = view.osuCoords2Pixels(objects.positions[index]);
@@ -1657,8 +1650,10 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
 
     if((objects.finished[index] || !objects.visible[index]) && (deltaEnd > 0 || (deltaEnd < -fadeOutTimeMS))) return;
 
-    const i32 curPosMS = objects.clickTimes[index] - l.deltaMS;
+    const f64 curPosMS = objects.clickTimes[index] - l.deltaMS;
     const i32 endTimeMS = objects.endTimes[index];
+    const f32 percent =
+        1.f - std::clamp<f32>((f32)-l.deltaMS / (f32)std::max(endTimeMS - objects.clickTimes[index], 1), 0.f, 1.f);
 
     // avoid blinking when effectively paused
     const bool madeProgress = curPosMS != s.lastDrawMusicPosMS;
@@ -1701,7 +1696,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
         // shrinks from 1.86x to 0.1x over the duration
         g->setColor(Color(tint).setA(alpha));
         drawSprite(skin->i_spinner_approach_circle, center,
-                   spinnerScale / skin->i_spinner_approach_circle.scale() * std::lerp(0.1f, 1.86f, s.percent));
+                   spinnerScale / skin->i_spinner_approach_circle.scale() * std::lerp(0.1f, 1.86f, percent));
     };
 
     const bool oldStyle = skin->i_spinner_bg != MISSING_TEXTURE || skin->version < 2.0f;
@@ -1797,7 +1792,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
 
         if(skin->i_spinner_middle != MISSING_TEXTURE) {
             // does not rotate, tints red as the time runs out
-            g->setColor(argb(alpha, 1.f, s.percent, s.percent));
+            g->setColor(argb(alpha, 1.f, percent, percent));
             drawSprite(skin->i_spinner_middle, center, spinnerScale / skin->i_spinner_middle.scale() * finishScale);
         }
     }
@@ -1823,7 +1818,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
         // out for good (300 ms, restarted as a 100 ms fade if the spinner gets cleared before that finishes)
         const f32 halfFadeInMS = std::max(1.f, (f32)l.fadeInTimeMS / 2.f);
         const i32 endFadeMS = std::clamp((objects.endTimes[index] - objects.clickTimes[index]), 1, 400);
-        const auto idleAlpha = [&](i32 t) {
+        const auto idleAlpha = [&](f64 t) {
             if(t >= endTimeMS - endFadeMS)
                 return 1.f - std::clamp<f32>((f32)(t - (endTimeMS - endFadeMS)) / (f32)endFadeMS, 0.f, 1.f);
             return std::clamp<f32>((f32)(t - objects.clickTimes[index]) / halfFadeInMS + 1.f, 0.f, 1.f);

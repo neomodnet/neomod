@@ -1236,9 +1236,7 @@ void GameplayJudge::updateSpinner(u32 i, i32 curPosMS, f64 frameTimeSecs) {
         const f32 frameMS = (f32)(frameTimeSecs * 1000.0);
         const f32 AUTO_MULTIPLIER = (1.0f / 20.0f);
 
-        // scale percent calculation
         i32 deltaMS = objs.clickTimes[i] - (i32)curPosMS;
-        s.percent = spinnerTimeLeftPercent(objs, i, curPosMS);
 
         // handle auto, mouse spinning movement
         f32 angleDiff = 0;
