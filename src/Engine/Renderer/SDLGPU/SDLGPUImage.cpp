@@ -201,11 +201,20 @@ void SDLGPUImage::setWrapMode(TextureWrapMode newWrapMode) {
 void SDLGPUImage::uploadPixelData() {
     const u32 totalBytes = (u32)this->totalBytes();
 
-    u32 poolBufSize = 0;
-    auto *transferBuf = m_gpu->acquireUploadTransferBuffer(totalBytes, poolBufSize);
-    if(!transferBuf) return;
-
     auto dirtyRects = this->getDirtyRects();
+    const bool fullImage = dirtyRects.size() == 1 && (u32)dirtyRects[0].getWidth() == (u32)this->iWidth &&
+                           (u32)dirtyRects[0].getHeight() == (u32)this->iHeight;
+
+    u32 uploadBytes = totalBytes;
+    if(!fullImage) {
+        uploadBytes = 0;
+        for(const auto &rect : dirtyRects)
+            uploadBytes += (u32)(rect.getWidth() * rect.getHeight()) * Image::NUM_CHANNELS;
+    }
+
+    u32 poolBufSize = 0;
+    auto *transferBuf = m_gpu->acquireUploadTransferBuffer(uploadBytes, poolBufSize);
+    if(!transferBuf) return;
 
     // map and copy pixel data
     void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuf, false);
@@ -213,9 +222,6 @@ void SDLGPUImage::uploadPixelData() {
         m_gpu->releaseUploadTransferBuffer(transferBuf, poolBufSize);
         return;
     }
-
-    const bool fullImage = dirtyRects.size() == 1 && (u32)dirtyRects[0].getWidth() == (u32)this->iWidth &&
-                           (u32)dirtyRects[0].getHeight() == (u32)this->iHeight;
 
     // for multi-rect: track packed offset per rect
     std::vector<u32> rectOffsets;

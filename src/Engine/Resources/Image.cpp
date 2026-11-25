@@ -426,42 +426,19 @@ bool Image::SizedRGBABytes::resize(i32 newWidth, i32 newHeight) noexcept {
     assert(newWidth > 0 && newHeight > 0);
     const u64 oldStride = static_cast<u64>(this->width) * Image::NUM_CHANNELS;
     const u64 newStride = static_cast<u64>(newWidth) * Image::NUM_CHANNELS;
-    const u64 oldBytes = this->getNumBytes();
     const u64 newBytes = newStride * newHeight;
+    const u64 keptStride = std::min(oldStride, newStride);
     const i32 keptRows = std::min(this->height, newHeight);
 
-    // in place, in the order that never overwrites a row that hasn't moved yet
-    const auto moveRows = [&](u8 *data) {
-        if(newStride < oldStride) {
-            for(i32 row = 1; row < keptRows; row++) {
-                std::memmove(data + row * newStride, data + row * oldStride, newStride);
-            }
-        } else if(newStride > oldStride) {
-            for(i32 row = keptRows - 1; row > 0; row--) {
-                std::memmove(data + row * newStride, data + row * oldStride, oldStride);
-            }
-        }
-    };
+    auto *data = static_cast<u8 *>(malloc(newBytes));
+    if(!data) return false;
 
-    // a shrinking buffer would cut off rows that haven't moved yet, a growing one only has room for them afterwards
-    if(newBytes < oldBytes) moveRows(this->get());
-    if(newBytes != oldBytes) {
-        if(auto *data = static_cast<u8 *>(realloc(this->get(), newBytes))) {
-            (void)this->release();
-            this->reset(data);
-        } else if(newBytes > oldBytes) {  // a failed shrink just keeps the larger buffer
-            return false;
-        }
-    }
-    if(newBytes >= oldBytes) moveRows(this->get());
-
-    u8 *data = this->get();
-    if(newStride > oldStride) {
-        for(i32 row = 0; row < keptRows; row++) {
-            std::memset(data + row * newStride + oldStride, 0, newStride - oldStride);
-        }
+    for(i32 row = 0; row < keptRows; row++) {
+        std::memcpy(data + row * newStride, this->get() + row * oldStride, keptStride);
+        std::memset(data + row * newStride + keptStride, 0, newStride - keptStride);
     }
     std::memset(data + keptRows * newStride, 0, newBytes - keptRows * newStride);
+    this->reset(data);
 
     this->width = newWidth;
     this->height = newHeight;
