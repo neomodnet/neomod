@@ -955,10 +955,13 @@ AS_IF([test "$host_arch" = "$build_arch"], [
     AC_CHECK_TOOL([NM], [nm], [nm])
 ])
 
-# macOS strip -s means "save symbols listed in file", not "strip all"; -x is the equivalent
+# macOS strip -s means "save symbols listed in file", not "strip all".
+# libraries keep the global symbols they export with -x. the program exports nothing, so a bare strip removes everything
 AS_IF([test "$SYSNAME" = "macos"],
-    [AC_SUBST([STRIP_ALL_FLAGS], [-x])],
-    [AC_SUBST([STRIP_ALL_FLAGS], [-s])])
+    [STRIP_LIB_FLAGS=-x STRIP_PROGRAM_FLAGS=],
+    [STRIP_LIB_FLAGS=-s STRIP_PROGRAM_FLAGS=-s])
+AC_SUBST([STRIP_LIB_FLAGS])
+AC_SUBST([STRIP_PROGRAM_FLAGS])
 
 AC_CHECK_PROG([CCACHE], [ccache], [ccache])
 
@@ -1517,9 +1520,9 @@ AS_IF([test "x$enable_debug" = "xyes"], [
         ])
     ])
     AS_IF([test "x$enable_strip" != "xno"], [
-        AS_IF([test "$SYSNAME" != "macos"], [
-            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-s" # strip flag (ld64 considers this obsolete, so just rely on post-link strip)
-        ])
+        symbol_file_line_tables=-g1
+        AS_CASE([$SYSNAME], [linux|macos], [CXXFLAGS="$symbol_file_line_tables $CXXFLAGS" CFLAGS="$symbol_file_line_tables $CFLAGS"],
+            [NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-s"])
     ], [
         AS_IF([test -z "$WASM_CC"],[
             # add minimal debug info
@@ -2188,10 +2191,9 @@ AM_CONDITIONAL([CLANG_BUILD], [test "$CLANG" = "yes"])
 
 AM_CONDITIONAL([STRIPBINS], [test "x$enable_strip" != "xno" && ! { test "$SYSNAME" = "windows" && test "$host_cpu" = "i686" ; } ])
 
-# generate .dSYM bundles on macOS when there's debug info to capture
-# (debug build, or non-debug build with --disable-strip). must run before strip,
+# generate .dSYM bundles on macOS. must run before strip,
 # since strip removes the debug map dsymutil reads.
-AM_CONDITIONAL([RUN_DSYMUTIL], [test "$SYSNAME" = "macos" && test -n "$DSYMUTIL" && { test "x$enable_debug" = "xyes" || test "x$enable_strip" = "xno" ; } ])
+AM_CONDITIONAL([RUN_DSYMUTIL], [test "$SYSNAME" = "macos" && test -n "$DSYMUTIL"])
 
 AS_IF([test x"$enable_pch" = "xno"], [using_pch=no], [using_pch=yes])
 AM_CONDITIONAL([BUILDING_IN_CI], [test "$CI" = "true"])

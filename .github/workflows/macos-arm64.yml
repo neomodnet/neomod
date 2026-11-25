@@ -110,7 +110,7 @@ jobs:
           codesign --verify --deep --strict --verbose=2 dist/neomod.app
           codesign -dv --verbose=2 dist/neomod.app
 
-      # the dSYM lives next to the bundle now (only present for unstripped builds)
+      # the dSYM lives next to the bundle now
       - name: Package artifacts (fix symlinks)
         run: |
           cd build-out

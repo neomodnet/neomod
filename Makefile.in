@@ -1640,7 +1640,8 @@ SPDLOG_VERSION = @SPDLOG_VERSION@
 SPIRV_CROSS = @SPIRV_CROSS@
 STATICBUILD = @STATICBUILD@
 STRIP = @STRIP@
-STRIP_ALL_FLAGS = @STRIP_ALL_FLAGS@
+STRIP_LIB_FLAGS = @STRIP_LIB_FLAGS@
+STRIP_PROGRAM_FLAGS = @STRIP_PROGRAM_FLAGS@
 SYSNAME = @SYSNAME@
 TAR = @TAR@
 TEMP_WINEPFX = @TEMP_WINEPFX@
@@ -11924,7 +11925,7 @@ compile-commands:
 @MACOS_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@	done
 @MACOS_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@	@touch $@
 
-# --- generate .dSYM bundle (macos only, when debug info is present) ---
+# --- generate .dSYM bundle (macos only) ---
 # without this, sanitizer/lldb/atos backtraces only show binary offsets,
 # since debug info on mach-o stays in the .o files until dsymutil collects it.
 # it goes next to the .app, not inside it (nothing but the executable may live in Contents/MacOS)
@@ -11933,9 +11934,10 @@ compile-commands:
 @RUN_DSYMUTIL_TRUE@@WASM_PLATFORM_FALSE@	$(DSYMUTIL) -j $(CPU_COUNT) --linker parallel -o "$(DESTDIR)$(prefix)/$(bin_PROGRAMS).dSYM" "$(DESTDIR)$(bindir)/$(bin_PROGRAMS)"
 @RUN_DSYMUTIL_TRUE@@WASM_PLATFORM_FALSE@	@touch $@
 @STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@stamp-install-strip: stamp-install-sharedlibs $(INSTALL_RPATH_STAMP) $(bin_PROGRAMS) $(DSYM_PRE_STRIP_DEP)
-@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	-find "$(DESTDIR)$(bindir)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_ALL_FLAGS) '{''}' '+'
-@MACOS_PLATFORM_TRUE@@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	-find "$(DESTDIR)$(bindir)/$(LIBDEST)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_ALL_FLAGS) '{''}' '+'
-@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	-$(STRIP) $(STRIP_ALL_FLAGS) "$(DESTDIR)$(bindir)/$(bin_PROGRAMS)"
+@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	-find "$(DESTDIR)$(bindir)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_LIB_FLAGS) '{''}' '+'
+@MACOS_PLATFORM_TRUE@@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	-find "$(DESTDIR)$(bindir)/$(LIBDEST)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_LIB_FLAGS) '{''}' '+'
+@LINUX_PLATFORM_TRUE@@MACOS_PLATFORM_FALSE@@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	$(STRIP) --only-keep-debug -o "$(DESTDIR)$(prefix)/$(bin_PROGRAMS).debug" "$(DESTDIR)$(bindir)/$(bin_PROGRAMS)"
+@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	-$(STRIP) $(STRIP_PROGRAM_FLAGS) "$(DESTDIR)$(bindir)/$(bin_PROGRAMS)"
 @STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@	@touch $@
 
 # --- wine audio backend shortcuts (windows cross-compile only) ---

@@ -1729,7 +1729,7 @@ INSTALL_RPATH_STAMP += stamp-install-librpath stamp-install-exerpath
 INSTALL_STAMPS += stamp-install-librpath stamp-install-exerpath
 endif
 
-# --- generate .dSYM bundle (macos only, when debug info is present) ---
+# --- generate .dSYM bundle (macos only) ---
 # without this, sanitizer/lldb/atos backtraces only show binary offsets,
 # since debug info on mach-o stays in the .o files until dsymutil collects it.
 # it goes next to the .app, not inside it (nothing but the executable may live in Contents/MacOS)
@@ -1751,11 +1751,15 @@ else
 DSYM_PRE_STRIP_DEP =
 endif
 stamp-install-strip: stamp-install-sharedlibs $(INSTALL_RPATH_STAMP) $(bin_PROGRAMS) $(DSYM_PRE_STRIP_DEP)
-	-find "$(DESTDIR)$(bindir)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_ALL_FLAGS) '{''}' '+'
+	-find "$(DESTDIR)$(bindir)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_LIB_FLAGS) '{''}' '+'
 if MACOS_PLATFORM
-	-find "$(DESTDIR)$(bindir)/$(LIBDEST)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_ALL_FLAGS) '{''}' '+'
+	-find "$(DESTDIR)$(bindir)/$(LIBDEST)" -name '*'$(DLLEXT)'*' -execdir $(STRIP) $(STRIP_LIB_FLAGS) '{''}' '+'
+else
+if LINUX_PLATFORM
+	$(STRIP) --only-keep-debug -o "$(DESTDIR)$(prefix)/$(bin_PROGRAMS).debug" "$(DESTDIR)$(bindir)/$(bin_PROGRAMS)"
 endif
-	-$(STRIP) $(STRIP_ALL_FLAGS) "$(DESTDIR)$(bindir)/$(bin_PROGRAMS)"
+endif
+	-$(STRIP) $(STRIP_PROGRAM_FLAGS) "$(DESTDIR)$(bindir)/$(bin_PROGRAMS)"
 	@touch $@
 
 INSTALL_STAMPS += stamp-install-strip

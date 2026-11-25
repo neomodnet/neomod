@@ -880,7 +880,8 @@ _HAVE_MD5SUM
 CXX_REAL
 CC_REAL
 CCACHE
-STRIP_ALL_FLAGS
+STRIP_PROGRAM_FLAGS
+STRIP_LIB_FLAGS
 NM
 am__fastdepCXX_FALSE
 am__fastdepCXX_TRUE
@@ -10238,16 +10239,17 @@ fi
 esac
 fi
 
-# macOS strip -s means "save symbols listed in file", not "strip all"; -x is the equivalent
+# macOS strip -s means "save symbols listed in file", not "strip all".
+# libraries keep the global symbols they export with -x. the program exports nothing, so a bare strip removes everything
 if test "$SYSNAME" = "macos"
 then :
-  STRIP_ALL_FLAGS=-x
-
+  STRIP_LIB_FLAGS=-x STRIP_PROGRAM_FLAGS=
 else case e in #(
-  e) STRIP_ALL_FLAGS=-s
- ;;
+  e) STRIP_LIB_FLAGS=-s STRIP_PROGRAM_FLAGS=-s ;;
 esac
 fi
+
+
 
 # Extract the first word of "ccache", so it can be a program name with args.
 set dummy ccache; ac_word=$2
@@ -12733,12 +12735,13 @@ fi
     if test "x$enable_strip" != "xno"
 then :
 
-        if test "$SYSNAME" != "macos"
-then :
-
-            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-s" # strip flag (ld64 considers this obsolete, so just rely on post-link strip)
-
-fi
+        symbol_file_line_tables=-g1
+        case $SYSNAME in #(
+  linux|macos) :
+    CXXFLAGS="$symbol_file_line_tables $CXXFLAGS" CFLAGS="$symbol_file_line_tables $CFLAGS" ;; #(
+  *) :
+    NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-s" ;;
+esac
 
 else case e in #(
   e)
@@ -19738,10 +19741,9 @@ else
 fi
 
 
-# generate .dSYM bundles on macOS when there's debug info to capture
-# (debug build, or non-debug build with --disable-strip). must run before strip,
+# generate .dSYM bundles on macOS. must run before strip,
 # since strip removes the debug map dsymutil reads.
- if test "$SYSNAME" = "macos" && test -n "$DSYMUTIL" && { test "x$enable_debug" = "xyes" || test "x$enable_strip" = "xno" ; } ; then
+ if test "$SYSNAME" = "macos" && test -n "$DSYMUTIL"; then
   RUN_DSYMUTIL_TRUE=
   RUN_DSYMUTIL_FALSE='#'
 else

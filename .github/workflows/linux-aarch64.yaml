@@ -87,7 +87,9 @@ jobs:
       - name: Package artifacts (fix symlinks)
         run: |
           cd build-out
-          zip -r -y -8 bin.zip ./dist/bin-*/
+          symbols=""
+          if [ -f dist/neomod.debug ]; then symbols=./dist/neomod.debug; fi
+          zip -r -y -8 bin.zip ./dist/bin-*/ $symbols
           rm -rf dist/*
           mv bin.zip dist/
 
