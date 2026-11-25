@@ -3,7 +3,9 @@
 
 #if defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32)
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <utility>
 
 #include "Engine.h"
@@ -78,6 +80,17 @@ void OpenGLImage::init() {
                                dirtyRects[0].getHeight() == this->iHeight;
         const bool newStorage = glTextureWasEmpty || this->wasResized();
 
+        // cap mipmap levels at 32px minimum dimension to avoid excessive generation cost
+        // we're not going to care about huge images looking good when downscaled to webpage icon size
+        const int maxDim = std::max(this->rawImage.getX(), this->rawImage.getY());
+        const int maxLevel = this->bMipmapped ? std::max(0, (int)std::floor(std::log2(maxDim)) - 5) : 0;
+        if(newStorage) {
+            for(int level = 1; level <= maxLevel; level++) {
+                glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, std::max(1, this->rawImage.getX() >> level),
+                             std::max(1, this->rawImage.getY() >> level), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            }
+        }
+
         if(newStorage && fullImage) {
             // first upload or new size: must use glTexImage2D to (re)allocate texture storage
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->rawImage.getX(), this->rawImage.getY(), 0, GL_RGBA,
@@ -121,10 +134,6 @@ void OpenGLImage::init() {
         this->resetDirtyRegion();
 
         if(this->bMipmapped) {
-            // cap mipmap levels at 32px minimum dimension to avoid excessive generation cost
-            // we're not going to care about huge images looking good when downscaled to webpage icon size
-            const int maxDim = std::max(this->rawImage.getX(), this->rawImage.getY());
-            const int maxLevel = std::max(0, (int)std::floor(std::log2(maxDim)) - 5);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, maxLevel);
             glGenerateMipmap(GL_TEXTURE_2D);
         }
