@@ -466,7 +466,7 @@ std::atomic<uint64_t> s_barrier_ticket{0};
 }  // namespace
 
 // to be called in main(), for one-time setup/teardown
-void init(bool create_console) noexcept {
+void init(bool create_console, bool to_file) noexcept {
     if(s_log_initialized) return;
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
@@ -567,13 +567,12 @@ void init(bool create_console) noexcept {
 
     // if Environment::createDirectory failed, it means we definitely won't be able to write to anything in there
     // (returns true if it already exists)
-    const bool log_to_file{Environment::createDirectory(Mc::Paths::logs())};
+    const bool log_to_file{to_file && Environment::createDirectory(Mc::Paths::logs())};
 
     // add file sinks if directory is writable
     if(log_to_file) {
         // similar to the ConsoleSink, the logger source determines the output pattern
-        auto file_sink{std::make_shared<DualPatternFileSink>(Mc::Paths::logs() + "/" LOGFILE_BASENAME ".log",
-                                                             true /* overwrite */)};
+        auto file_sink{std::make_shared<DualPatternFileSink>(filePath(), true)};
 
         main_sinks.push_back(file_sink);
         raw_sinks.push_back(file_sink);
@@ -705,6 +704,8 @@ bool flush(bool wait) noexcept {
     }
     return false;
 }
+
+std::string filePath() { return Mc::Paths::logs() + "/" LOGFILE_BASENAME ".log"; }
 
 // extra util functions
 bool isaTTY() noexcept {

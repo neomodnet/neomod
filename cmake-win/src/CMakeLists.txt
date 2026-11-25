@@ -51,6 +51,18 @@ message(STATUS "Build timestamp: ${BUILD_TIMESTAMP}")
 string(TIMESTAMP CHANGELOG_TIMESTAMP %Y-%m-%d UTC)
 message(STATUS "Changelog timestamp: ${CHANGELOG_TIMESTAMP}")
 
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE BUILD_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT BUILD_COMMIT)
+    set(BUILD_COMMIT "unknown")
+endif()
+message(STATUS "Build commit: ${BUILD_COMMIT}")
+
 # Platform and feature detection
 set(MCENGINE_PLATFORM_WINDOWS ON)
 set(MCENGINE_FEATURE_DISCORD ON)

@@ -70,7 +70,6 @@ endif
 
 if WIN_PLATFORM
 WIN_SOURCES := \
-	src/Platform/Windows/CrashHandler.cpp \
 	$(NULL)
 endif
 
@@ -174,6 +173,7 @@ neomod_SOURCES = \
 	libraries/sha256.cpp \
 	src/App/AppRegistry.cpp \
 	src/App/AppRunner.cpp \
+	src/App/CrashReporter.cpp \
 	src/App/Neomod/AboutScreen.cpp \
 	src/App/Neomod/Accounts.cpp \
 	src/App/Neomod/BackgroundImageHandler.cpp \
@@ -271,8 +271,8 @@ neomod_SOURCES = \
 	src/App/Neomod/UIButtonWithIcon.cpp \
 	src/App/Neomod/UICheckbox.cpp \
 	src/App/Neomod/UIContextMenu.cpp \
-	src/App/Neomod/UIDropdownTextbox.cpp \
 	src/App/Neomod/UIDebug.cpp \
+	src/App/Neomod/UIDropdownTextbox.cpp \
 	src/App/Neomod/UIIcon.cpp \
 	src/App/Neomod/UIIconButton.cpp \
 	src/App/Neomod/UILabel.cpp \
@@ -372,6 +372,7 @@ neomod_SOURCES = \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
+	src/Platform/CrashHandler.cpp \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
 	src/Platform/LaunchArgs.cpp \

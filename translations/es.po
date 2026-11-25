@@ -18,6 +18,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "Enviar informe de fallo"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "Salir"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "Reiniciar"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "(puede contener tu nombre de usuario, rutas de archivos y mensajes de chat)"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "neomod se ha cerrado inesperadamente (¡Lo sentimos!)."
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "Si quieres, puedes enviar un informe de fallo a los desarrolladores. Incluye:"
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- la versión del juego y tu sistema operativo"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- dónde falló el juego"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "¿Qué estabas haciendo cuando falló? (opcional)"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "Los informes de fallo se guardan hasta 90 días."
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "Informe de fallo"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "Enviando el informe de fallo..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "No se pudo enviar el informe de fallo: {}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "Registro de cambios"
@@ -4662,10 +4716,6 @@ msgstr "Continuar"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "Reintentar"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "Salir"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"

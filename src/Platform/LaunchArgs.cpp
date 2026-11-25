@@ -60,6 +60,7 @@ constexpr auto KNOWN_SWITCHES = std::to_array<KnownSwitch>({
     {"-w", Takes::WORD},             {"-width", Takes::WORD},
     {"-h", Takes::WORD},             {"-height", Takes::WORD},
     {"-setup", Takes::NOTHING, true},
+    {"-crashreport", Takes::ANYTHING, true},
 });
 // clang-format on
 
@@ -235,6 +236,8 @@ std::optional<std::string> has_arg(ArgSwitch arg_switch) noexcept {
             return find_switch({"-multi"});
         case MODE_SETUP:
             return find_switch({"-setup"});
+        case MODE_CRASHREPORT:
+            return find_switch({"-crashreport"});
         case MISC_GL_VERBOSE:
             return find_switch({"-info", "-print", "-printinfo"});
         case MISC_GL_DEBUG:

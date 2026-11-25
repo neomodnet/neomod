@@ -300,7 +300,7 @@ bool init() {
     // a start that never got through: what it stopped in
     std::string notice;
     s_tracked = !Env::cfg(OS::WASM) && !has_arg(REND_HEADLESS) && !has_arg(MODE_CONSOLE) && !has_arg(MODE_TESTAPP) &&
-                !has_arg(MODE_MULTI);
+                !has_arg(MODE_MULTI) && !has_arg(MODE_CRASHREPORT);
     if(File file(progressPath()); s_tracked && file.canRead()) {
         const std::vector<Renderer> built = builtRenderers();
         const auto renderer = [&built](std::string_view value) -> std::optional<Renderer> {

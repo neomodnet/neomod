@@ -2,6 +2,7 @@
 #include "AppDescriptor.h"
 #include "config.h"
 
+#include "CrashReporter.h"
 #include "Osu.h"
 #include "NeomodEnvInterop.h"
 
@@ -62,7 +63,10 @@ static constexpr std::array sDescriptors{
 
 #endif  // MCENGINE_TESTS
 
+static constexpr AppDescriptor sCrashReporter{"CrashReporter", [] -> App * { return new CrashReporter(); }};
+
 std::span<const AppDescriptor> getAllAppDescriptors() { return sDescriptors; }
 const AppDescriptor &getDefaultAppDescriptor() { return sDescriptors[0]; }
+const AppDescriptor &getCrashReporterAppDescriptor() { return sCrashReporter; }
 
 }  // namespace Mc

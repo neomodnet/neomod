@@ -16,6 +16,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "Envoyer un rapport de plantage"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "Quitter"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "Redémarrer"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "(peut contenir votre nom d'utilisateur, des chemins de fichiers et des messages de chat)"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "neomod a planté (désolé !)."
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "Si vous le souhaitez, vous pouvez envoyer un rapport de plantage aux développeurs. Il contient :"
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- la version du jeu et votre système d'exploitation"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- l'endroit où le jeu a planté"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "Que faisiez-vous au moment du plantage ? (facultatif)"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "Les rapports de plantage sont conservés 90 jours au maximum."
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "Rapport de plantage"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "Envoi du rapport de plantage..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "Impossible d'envoyer le rapport de plantage : {}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "Notes de mise à jour"
@@ -4660,10 +4714,6 @@ msgstr "Reprendre"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "Réessayer"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "Quitter"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"

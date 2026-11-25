@@ -2,6 +2,7 @@
 #define BUILD_TIMESTAMP_H
 
 #define BUILD_TIMESTAMP "@BUILD_TIMESTAMP@"
+#define BUILD_COMMIT "@BUILD_COMMIT@"
 
 /* YYYY-MM-DD , to use in AboutScreen.cpp instead of __DATE__ (which is e.g. Dec 25 2025) */
 #define CHANGELOG_TIMESTAMP "@CHANGELOG_TIMESTAMP@"

@@ -31,6 +31,9 @@ AC_SUBST([BUILD_TIMESTAMP], [$_tstamp])
 _changelog_tstamp=$(TZ=UTC date +%Y-%m-%d)
 AC_SUBST([CHANGELOG_TIMESTAMP], [$_changelog_tstamp])
 
+# CI checkouts can lack .git, or git can refuse them
+AC_SUBST([BUILD_COMMIT], [$(git -C "$srcdir" rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-unknown}")])
+
 # shut up wine (i need to find what part of configure is doing the "checking if we are cross compiling" check and remove it)
 export DISPLAY= WAYLAND_DISPLAY= WINEDLLOVERRIDES="mscoree=;mshtml=;winex11.drv=;winewayland.drv=" WINEDEBUG=-all
 

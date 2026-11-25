@@ -18,6 +18,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "Надіслати звіт про збій"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "Вийти"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "Перезапустити"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "(може містити ваше ім'я користувача, шляхи до файлів і повідомлення чату)"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "Стався збій neomod (Вибачте!)."
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "Якщо хочете, можете надіслати розробникам звіт про збій. Він містить:"
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- версію гри та вашу операційну систему"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- місце збою"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "Що ви робили в момент збою? (необов'язково)"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "Звіти про збої зберігаються не довше 90 днів."
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "Звіт про збій"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "Надсилання звіту про збій..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "Не вдалося надіслати звіт про збій: {}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "Список змін"
@@ -4662,10 +4716,6 @@ msgstr "Продовжити"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "Повторити"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "Вийти"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"

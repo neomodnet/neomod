@@ -21,6 +21,7 @@ struct AppDescriptor {
 // implemented in AppRegistry.cpp
 std::span<const AppDescriptor> getAllAppDescriptors();
 const AppDescriptor &getDefaultAppDescriptor();
+const AppDescriptor &getCrashReporterAppDescriptor();
 }  // namespace Mc
 
 #endif

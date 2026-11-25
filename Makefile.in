@@ -339,8 +339,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	libraries/neotrace/src/symbolize_elf_symtab.cpp \
 	libraries/neotrace/src/symbolize_posix.cpp \
 	libraries/sha256.cpp src/App/AppRegistry.cpp \
-	src/App/AppRunner.cpp src/App/Neomod/AboutScreen.cpp \
-	src/App/Neomod/Accounts.cpp \
+	src/App/AppRunner.cpp src/App/CrashReporter.cpp \
+	src/App/Neomod/AboutScreen.cpp src/App/Neomod/Accounts.cpp \
 	src/App/Neomod/BackgroundImageHandler.cpp \
 	src/App/Neomod/Bancho.cpp src/App/Neomod/BanchoAes.cpp \
 	src/App/Neomod/BanchoApi.cpp \
@@ -413,8 +413,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/UIButton.cpp src/App/Neomod/UIButtonRounded.cpp \
 	src/App/Neomod/UIButtonWithIcon.cpp \
 	src/App/Neomod/UICheckbox.cpp src/App/Neomod/UIContextMenu.cpp \
-	src/App/Neomod/UIDropdownTextbox.cpp \
-	src/App/Neomod/UIDebug.cpp src/App/Neomod/UIIcon.cpp \
+	src/App/Neomod/UIDebug.cpp \
+	src/App/Neomod/UIDropdownTextbox.cpp src/App/Neomod/UIIcon.cpp \
 	src/App/Neomod/UIIconButton.cpp src/App/Neomod/UILabel.cpp \
 	src/App/Neomod/UIModSelectorModButton.cpp \
 	src/App/Neomod/UIPauseMenuButton.cpp \
@@ -482,7 +482,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
-	src/Platform/Environment.cpp \
+	src/Platform/CrashHandler.cpp src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
 	src/Platform/LaunchArgs.cpp src/Platform/Paths.cpp \
 	src/Platform/RuntimePlatform.cpp \
@@ -520,7 +520,6 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/Engine/Sound/BASS/BassManager.cpp \
 	src/Engine/Sound/BASS/BassSound.cpp \
 	src/Engine/Sound/BASS/BassSoundEngine.cpp \
-	src/Platform/Windows/CrashHandler.cpp \
 	src/Engine/Resources/FFmpegInterop/FFmpegLoader.cpp \
 	src/Engine/Resources/FFmpegInterop/ImageFFmpeg.cpp \
 	src/App/Tests/AsyncPoolTest.cpp \
@@ -611,7 +610,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 @USE_BASS_TRUE@am__objects_9 = src/Engine/Sound/BASS/neomod-BassManager.$(OBJEXT) \
 @USE_BASS_TRUE@	src/Engine/Sound/BASS/neomod-BassSound.$(OBJEXT) \
 @USE_BASS_TRUE@	src/Engine/Sound/BASS/neomod-BassSoundEngine.$(OBJEXT)
-@WIN_PLATFORM_TRUE@am__objects_10 = src/Platform/Windows/neomod-CrashHandler.$(OBJEXT)
+am__objects_10 =
 @USE_FFMPEG_TRUE@am__objects_11 = src/Engine/Resources/FFmpegInterop/neomod-FFmpegLoader.$(OBJEXT) \
 @USE_FFMPEG_TRUE@	src/Engine/Resources/FFmpegInterop/neomod-ImageFFmpeg.$(OBJEXT)
 @BUILD_TESTS_TRUE@am__objects_12 = src/App/Tests/neomod-AsyncPoolTest.$(OBJEXT) \
@@ -689,6 +688,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	libraries/neomod-sha256.$(OBJEXT) \
 	src/App/neomod-AppRegistry.$(OBJEXT) \
 	src/App/neomod-AppRunner.$(OBJEXT) \
+	src/App/neomod-CrashReporter.$(OBJEXT) \
 	src/App/Neomod/neomod-AboutScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-Accounts.$(OBJEXT) \
 	src/App/Neomod/neomod-BackgroundImageHandler.$(OBJEXT) \
@@ -786,8 +786,8 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-UIButtonWithIcon.$(OBJEXT) \
 	src/App/Neomod/neomod-UICheckbox.$(OBJEXT) \
 	src/App/Neomod/neomod-UIContextMenu.$(OBJEXT) \
-	src/App/Neomod/neomod-UIDropdownTextbox.$(OBJEXT) \
 	src/App/Neomod/neomod-UIDebug.$(OBJEXT) \
+	src/App/Neomod/neomod-UIDropdownTextbox.$(OBJEXT) \
 	src/App/Neomod/neomod-UIIcon.$(OBJEXT) \
 	src/App/Neomod/neomod-UIIconButton.$(OBJEXT) \
 	src/App/Neomod/neomod-UILabel.$(OBJEXT) \
@@ -887,6 +887,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/GUI/Windows/neomod-ConsoleWidgets.$(OBJEXT) \
 	src/GUI/Windows/neomod-ConsoleWindow.$(OBJEXT) \
 	src/GUI/Windows/neomod-VisualProfiler.$(OBJEXT) \
+	src/Platform/neomod-CrashHandler.$(OBJEXT) \
 	src/Platform/neomod-Environment.$(OBJEXT) \
 	src/Platform/neomod-GPUDriverConfigurator.$(OBJEXT) \
 	src/Platform/neomod-LaunchArgs.$(OBJEXT) \
@@ -951,6 +952,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	libraries/neotrace/src/$(DEPDIR)/neomod-symbolize_posix.Po \
 	src/App/$(DEPDIR)/neomod-AppRegistry.Po \
 	src/App/$(DEPDIR)/neomod-AppRunner.Po \
+	src/App/$(DEPDIR)/neomod-CrashReporter.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-AboutScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-Accounts.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-BackgroundImageHandler.Po \
@@ -1273,6 +1275,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po \
 	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po \
 	src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po \
+	src/Platform/$(DEPDIR)/neomod-CrashHandler.Po \
 	src/Platform/$(DEPDIR)/neomod-Environment.Po \
 	src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po \
 	src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po \
@@ -1282,7 +1285,6 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/Platform/$(DEPDIR)/neomod-Startup.Po \
 	src/Platform/$(DEPDIR)/neomod-main.Po \
 	src/Platform/$(DEPDIR)/neomod-main_impl.Po \
-	src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po \
 	src/Util/$(DEPDIR)/neomod-ACFParser.Po \
 	src/Util/$(DEPDIR)/neomod-MD5Hash.Po \
 	src/Util/$(DEPDIR)/neomod-Matrices.Po \
@@ -1421,6 +1423,7 @@ BROTLI_CFLAGS = @BROTLI_CFLAGS@ $(am__append_52)
 BROTLI_LIBS = @BROTLI_LIBS@ $(am__append_53)
 BROTLI_PREFIX = @BROTLI_PREFIX@
 BROTLI_VERSION = @BROTLI_VERSION@
+BUILD_COMMIT = @BUILD_COMMIT@
 BUILD_EMBED_MANIFESTS = @BUILD_EMBED_MANIFESTS@
 BUILD_MISCDIR = @BUILD_MISCDIR@
 BUILD_TIMESTAMP = @BUILD_TIMESTAMP@
@@ -1794,7 +1797,6 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @USE_FFMPEG_TRUE@	$(NULL)
 
 @WIN_PLATFORM_TRUE@WIN_SOURCES := \
-@WIN_PLATFORM_TRUE@	src/Platform/Windows/CrashHandler.cpp \
 @WIN_PLATFORM_TRUE@	$(NULL)
 
 @BUILD_TESTS_TRUE@TEST_SOURCES := \
@@ -1884,8 +1886,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	libraries/neotrace/src/symbolize_elf_symtab.cpp \
 	libraries/neotrace/src/symbolize_posix.cpp \
 	libraries/sha256.cpp src/App/AppRegistry.cpp \
-	src/App/AppRunner.cpp src/App/Neomod/AboutScreen.cpp \
-	src/App/Neomod/Accounts.cpp \
+	src/App/AppRunner.cpp src/App/CrashReporter.cpp \
+	src/App/Neomod/AboutScreen.cpp src/App/Neomod/Accounts.cpp \
 	src/App/Neomod/BackgroundImageHandler.cpp \
 	src/App/Neomod/Bancho.cpp src/App/Neomod/BanchoAes.cpp \
 	src/App/Neomod/BanchoApi.cpp \
@@ -1958,8 +1960,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/UIButton.cpp src/App/Neomod/UIButtonRounded.cpp \
 	src/App/Neomod/UIButtonWithIcon.cpp \
 	src/App/Neomod/UICheckbox.cpp src/App/Neomod/UIContextMenu.cpp \
-	src/App/Neomod/UIDropdownTextbox.cpp \
-	src/App/Neomod/UIDebug.cpp src/App/Neomod/UIIcon.cpp \
+	src/App/Neomod/UIDebug.cpp \
+	src/App/Neomod/UIDropdownTextbox.cpp src/App/Neomod/UIIcon.cpp \
 	src/App/Neomod/UIIconButton.cpp src/App/Neomod/UILabel.cpp \
 	src/App/Neomod/UIModSelectorModButton.cpp \
 	src/App/Neomod/UIPauseMenuButton.cpp \
@@ -2027,7 +2029,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
-	src/Platform/Environment.cpp \
+	src/Platform/CrashHandler.cpp src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
 	src/Platform/LaunchArgs.cpp src/Platform/Paths.cpp \
 	src/Platform/RuntimePlatform.cpp \
@@ -2852,6 +2854,8 @@ src/App/neomod-AppRegistry.$(OBJEXT): src/App/$(am__dirstamp) \
 	src/App/$(DEPDIR)/$(am__dirstamp)
 src/App/neomod-AppRunner.$(OBJEXT): src/App/$(am__dirstamp) \
 	src/App/$(DEPDIR)/$(am__dirstamp)
+src/App/neomod-CrashReporter.$(OBJEXT): src/App/$(am__dirstamp) \
+	src/App/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/$(am__dirstamp):
 	@$(MKDIR_P) src/App/Neomod
 	@: >>src/App/Neomod/$(am__dirstamp)
@@ -3173,10 +3177,10 @@ src/App/Neomod/neomod-UICheckbox.$(OBJEXT):  \
 src/App/Neomod/neomod-UIContextMenu.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
-src/App/Neomod/neomod-UIDropdownTextbox.$(OBJEXT):  \
+src/App/Neomod/neomod-UIDebug.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
-src/App/Neomod/neomod-UIDebug.$(OBJEXT):  \
+src/App/Neomod/neomod-UIDropdownTextbox.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-UIIcon.$(OBJEXT):  \
@@ -3521,6 +3525,9 @@ src/Platform/$(am__dirstamp):
 src/Platform/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/Platform/$(DEPDIR)
 	@: >>src/Platform/$(DEPDIR)/$(am__dirstamp)
+src/Platform/neomod-CrashHandler.$(OBJEXT):  \
+	src/Platform/$(am__dirstamp) \
+	src/Platform/$(DEPDIR)/$(am__dirstamp)
 src/Platform/neomod-Environment.$(OBJEXT):  \
 	src/Platform/$(am__dirstamp) \
 	src/Platform/$(DEPDIR)/$(am__dirstamp)
@@ -3713,15 +3720,6 @@ src/Engine/Sound/BASS/neomod-BassSound.$(OBJEXT):  \
 src/Engine/Sound/BASS/neomod-BassSoundEngine.$(OBJEXT):  \
 	src/Engine/Sound/BASS/$(am__dirstamp) \
 	src/Engine/Sound/BASS/$(DEPDIR)/$(am__dirstamp)
-src/Platform/Windows/$(am__dirstamp):
-	@$(MKDIR_P) src/Platform/Windows
-	@: >>src/Platform/Windows/$(am__dirstamp)
-src/Platform/Windows/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) src/Platform/Windows/$(DEPDIR)
-	@: >>src/Platform/Windows/$(DEPDIR)/$(am__dirstamp)
-src/Platform/Windows/neomod-CrashHandler.$(OBJEXT):  \
-	src/Platform/Windows/$(am__dirstamp) \
-	src/Platform/Windows/$(DEPDIR)/$(am__dirstamp)
 src/Engine/Resources/FFmpegInterop/$(am__dirstamp):
 	@$(MKDIR_P) src/Engine/Resources/FFmpegInterop
 	@: >>src/Engine/Resources/FFmpegInterop/$(am__dirstamp)
@@ -4010,7 +4008,6 @@ mostlyclean-compile:
 	-rm -f src/GUI/*.$(OBJEXT)
 	-rm -f src/GUI/Windows/*.$(OBJEXT)
 	-rm -f src/Platform/*.$(OBJEXT)
-	-rm -f src/Platform/Windows/*.$(OBJEXT)
 	-rm -f src/Util/*.$(OBJEXT)
 	-rm -f src/Util/SyncPrimitives/*.$(OBJEXT)
 
@@ -4034,6 +4031,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/neotrace/src/$(DEPDIR)/neomod-symbolize_posix.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/$(DEPDIR)/neomod-AppRegistry.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/$(DEPDIR)/neomod-AppRunner.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/$(DEPDIR)/neomod-CrashReporter.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-AboutScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-Accounts.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-BackgroundImageHandler.Po@am__quote@ # am--include-marker
@@ -4356,6 +4354,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-CrashHandler.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-Environment.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po@am__quote@ # am--include-marker
@@ -4365,7 +4364,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-Startup.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-main.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-main_impl.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Util/$(DEPDIR)/neomod-ACFParser.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Util/$(DEPDIR)/neomod-MD5Hash.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Util/$(DEPDIR)/neomod-Matrices.Po@am__quote@ # am--include-marker
@@ -5130,6 +5128,20 @@ src/App/neomod-AppRunner.obj: src/App/AppRunner.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/AppRunner.cpp' object='src/App/neomod-AppRunner.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/neomod-AppRunner.obj `if test -f 'src/App/AppRunner.cpp'; then $(CYGPATH_W) 'src/App/AppRunner.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/AppRunner.cpp'; fi`
+
+src/App/neomod-CrashReporter.o: src/App/CrashReporter.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/neomod-CrashReporter.o -MD -MP -MF src/App/$(DEPDIR)/neomod-CrashReporter.Tpo -c -o src/App/neomod-CrashReporter.o `test -f 'src/App/CrashReporter.cpp' || echo '$(srcdir)/'`src/App/CrashReporter.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/$(DEPDIR)/neomod-CrashReporter.Tpo src/App/$(DEPDIR)/neomod-CrashReporter.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/CrashReporter.cpp' object='src/App/neomod-CrashReporter.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/neomod-CrashReporter.o `test -f 'src/App/CrashReporter.cpp' || echo '$(srcdir)/'`src/App/CrashReporter.cpp
+
+src/App/neomod-CrashReporter.obj: src/App/CrashReporter.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/neomod-CrashReporter.obj -MD -MP -MF src/App/$(DEPDIR)/neomod-CrashReporter.Tpo -c -o src/App/neomod-CrashReporter.obj `if test -f 'src/App/CrashReporter.cpp'; then $(CYGPATH_W) 'src/App/CrashReporter.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/CrashReporter.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/$(DEPDIR)/neomod-CrashReporter.Tpo src/App/$(DEPDIR)/neomod-CrashReporter.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/CrashReporter.cpp' object='src/App/neomod-CrashReporter.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/neomod-CrashReporter.obj `if test -f 'src/App/CrashReporter.cpp'; then $(CYGPATH_W) 'src/App/CrashReporter.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/CrashReporter.cpp'; fi`
 
 src/App/Neomod/neomod-AboutScreen.o: src/App/Neomod/AboutScreen.cpp
 @am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-AboutScreen.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-AboutScreen.Tpo -c -o src/App/Neomod/neomod-AboutScreen.o `test -f 'src/App/Neomod/AboutScreen.cpp' || echo '$(srcdir)/'`src/App/Neomod/AboutScreen.cpp
@@ -6489,20 +6501,6 @@ src/App/Neomod/neomod-UIContextMenu.obj: src/App/Neomod/UIContextMenu.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIContextMenu.obj `if test -f 'src/App/Neomod/UIContextMenu.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIContextMenu.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIContextMenu.cpp'; fi`
 
-src/App/Neomod/neomod-UIDropdownTextbox.o: src/App/Neomod/UIDropdownTextbox.cpp
-@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIDropdownTextbox.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo -c -o src/App/Neomod/neomod-UIDropdownTextbox.o `test -f 'src/App/Neomod/UIDropdownTextbox.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIDropdownTextbox.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/Neomod/UIDropdownTextbox.cpp' object='src/App/Neomod/neomod-UIDropdownTextbox.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIDropdownTextbox.o `test -f 'src/App/Neomod/UIDropdownTextbox.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIDropdownTextbox.cpp
-
-src/App/Neomod/neomod-UIDropdownTextbox.obj: src/App/Neomod/UIDropdownTextbox.cpp
-@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIDropdownTextbox.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo -c -o src/App/Neomod/neomod-UIDropdownTextbox.obj `if test -f 'src/App/Neomod/UIDropdownTextbox.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIDropdownTextbox.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIDropdownTextbox.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/Neomod/UIDropdownTextbox.cpp' object='src/App/Neomod/neomod-UIDropdownTextbox.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIDropdownTextbox.obj `if test -f 'src/App/Neomod/UIDropdownTextbox.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIDropdownTextbox.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIDropdownTextbox.cpp'; fi`
-
 src/App/Neomod/neomod-UIDebug.o: src/App/Neomod/UIDebug.cpp
 @am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIDebug.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIDebug.Tpo -c -o src/App/Neomod/neomod-UIDebug.o `test -f 'src/App/Neomod/UIDebug.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIDebug.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-UIDebug.Tpo src/App/Neomod/$(DEPDIR)/neomod-UIDebug.Po
@@ -6516,6 +6514,20 @@ src/App/Neomod/neomod-UIDebug.obj: src/App/Neomod/UIDebug.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/Neomod/UIDebug.cpp' object='src/App/Neomod/neomod-UIDebug.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIDebug.obj `if test -f 'src/App/Neomod/UIDebug.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIDebug.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIDebug.cpp'; fi`
+
+src/App/Neomod/neomod-UIDropdownTextbox.o: src/App/Neomod/UIDropdownTextbox.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIDropdownTextbox.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo -c -o src/App/Neomod/neomod-UIDropdownTextbox.o `test -f 'src/App/Neomod/UIDropdownTextbox.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIDropdownTextbox.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/Neomod/UIDropdownTextbox.cpp' object='src/App/Neomod/neomod-UIDropdownTextbox.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIDropdownTextbox.o `test -f 'src/App/Neomod/UIDropdownTextbox.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIDropdownTextbox.cpp
+
+src/App/Neomod/neomod-UIDropdownTextbox.obj: src/App/Neomod/UIDropdownTextbox.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIDropdownTextbox.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo -c -o src/App/Neomod/neomod-UIDropdownTextbox.obj `if test -f 'src/App/Neomod/UIDropdownTextbox.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIDropdownTextbox.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIDropdownTextbox.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Tpo src/App/Neomod/$(DEPDIR)/neomod-UIDropdownTextbox.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/Neomod/UIDropdownTextbox.cpp' object='src/App/Neomod/neomod-UIDropdownTextbox.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIDropdownTextbox.obj `if test -f 'src/App/Neomod/UIDropdownTextbox.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIDropdownTextbox.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIDropdownTextbox.cpp'; fi`
 
 src/App/Neomod/neomod-UIIcon.o: src/App/Neomod/UIIcon.cpp
 @am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIIcon.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIIcon.Tpo -c -o src/App/Neomod/neomod-UIIcon.o `test -f 'src/App/Neomod/UIIcon.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIIcon.cpp
@@ -7903,6 +7915,20 @@ src/GUI/Windows/neomod-VisualProfiler.obj: src/GUI/Windows/VisualProfiler.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/Windows/neomod-VisualProfiler.obj `if test -f 'src/GUI/Windows/VisualProfiler.cpp'; then $(CYGPATH_W) 'src/GUI/Windows/VisualProfiler.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/Windows/VisualProfiler.cpp'; fi`
 
+src/Platform/neomod-CrashHandler.o: src/Platform/CrashHandler.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/neomod-CrashHandler.o -MD -MP -MF src/Platform/$(DEPDIR)/neomod-CrashHandler.Tpo -c -o src/Platform/neomod-CrashHandler.o `test -f 'src/Platform/CrashHandler.cpp' || echo '$(srcdir)/'`src/Platform/CrashHandler.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/$(DEPDIR)/neomod-CrashHandler.Tpo src/Platform/$(DEPDIR)/neomod-CrashHandler.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/Platform/CrashHandler.cpp' object='src/Platform/neomod-CrashHandler.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Platform/neomod-CrashHandler.o `test -f 'src/Platform/CrashHandler.cpp' || echo '$(srcdir)/'`src/Platform/CrashHandler.cpp
+
+src/Platform/neomod-CrashHandler.obj: src/Platform/CrashHandler.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/neomod-CrashHandler.obj -MD -MP -MF src/Platform/$(DEPDIR)/neomod-CrashHandler.Tpo -c -o src/Platform/neomod-CrashHandler.obj `if test -f 'src/Platform/CrashHandler.cpp'; then $(CYGPATH_W) 'src/Platform/CrashHandler.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Platform/CrashHandler.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/$(DEPDIR)/neomod-CrashHandler.Tpo src/Platform/$(DEPDIR)/neomod-CrashHandler.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/Platform/CrashHandler.cpp' object='src/Platform/neomod-CrashHandler.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Platform/neomod-CrashHandler.obj `if test -f 'src/Platform/CrashHandler.cpp'; then $(CYGPATH_W) 'src/Platform/CrashHandler.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Platform/CrashHandler.cpp'; fi`
+
 src/Platform/neomod-Environment.o: src/Platform/Environment.cpp
 @am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/neomod-Environment.o -MD -MP -MF src/Platform/$(DEPDIR)/neomod-Environment.Tpo -c -o src/Platform/neomod-Environment.o `test -f 'src/Platform/Environment.cpp' || echo '$(srcdir)/'`src/Platform/Environment.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/$(DEPDIR)/neomod-Environment.Tpo src/Platform/$(DEPDIR)/neomod-Environment.Po
@@ -8588,20 +8614,6 @@ src/Engine/Sound/BASS/neomod-BassSoundEngine.obj: src/Engine/Sound/BASS/BassSoun
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/Engine/Sound/BASS/BassSoundEngine.cpp' object='src/Engine/Sound/BASS/neomod-BassSoundEngine.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Engine/Sound/BASS/neomod-BassSoundEngine.obj `if test -f 'src/Engine/Sound/BASS/BassSoundEngine.cpp'; then $(CYGPATH_W) 'src/Engine/Sound/BASS/BassSoundEngine.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Engine/Sound/BASS/BassSoundEngine.cpp'; fi`
-
-src/Platform/Windows/neomod-CrashHandler.o: src/Platform/Windows/CrashHandler.cpp
-@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/Windows/neomod-CrashHandler.o -MD -MP -MF src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Tpo -c -o src/Platform/Windows/neomod-CrashHandler.o `test -f 'src/Platform/Windows/CrashHandler.cpp' || echo '$(srcdir)/'`src/Platform/Windows/CrashHandler.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Tpo src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/Platform/Windows/CrashHandler.cpp' object='src/Platform/Windows/neomod-CrashHandler.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Platform/Windows/neomod-CrashHandler.o `test -f 'src/Platform/Windows/CrashHandler.cpp' || echo '$(srcdir)/'`src/Platform/Windows/CrashHandler.cpp
-
-src/Platform/Windows/neomod-CrashHandler.obj: src/Platform/Windows/CrashHandler.cpp
-@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/Windows/neomod-CrashHandler.obj -MD -MP -MF src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Tpo -c -o src/Platform/Windows/neomod-CrashHandler.obj `if test -f 'src/Platform/Windows/CrashHandler.cpp'; then $(CYGPATH_W) 'src/Platform/Windows/CrashHandler.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Platform/Windows/CrashHandler.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Tpo src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/Platform/Windows/CrashHandler.cpp' object='src/Platform/Windows/neomod-CrashHandler.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Platform/Windows/neomod-CrashHandler.obj `if test -f 'src/Platform/Windows/CrashHandler.cpp'; then $(CYGPATH_W) 'src/Platform/Windows/CrashHandler.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Platform/Windows/CrashHandler.cpp'; fi`
 
 src/Engine/Resources/FFmpegInterop/neomod-FFmpegLoader.o: src/Engine/Resources/FFmpegInterop/FFmpegLoader.cpp
 @am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Engine/Resources/FFmpegInterop/neomod-FFmpegLoader.o -MD -MP -MF src/Engine/Resources/FFmpegInterop/$(DEPDIR)/neomod-FFmpegLoader.Tpo -c -o src/Engine/Resources/FFmpegInterop/neomod-FFmpegLoader.o `test -f 'src/Engine/Resources/FFmpegInterop/FFmpegLoader.cpp' || echo '$(srcdir)/'`src/Engine/Resources/FFmpegInterop/FFmpegLoader.cpp
@@ -9933,8 +9945,6 @@ distclean-generic:
 	-$(am__rm_f) src/GUI/Windows/$(am__dirstamp)
 	-$(am__rm_f) src/Platform/$(DEPDIR)/$(am__dirstamp)
 	-$(am__rm_f) src/Platform/$(am__dirstamp)
-	-$(am__rm_f) src/Platform/Windows/$(DEPDIR)/$(am__dirstamp)
-	-$(am__rm_f) src/Platform/Windows/$(am__dirstamp)
 	-$(am__rm_f) src/Util/$(DEPDIR)/$(am__dirstamp)
 	-$(am__rm_f) src/Util/$(am__dirstamp)
 	-$(am__rm_f) src/Util/SyncPrimitives/$(DEPDIR)/$(am__dirstamp)
@@ -9968,6 +9978,7 @@ distclean: distclean-am
 	-rm -f libraries/neotrace/src/$(DEPDIR)/neomod-symbolize_posix.Po
 	-rm -f src/App/$(DEPDIR)/neomod-AppRegistry.Po
 	-rm -f src/App/$(DEPDIR)/neomod-AppRunner.Po
+	-rm -f src/App/$(DEPDIR)/neomod-CrashReporter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-AboutScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Accounts.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BackgroundImageHandler.Po
@@ -10290,6 +10301,7 @@ distclean: distclean-am
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po
+	-rm -f src/Platform/$(DEPDIR)/neomod-CrashHandler.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-Environment.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po
@@ -10299,7 +10311,6 @@ distclean: distclean-am
 	-rm -f src/Platform/$(DEPDIR)/neomod-Startup.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main_impl.Po
-	-rm -f src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po
 	-rm -f src/Util/$(DEPDIR)/neomod-ACFParser.Po
 	-rm -f src/Util/$(DEPDIR)/neomod-MD5Hash.Po
 	-rm -f src/Util/$(DEPDIR)/neomod-Matrices.Po
@@ -10377,6 +10388,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f libraries/neotrace/src/$(DEPDIR)/neomod-symbolize_posix.Po
 	-rm -f src/App/$(DEPDIR)/neomod-AppRegistry.Po
 	-rm -f src/App/$(DEPDIR)/neomod-AppRunner.Po
+	-rm -f src/App/$(DEPDIR)/neomod-CrashReporter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-AboutScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Accounts.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BackgroundImageHandler.Po
@@ -10699,6 +10711,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po
+	-rm -f src/Platform/$(DEPDIR)/neomod-CrashHandler.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-Environment.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po
@@ -10708,7 +10721,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/Platform/$(DEPDIR)/neomod-Startup.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main_impl.Po
-	-rm -f src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po
 	-rm -f src/Util/$(DEPDIR)/neomod-ACFParser.Po
 	-rm -f src/Util/$(DEPDIR)/neomod-MD5Hash.Po
 	-rm -f src/Util/$(DEPDIR)/neomod-Matrices.Po

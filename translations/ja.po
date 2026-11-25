@@ -20,6 +20,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "クラッシュレポートを送信"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "終了"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "再起動"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "（ユーザー名、ファイルパス、チャットメッセージが含まれる場合があります）"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "neomod がクラッシュしました（申し訳ありません！）。"
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "よろしければ、開発者にクラッシュレポートを送信できます。内容:"
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- ゲームのバージョンとOS"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- ゲームがクラッシュした場所"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "クラッシュしたとき何をしていましたか？（任意）"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "クラッシュレポートは最大90日間保存されます。"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "クラッシュレポート"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "クラッシュレポートを送信しています..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "クラッシュレポートを送信できませんでした: {}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "変更履歴"
@@ -4664,10 +4718,6 @@ msgstr "再開"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "リトライ"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "終了"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"

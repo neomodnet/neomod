@@ -5,6 +5,7 @@
 
 #include "fmt/format.h"
 
+#include <string>
 #include <string_view>
 #include <cassert>
 #include <source_location>
@@ -85,12 +86,14 @@ void logRaw_int(uint8_t log_channel, log_level::level_enum lvl, fmt::format_stri
 }  // namespace _detail
 
 // Logger::init() is called immediately after main()
-void init(bool create_console) noexcept;
+void init(bool create_console, bool to_file) noexcept;
 void shutdown() noexcept;
 
 // manual trigger for console commands. with wait, also blocks until everything logged before the call has been written
 // out (e.g. before unloading a library that logged: queued messages point at its strings); false if that timed out
 bool flush(bool wait = false) noexcept;
+
+[[nodiscard]] std::string filePath();
 
 // is stdout a terminal (util func.)
 [[nodiscard]] bool isaTTY() noexcept;

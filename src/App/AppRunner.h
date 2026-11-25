@@ -12,13 +12,16 @@
 #include "MouseListener.h"
 
 #include <memory>
-#include <string>
+
+namespace Mc {
+struct AppDescriptor;
+}
 
 class AppRunner final : public App, public MouseListener {
     NOCOPY_NOMOVE(AppRunner)
    public:
     AppRunner() = delete;
-    AppRunner(bool testMode, std::string_view appName);
+    AppRunner(bool testMode, const Mc::AppDescriptor *appDesc);
     ~AppRunner() override;
 
     void draw() override;
@@ -49,7 +52,7 @@ class AppRunner final : public App, public MouseListener {
     void showNotification(const NotificationInfo &info) override;
 
    private:
-    void launchApp(std::string_view name);
+    void launchApp(const Mc::AppDescriptor &appDesc);
     void returnToMenu();
 
     std::unique_ptr<App> m_activeApp;

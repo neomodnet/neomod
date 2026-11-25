@@ -46,6 +46,7 @@ static_assert(std::is_trivially_destructible_v<ConVar::DoubleChangeCB>);
 namespace cv {
 // special-cased to improve rebuild times (only declared as extern in ConVarDefs.h)
 ConVar build_timestamp("build_timestamp", BUILD_TIMESTAMP, CONSTANT);
+ConVar build_commit("build_commit", BUILD_COMMIT, CONSTANT);
 ConVar version("version", PACKAGE_VERSION_UNCACHED, CONSTANT);
 }  // namespace cv
 

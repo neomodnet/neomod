@@ -15,9 +15,7 @@
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_process.h>
 
-#ifdef MCENGINE_PLATFORM_WINDOWS
 #include "CrashHandler.h"
-#endif
 #include "Profiler.h"
 
 #include "Thread.h"
@@ -209,6 +207,10 @@ MAIN_FUNC /* int argc, char *argv[] */
             }
         }
     }
+    const bool crashReport = has_arg(MODE_CRASHREPORT).has_value();
+    if(crashReport) {
+        appDesc = &Mc::getCrashReporterAppDescriptor();
+    }
     if(!appDesc) {
         appDesc = &Mc::getDefaultAppDescriptor();
     }
@@ -224,10 +226,6 @@ MAIN_FUNC /* int argc, char *argv[] */
            Mc::SingleInstance::Claim::FORWARDED) {
         std::exit(0);
     }
-
-#ifdef MCENGINE_PLATFORM_WINDOWS
-    CrashHandler::init();
-#endif
 
     // resolve the path to the executable, switch the working directory to its folder and resolve the asset/data
     // directory layout
@@ -245,8 +243,13 @@ MAIN_FUNC /* int argc, char *argv[] */
     const bool headless = has_arg(REND_HEADLESS).has_value();
 
     // now set up spdlog logging
-    Logger::init(headless || has_arg(MODE_CONSOLE));
+    const bool keepCrashedGameLog = crashReport;
+    Logger::init(headless || has_arg(MODE_CONSOLE), !keepCrashedGameLog);
     atexit(Logger::shutdown);
+
+    if((Env::cfg(OS::WINDOWS) || !Env::cfg(BUILD::DEBUG)) && !crashReport) {
+        CrashHandler::init();
+    }
 
 #if defined(_WIN32)
     {

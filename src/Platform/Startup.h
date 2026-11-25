@@ -36,8 +36,8 @@ namespace detail {
 [[nodiscard]] const Settings &get();
 
 // how far this start got, kept in a file until it is finished() (only for a player's launches, not test or second
-// instances). a start that never got there (a crash, or a hang the player ended) opens the startup dialog the next
-// time, and a renderer it stopped in goes last in the automatic order until a start gets through
+// instances or the crash reporter). a start that never got there (a crash, or a hang the player ended) opens the
+// startup dialog the next time, and a renderer it stopped in goes last in the automatic order until a start gets through
 enum class Progress : u8 { RENDERER, APP, FIRST_FRAME };
 void progress(Progress progress, Renderer renderer);
 // the first frame is drawn, or the game quit in an orderly way before that

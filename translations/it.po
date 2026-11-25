@@ -18,6 +18,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "Invia segnalazione del crash"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "Esci"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "Riavvia"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "(può contenere il tuo nome utente, percorsi di file e messaggi della chat)"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "neomod si è arrestato in modo anomalo (Scusa!)."
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "Se vuoi, puoi inviare una segnalazione del crash agli sviluppatori. Include:"
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- la versione del gioco e il tuo sistema operativo"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- dove si è bloccato il gioco"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "Cosa stavi facendo quando si è bloccato? (facoltativo)"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "Le segnalazioni dei crash vengono conservate per un massimo di 90 giorni."
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "Segnalazione del crash"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "Invio della segnalazione del crash..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "Impossibile inviare la segnalazione del crash: {}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "Novità"
@@ -4662,10 +4716,6 @@ msgstr "Riprendi"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "Riprova"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "Esci"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"

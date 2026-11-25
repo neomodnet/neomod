@@ -18,6 +18,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "发送崩溃报告"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "退出"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "重新启动"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "（可能包含你的用户名、文件路径和聊天消息）"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "neomod 崩溃了（抱歉！）。"
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "如果你愿意，可以把崩溃报告发送给开发者。报告包含："
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- 游戏版本和你的操作系统"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- 游戏崩溃的位置"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "崩溃时你在做什么？（可选）"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "崩溃报告最多保留 90 天。"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "崩溃报告"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "正在发送崩溃报告..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "无法发送崩溃报告：{}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "更新日志"
@@ -4662,10 +4716,6 @@ msgstr "继续"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "重试"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "退出"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"

@@ -103,6 +103,7 @@ class ConVar;
 namespace cv {
 // special cased to improve dependency tracked rebuilds
 extern ConVar build_timestamp;
+extern ConVar build_commit;
 extern ConVar version;
 namespace cmd {
 

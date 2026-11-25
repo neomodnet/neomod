@@ -110,6 +110,11 @@ CBaseUICheckbox *CBaseUICheckbox::setSizeToContent(int horizontalBorderSize, int
     return this;
 }
 
+vec2 CBaseUICheckbox::getNaturalSize() {
+    const float height = this->fStringHeight * 2.f;
+    return {height * 1.25f + this->fStringWidth, height};
+}
+
 CBaseUICheckbox *CBaseUICheckbox::setWidthToContent(int horizontalBorderSize) {
     // HACKHACK: broken
     CBaseUIButton::setWidthToContent(horizontalBorderSize);

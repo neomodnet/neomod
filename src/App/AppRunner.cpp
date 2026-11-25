@@ -15,23 +15,10 @@
 
 using namespace Mc;
 
-AppRunner::AppRunner(bool testMode, std::string_view appName) : m_bTestMode(testMode) {
+AppRunner::AppRunner(bool testMode, const AppDescriptor *appDesc) : m_bTestMode(testMode) {
     mouse->addListener(this);
 
-    if(!m_bTestMode) {
-        // normal mode: auto-launch default app
-        launchApp(getDefaultAppDescriptor().name);
-        return;
-    }
-
-    // test mode
-    for(const auto &entry : getAllAppDescriptors()) {
-        if(appName == entry.name) {
-            launchApp(entry.name);
-            return;
-        }
-    }
-    debugLog("unknown app '{:s}', showing selection screen", appName);
+    if(appDesc) launchApp(*appDesc);
 }
 
 AppRunner::~AppRunner() {
@@ -39,18 +26,13 @@ AppRunner::~AppRunner() {
     mouse->removeListener(this);
 }
 
-void AppRunner::launchApp(std::string_view name) {
+void AppRunner::launchApp(const AppDescriptor &appDesc) {
     m_activeApp.reset();
 
-    for(const auto &entry : getAllAppDescriptors()) {
-        if(name == entry.name) {
-            if(Env::cfg(BUILD::DEBUG)) {
-                debugLog("launching app: {:s}", name);
-            }
-            m_activeApp.reset(entry.create());
-            return;
-        }
+    if(Env::cfg(BUILD::DEBUG)) {
+        debugLog("launching app: {:s}", appDesc.name);
     }
+    m_activeApp.reset(appDesc.create());
 }
 
 void AppRunner::returnToMenu() {
@@ -163,7 +145,7 @@ void AppRunner::onButtonChange(ButtonEvent &event) {
         if(event.down) {
             m_iMouseDownIndex = m_iHoveredIndex;
         } else if(m_iMouseDownIndex == m_iHoveredIndex) {
-            launchApp(allApps[m_iMouseDownIndex].name);
+            launchApp(allApps[m_iMouseDownIndex]);
         }
     }
 }

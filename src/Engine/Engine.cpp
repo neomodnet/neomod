@@ -265,15 +265,22 @@ bool Engine::loadApp() {
 #ifndef BUILD_TOOLS_ONLY
 #ifdef MCENGINE_TESTS
         {
-            const auto testApp = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_TESTAPP);
+            const auto testApp = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_CRASHREPORT)
+                                     ? std::nullopt
+                                     : Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_TESTAPP);
+            const Mc::AppDescriptor *appDesc = &env->getAppDescriptor();
+            if(testApp && *testApp != appDesc->name) {
+                debugLog("unknown app '{:s}', showing selection screen", *testApp);
+                appDesc = nullptr;
+            }
             // keep old dummy global "app" alive during ctor so that "app" can still be safely dereferenced during new construction
-            auto *new_app = new AppRunner(testApp.has_value(), testApp.value_or(""));
+            auto *new_app = new AppRunner(testApp.has_value(), appDesc);
             SAFE_DELETE(app);
             app = new_app;
         }
 #else
-        if(const auto &defaultApp = Mc::getDefaultAppDescriptor(); !!defaultApp.create) {
-            auto *new_app = defaultApp.create();
+        if(const auto &appDesc = env->getAppDescriptor(); !!appDesc.create) {
+            auto *new_app = appDesc.create();
             SAFE_DELETE(app);
             app = new_app;
         }

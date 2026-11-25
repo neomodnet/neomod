@@ -18,6 +18,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "크래시 보고서 보내기"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "나가기"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "다시 시작"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "(사용자 이름, 파일 경로, 채팅 메시지가 포함될 수 있음)"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "neomod가 비정상 종료되었습니다 (죄송합니다!)."
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "원하면 개발자에게 크래시 보고서를 보낼 수 있습니다. 포함 내용:"
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- 게임 버전과 운영체제"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- 게임이 비정상 종료된 위치"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "크래시가 났을 때 무엇을 하고 있었나요? (선택)"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "크래시 보고서는 최대 90일 동안 보관됩니다."
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "크래시 보고서"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "크래시 보고서를 보내는 중..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "크래시 보고서를 보내지 못했습니다: {}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "변경 내역"
@@ -4662,10 +4716,6 @@ msgstr "계속하기"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "다시 하기"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "나가기"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"

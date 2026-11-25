@@ -113,6 +113,7 @@ struct Environment::EnvironmentImpl {
 
 Environment::Environment(const Mc::AppDescriptor &appDesc)
     : m_interop(appDesc.createInterop ? static_cast<Interop *>(appDesc.createInterop(this)) : new Interop()),
+      m_appDesc(appDesc),
       m_impl(),
       m_cursorIcons(/*lazy init*/) {
     env = this;

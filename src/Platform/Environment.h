@@ -95,6 +95,7 @@ class Environment {
    protected:
     friend struct Interop;
     std::unique_ptr<Interop> m_interop;
+    const Mc::AppDescriptor &m_appDesc;
 
    public:
     Environment(const Mc::AppDescriptor &appDesc);
@@ -140,6 +141,7 @@ class Environment {
     [[nodiscard]] inline bool isRestartScheduled() const { return m_bIsRestartScheduled; }
     [[nodiscard]] inline bool isHeadless() const { return m_bHeadless; }
     [[nodiscard]] inline Interop &getEnvInterop() { return *m_interop; }
+    [[nodiscard]] inline const Mc::AppDescriptor &getAppDescriptor() const { return m_appDesc; }
 
     // files and urls this process was asked to open, oldest first: its own launch's operands, those of launches
     // handed over by later ones (see SingleInstance.h) and drag-and-drop. the app takes them once it can handle them

@@ -18,6 +18,60 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: src/App/CrashReporter.cpp
+msgid "Send crash report"
+msgstr "Çökme raporu gönder"
+
+#: src/App/CrashReporter.cpp src/App/Neomod/PauseOverlay.cpp
+#: src/Platform/Startup.cpp
+msgid "Quit"
+msgstr "Çık"
+
+#: src/App/CrashReporter.cpp
+msgid "Restart"
+msgstr "Yeniden başlat"
+
+#: src/App/CrashReporter.cpp
+msgid "(may contain your username, file paths, chat messages)"
+msgstr "(kullanıcı adını, dosya yollarını ve sohbet mesajlarını içerebilir)"
+
+#: src/App/CrashReporter.cpp
+msgid "neomod crashed (Sorry!)."
+msgstr "neomod çöktü (Üzgünüz!)."
+
+#: src/App/CrashReporter.cpp
+msgid "If you want, you can send a crash report to the developers. It includes:"
+msgstr "İstersen geliştiricilere bir çökme raporu gönderebilirsin. İçeriği:"
+
+#: src/App/CrashReporter.cpp
+msgid "- the game version and your operating system"
+msgstr "- oyun sürümü ve işletim sistemin"
+
+#: src/App/CrashReporter.cpp
+msgid "- where the game crashed"
+msgstr "- oyunun çöktüğü yer"
+
+#: src/App/CrashReporter.cpp
+msgid "What were you doing when it crashed? (optional)"
+msgstr "Çöktüğünde ne yapıyordun? (isteğe bağlı)"
+
+#: src/App/CrashReporter.cpp
+msgid "Crash reports are kept for up to 90 days."
+msgstr "Çökme raporları en fazla 90 gün saklanır."
+
+#: src/App/CrashReporter.cpp
+msgid "Crash report"
+msgstr "Çökme raporu"
+
+#: src/App/CrashReporter.cpp
+msgid "Sending the crash report..."
+msgstr "Çökme raporu gönderiliyor..."
+
+#: src/App/CrashReporter.cpp
+#, c++-format
+msgid "Couldn't send the crash report: {}"
+msgstr "Çökme raporu gönderilemedi: {}"
+
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
 msgstr "Değişiklik günlüğü"
@@ -4662,10 +4716,6 @@ msgstr "Devam et"
 #: src/App/Neomod/PauseOverlay.cpp src/App/Neomod/RankingScreen.cpp
 msgid "Retry"
 msgstr "Tekrar dene"
-
-#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
-msgid "Quit"
-msgstr "Çık"
 
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"
