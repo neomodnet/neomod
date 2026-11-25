@@ -224,10 +224,11 @@ class SongBrowser final : public ScreenBackable {
 
     void updateScoreBrowserLayout();
 
-    void scheduleSearchUpdate(bool immediately = false);
+    void updateSearchIndex(f64 budget);
     void checkHandleKillBackgroundSearchMatcher();
 
     void onSearchUpdate();
+    void submitSearch();
     void rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(bool scrollToTop,
                                                                        bool doRebuildSongButtons = true);
 
@@ -432,13 +433,14 @@ class SongBrowser final : public ScreenBackable {
     UISearchOverlay *search;
     std::string sPrevSearchString;
     std::string sPrevHardcodedSearchString;
-    float fSearchWaitTime;
+    bool bSearchScheduled{false};
     bool bInSearch;
     bool bShouldRecountMatchesAfterSearch{true};
     i32 currentVisibleSearchMatches{0};
     std::optional<GroupType> searchPrevGroup{std::nullopt};
     Async::CancellableHandle<std::optional<AsyncSongButtonMatcher::SearchResult>> searchHandle;
-    std::shared_ptr<const AsyncSongButtonMatcher::SearchIndex> searchIndex;
+    std::shared_ptr<AsyncSongButtonMatcher::SearchIndex> searchIndex{
+        std::make_shared<AsyncSongButtonMatcher::SearchIndex>()};
+    u32 searchIndexedDiffs{0};
     std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> lastSearch;
-    void invalidateSearchIndex();
 };

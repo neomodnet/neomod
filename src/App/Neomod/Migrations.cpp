@@ -92,11 +92,6 @@ void run() {
         // We leave the cvar available as it could still be useful for some players
         cv::restart_sound_engine_before_playing.setValue(false);
 
-        // 0.5 is shit default value
-        if(cv::songbrowser_search_delay.getFloat() == 0.5f) {
-            cv::songbrowser_search_delay.setValue(0.2f);
-        }
-
         // Match osu!stable value
         if(cv::relax_offset.getFloat() == 0.f) {
             cv::relax_offset.setValue(-12.f);

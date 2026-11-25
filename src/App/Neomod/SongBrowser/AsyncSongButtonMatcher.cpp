@@ -20,7 +20,6 @@
 #include <string_view>
 #include <vector>
 #include <utility>
-#include <iterator>
 
 namespace AsyncSongButtonMatcher {
 
@@ -267,8 +266,9 @@ bool narrows(const Query &prev, const Query &next) {
 
 SearchIndex::TextRange append_lower(std::string &out, std::string_view str) {
     const u32 begin = (u32)out.size();
-    out.append(str);
-    for(size_t i = begin; i < out.size(); i++) out[i] = (char)SString::ascii_tolower((unsigned char)out[i]);
+    out.resize(begin + str.size());
+    std::ranges::transform(str, out.begin() + begin,
+                           [](char c) { return (char)SString::ascii_tolower((unsigned char)c); });
     const u32 end = (u32)out.size();
     out.push_back('\0');
     return {begin, end};
@@ -287,7 +287,8 @@ void SearchIndex::add(const DatabaseBeatmap &diff, u32 id) {
     append_lower(this->text, diff.getTags());
     for(const int id : {diff.getID(), diff.getSetID()}) {
         if(id <= 0) continue;
-        fmt::format_to(std::back_inserter(this->text), "{:d}", id);
+        const fmt::format_int str{id};
+        this->text.append(str.data(), str.size());
         this->text.push_back('\0');
     }
     for(const std::string_view unicode : {diff.getTitleUnicode(), diff.getArtistUnicode()}) {

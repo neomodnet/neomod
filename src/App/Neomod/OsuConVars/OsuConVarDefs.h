@@ -167,7 +167,6 @@ CONVAR(songbrowser_thumbnail_fade_in_duration, 0.15f, CLIENT | SKINS);
 
 // Song browser (client only)
 CONVAR(prefer_cjk, false, CLIENT, "prefer metadata in original language");
-CONVAR(songbrowser_search_delay, 0.2f, CLIENT, "delay until search update when entering text");
 CONVAR(songbrowser_search_hardcoded_filter, ""sv, CLIENT,
        "allows forcing the specified search filter to be active all the time");
 

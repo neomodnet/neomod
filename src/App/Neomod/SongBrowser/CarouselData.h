@@ -45,7 +45,7 @@ struct CarouselGroup {
 
 // the beatmaps the carousel is built from, as plain arrays processed by SongBrowser.
 // sets and difficulties are indexed in the order they were added and keep their index until the next database
-// load: a removed set only drops out of everything that refers to it
+// load: a removed set only drops out of everything that refers to it, and its difficulties are nulled in diffMap
 struct CarouselData {
     std::vector<BeatmapSet *> setMap;
     std::vector<DatabaseBeatmap *> setRepresentative;
