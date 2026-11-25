@@ -1640,6 +1640,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addKeyBindButton(_("Skip Cutscene"), &binds::SKIP_CUTSCENE);
     this->addKeyBindButton(_("Toggle Scoreboard"), &binds::TOGGLE_SCOREBOARD);
     this->addKeyBindButton(_("Scrubbing (+ Click Drag!)"), &binds::SEEK_TIME);
+    this->elemContainers.back()->searchTags = "seek";
     this->addKeyBindButton(_("Quick Seek -5sec <<<"), &binds::SEEK_TIME_BACKWARD);
     this->addKeyBindButton(_("Quick Seek +5sec >>>"), &binds::SEEK_TIME_FORWARD);
     this->addKeyBindButton(_("Increase Local Song Offset"), &binds::INCREASE_LOCAL_OFFSET);
