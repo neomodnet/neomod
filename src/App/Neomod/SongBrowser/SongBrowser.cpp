@@ -507,7 +507,10 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     // search
     this->search = new UISearchOverlay(0, 0, 0, 0, "songbrowser_search");
     this->search->setOffsetRight(10);
-    this->search->setChangeCallback([this] { this->bSearchScheduled = true; });
+    this->search->setChangeCallback([this] {
+        this->bSearchScheduled = true;
+        this->fSearchShowTime = engine->getTime() + cv::songbrowser_search_delay.getFloat();
+    });
     this->search->setTypingBlocked([this] { return this->bF2Pressed || this->bF3Pressed; });
     this->bInSearch = (!cv::songbrowser_search_hardcoded_filter.getString().empty());
     this->updateLayout();
@@ -682,7 +685,8 @@ void SongBrowser::draw() {
     this->search->setHardcodedSearchString(cv::songbrowser_search_hardcoded_filter.getString());
     this->search->setDrawNumResults(this->bInSearch);
     this->search->setNumFoundResults(this->currentVisibleSearchMatches);
-    this->search->setSearching(this->searchHandle.valid() && !this->searchHandle.is_ready());
+    this->search->setSearching((this->searchHandle.valid() && !this->searchHandle.is_ready()) ||
+                               this->lastSearch != this->shownSearch);
     this->search->draw();
 
     // NOTE: Intentionally not calling ScreenBackable::draw() here, since we're already drawing
@@ -1115,21 +1119,24 @@ void SongBrowser::tick() {
         if(auto result = this->searchHandle.get(); !result) {
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true);
         } else if(result->index == this->searchIndex) {
-            const bool rerun = this->lastSearch && this->lastSearch->query == result->query;
-            for(size_t i = 0; i < result->matches.size(); i++) {
-                this->data.diffMatch[this->searchIndex->ids[i]] = result->matches[i];
-            }
             this->lastSearch = std::make_shared<const AsyncSongButtonMatcher::SearchResult>(std::move(*result));
-            this->updateSetRepresentatives();
-            this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(!rerun);
         }
+    }
+    if(this->lastSearch != this->shownSearch && engine->getTime() >= this->fSearchShowTime) {
+        const bool rerun = this->shownSearch && this->shownSearch->query == this->lastSearch->query;
+        for(size_t i = 0; i < this->lastSearch->matches.size(); i++) {
+            this->data.diffMatch[this->lastSearch->index->ids[i]] = this->lastSearch->matches[i];
+        }
+        this->shownSearch = this->lastSearch;
+        this->updateSetRepresentatives();
+        this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(!rerun);
     }
     if(this->bInitializedBeatmaps && this->bInSearch && !this->searchHandle.valid() &&
        this->searchIndexedDiffs == this->data.diffMap.size() &&
        (!this->lastSearch || this->lastSearch->index != this->searchIndex)) {
         this->submitSearch();
     }
-    if(!this->searchHandle.valid()) {
+    if(!this->searchHandle.valid() && this->lastSearch == this->shownSearch) {
         if(this->scheduled_scroll_to_selected_button) {
             this->scheduled_scroll_to_selected_button = false;
             this->scrollToBestButton();
@@ -1633,6 +1640,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     this->searchIndex = std::make_shared<AsyncSongButtonMatcher::SearchIndex>();
     this->searchIndexedDiffs = 0;
     this->lastSearch.reset();
+    this->shownSearch.reset();
 
     // clear beatmap interface to lose any potential stale references
     VolNormalization::flush_priority();  // it may be calculating on preloaded maps
@@ -1682,6 +1690,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     this->search->clear();
     this->sPrevSearchString.clear();
     this->bSearchScheduled = false;
+    this->fSearchShowTime = 0.0;
     this->searchPrevGroup = std::nullopt;
 
     // force no grouping (TODO: is this even necessary? why is it here?)
@@ -2956,6 +2965,7 @@ void SongBrowser::onSearchUpdate() {
 
         // reset all search flags
         std::ranges::fill(this->data.diffMatch, true);
+        this->shownSearch = this->lastSearch;
         this->updateSetRepresentatives();
 
         // remember which tab was selected, instead of defaulting back to no grouping

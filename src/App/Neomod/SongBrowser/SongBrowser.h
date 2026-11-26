@@ -434,6 +434,7 @@ class SongBrowser final : public ScreenBackable {
     std::string sPrevSearchString;
     std::string sPrevHardcodedSearchString;
     bool bSearchScheduled{false};
+    f64 fSearchShowTime{0.0};
     bool bInSearch;
     bool bShouldRecountMatchesAfterSearch{true};
     i32 currentVisibleSearchMatches{0};
@@ -443,4 +444,5 @@ class SongBrowser final : public ScreenBackable {
         std::make_shared<AsyncSongButtonMatcher::SearchIndex>()};
     u32 searchIndexedDiffs{0};
     std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> lastSearch;
+    std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> shownSearch;
 };
