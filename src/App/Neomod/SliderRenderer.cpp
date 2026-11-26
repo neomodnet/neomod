@@ -399,50 +399,29 @@ void set_shader_channel_uniform(Shader *shader, u8 channel) {
                          channel == 2 ? 1.0f : 0.0f, channel == 3 ? 1.0f : 0.0f);
 }
 
-// a body whose field renders in the active batch. sources reuse the buffers behind their spans, so its points are
-// copied to the batch (see bodyOf())
+// a body added to the active batch, its points copied to the batch (see body_of())
 struct Entry {
-    const BodySource *source;
+    u32 id;
+    u8 channel{0};          // the render target channel its field goes into
+    bool debug;             // drawn without a field, so it has no area or channel
     Body body;  // without its spans
     uSz pointsAt;
     uSz numPoints;
     uSz numAlwaysPoints;
     McIRect area;           // what its composite covers
-    u8 channel{0};          // the render target channel its field goes into
     const Image *gradient;  // the skin's slidergradient.png when it takes the place of the dynamic colors and border
 };
 
 // the active Batch, kept around for the capacity
 struct BatchState {
     RenderTarget *rt{nullptr};
-    std::vector<Entry> entries;  // queue order
+    std::vector<Entry> entries;  // in the order they were added
     std::vector<vec2> points;
     // entries[residentBegin, residentEnd) have their fields in rt, the ones after are pending
     uSz residentBegin{0};
     uSz residentEnd{0};
 };
 BatchState s_batch;
-
-// nullopt when the body's field would be entirely off-screen
-std::optional<Entry> make_entry(const BodySource &source, const Body &b) {
-    const McIRect area = composite_area(b, s_batch.rt->getSize());
-    if(area.getWidth() <= 0 || area.getHeight() <= 0) return std::nullopt;
-
-    const Image *gradient = b.skinSettings.i_slider_gradient;
-    Entry entry{
-        .source = &source,
-        .body = b,
-        .pointsAt = s_batch.points.size(),
-        .numPoints = b.points.size(),
-        .numAlwaysPoints = b.alwaysPoints.size(),
-        .area = area,
-        .gradient = cv::slider_use_gradient_image.getBool() && gradient && gradient->isReady() ? gradient : nullptr};
-    entry.body.points = {};
-    entry.body.alwaysPoints = {};
-    s_batch.points.insert(s_batch.points.end(), b.points.begin(), b.points.end());
-    s_batch.points.insert(s_batch.points.end(), b.alwaysPoints.begin(), b.alwaysPoints.end());
-    return entry;
-}
 
 Body body_of(const Entry &entry) {
     Body b = entry.body;
@@ -451,9 +430,9 @@ Body body_of(const Entry &entry) {
     return b;
 }
 
-// the index of the source's entry in [from, to), to when there's none
-uSz find_entry(const BodySource &source, uSz from, uSz to) {
-    while(from < to && s_batch.entries[from].source != &source) ++from;
+// the index of the entry added as id in [from, to), to when there's none
+uSz find_entry(u32 id, uSz from, uSz to) {
+    while(from < to && s_batch.entries[from].id != id) ++from;
     return from;
 }
 
@@ -463,10 +442,12 @@ uSz assign_channels(uSz first) {
     uSz end = first;
     for(; end < s_batch.entries.size(); ++end) {
         Entry &entry = s_batch.entries[end];
+        if(entry.debug) continue;
 
         u32 taken = 0;
         for(uSz i = first; i < end; ++i)
-            if(s_batch.entries[i].area.intersects(entry.area)) taken |= 1u << s_batch.entries[i].channel;
+            if(!s_batch.entries[i].debug && s_batch.entries[i].area.intersects(entry.area))
+                taken |= 1u << s_batch.entries[i].channel;
 
         const u32 free = ~taken & 0xfu;
         if(free == 0) break;
@@ -498,6 +479,7 @@ void render_fields(uSz first) {
         g->setBlending(false);
         g->setColor(0);
         for(uSz i = first; i < s_batch.residentEnd; ++i) {
+            if(s_batch.entries[i].debug) continue;
             const McIRect &area = s_batch.entries[i].area;
             g->fillRect(area.getX(), area.getY(), area.getWidth(), area.getHeight());
         }
@@ -512,6 +494,7 @@ void render_fields(uSz first) {
         s_FIELD_SHADER->enable();
         for(uSz i = first; i < s_batch.residentEnd; ++i) {
             const Entry &entry = s_batch.entries[i];
+            if(entry.debug) continue;
             set_shader_channel_uniform(s_FIELD_SHADER, entry.channel);
             // the gradient image is sampled at the field value itself
             set_field_encoding_uniforms(s_FIELD_SHADER, enc, /*linear=*/entry.gradient != nullptr);
@@ -810,39 +793,49 @@ Batch::~Batch() {
     s_batch.residentBegin = s_batch.residentEnd = 0;
 }
 
-void Batch::queue(const BodySource &source) {
-    // draw() asks again for the bodies that aren't queued here: debug bodies draw without a field
-    const std::optional<Body> body = source.getBody();
-    if(!body || !visible(*body) || debug_drawn(*body)) return;
+void Batch::add(u32 id, const Body &body) {
+    assert(find_entry(id, 0, s_batch.entries.size()) == s_batch.entries.size() && "id added twice");
+    if(!visible(body)) return;
 
-    if(const std::optional<Entry> entry = make_entry(source, *body)) s_batch.entries.push_back(*entry);
+    const bool debug = debug_drawn(body);
+    McIRect area;
+    if(!debug) {
+        area = composite_area(body, s_batch.rt->getSize());
+        if(area.getWidth() <= 0 || area.getHeight() <= 0) return;  // entirely off-screen
+    }
+
+    const Image *gradient = body.skinSettings.i_slider_gradient;
+    Entry &entry = s_batch.entries.emplace_back(Entry{
+        .id = id,
+        .debug = debug,
+        .body = body,
+        .pointsAt = s_batch.points.size(),
+        .numPoints = body.points.size(),
+        .numAlwaysPoints = body.alwaysPoints.size(),
+        .area = area,
+        .gradient = cv::slider_use_gradient_image.getBool() && gradient && gradient->isReady() ? gradient : nullptr});
+    entry.body.points = {};
+    entry.body.alwaysPoints = {};
+    s_batch.points.insert(s_batch.points.end(), body.points.begin(), body.points.end());
+    s_batch.points.insert(s_batch.points.end(), body.alwaysPoints.begin(), body.alwaysPoints.end());
 }
 
-void draw(const BodySource &source) {
-    assert(s_batch.rt != nullptr && "SliderRenderer::draw() outside of a Batch");
-    if(s_batch.rt == nullptr) return;
-
-    std::vector<Entry> &entries = s_batch.entries;
-    uSz i = find_entry(source, s_batch.residentBegin, s_batch.residentEnd);
-    if(i == s_batch.residentEnd) {
-        // its field renders now, with the ones queued after it. an unqueued body goes in front of them
-        i = find_entry(source, s_batch.residentEnd, entries.size());
-        if(i == entries.size()) {
-            const std::optional<Body> body = source.getBody();
-            if(!body || !visible(*body)) return;
-            if(debug_drawn(*body)) {
-                draw_debug(*body);
-                return;
-            }
-
-            const std::optional<Entry> entry = make_entry(source, *body);
-            if(!entry) return;
-            i = s_batch.residentEnd;
-            entries.insert(entries.begin() + (sSz)i, *entry);
-        }
-        render_fields(i);
+void Batch::draw(u32 id) {
+    // drawn in the order they were added, the body is resident or the first one pending
+    uSz i = find_entry(id, s_batch.residentBegin, s_batch.entries.size());
+    if(i == s_batch.entries.size()) {
+        i = find_entry(id, 0, s_batch.residentBegin);
+        if(i == s_batch.residentBegin) return;
     }
-    composite(entries[i]);
+
+    const Entry &entry = s_batch.entries[i];
+    if(entry.debug) {
+        draw_debug(body_of(entry));
+        return;
+    }
+    // its field renders now, with the ones added after it
+    if(i < s_batch.residentBegin || i >= s_batch.residentEnd) render_fields(i);
+    composite(entry);
 }
 
 }  // namespace SliderRenderer

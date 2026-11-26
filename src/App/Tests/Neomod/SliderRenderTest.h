@@ -9,7 +9,6 @@
 #include "Color.h"
 #include "SliderRenderer.h"
 
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,11 +48,10 @@ class SliderRenderTest : public App {
     };
 
     // one drawn copy of a test slider
-    struct TestBody final : SliderRenderer::BodySource {
+    struct TestBody {
         SliderRenderer::Body body;  // without its spans, they come from points and caps
         std::vector<vec2> points;   // srt_points
         std::vector<vec2> caps;     // the snaking end
-        [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override;
     };
 
     // everything the frame time depends on; a change restarts the perf readout

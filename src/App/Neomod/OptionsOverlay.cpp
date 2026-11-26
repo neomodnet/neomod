@@ -72,7 +72,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <optional>
 #include <utility>
 
 #include <atomic>
@@ -612,7 +611,7 @@ class SkinPreviewElement final : public CBaseUIElement {
     int iMode;
 };
 
-class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer::BodySource {
+class SliderPreviewElement final : public CBaseUIElement {
    public:
     SliderPreviewElement(float xPos, float yPos, float xSize, float ySize, std::string name)
         : CBaseUIElement(xPos, yPos, xSize, ySize, std::move(name)) {}
@@ -681,8 +680,13 @@ class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer:
                         this->mesh =
                             SliderRenderer::generateMesh(osu->getVirtScreenSize(), points, hitcircleDiameter, false);
                     }
-                    const SliderRenderer::Batch batch{osu->getSliderFrameBuffer()};
-                    SliderRenderer::draw(*this);
+                    SliderRenderer::Batch batch{osu->getSliderFrameBuffer()};
+                    batch.add(0, {.mesh = &this->mesh,
+                                  .translation = this->getPos(),
+                                  .hitcircleDiameter = hitcircleDiameter,
+                                  .skinSettings = {osu->getSkin()},
+                                  .undimmedColor = osu->getSkin()->getComboColorForCounter(420, 0)});
+                    batch.draw(0);
                 }
             }
 
@@ -698,14 +702,6 @@ class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer:
                                             1.0f, 1.0f, 0.0f, false, false);
             }
         }
-    }
-
-    [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override {
-        return SliderRenderer::Body{.mesh = &this->mesh,
-                                    .translation = this->getPos(),
-                                    .hitcircleDiameter = this->getHitcircleDiameter(),
-                                    .skinSettings = {osu->getSkin()},
-                                    .undimmedColor = osu->getSkin()->getComboColorForCounter(420, 0)};
     }
 
     void setDrawSliderHack(bool drawSliderHack) { this->bDrawSliderHack = drawSliderHack; }

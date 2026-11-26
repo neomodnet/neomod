@@ -17,6 +17,7 @@
 #include "Engine.h"
 #include "GameRules.h"
 #include "HUD.h"
+#include "InlineVec.h"
 #include "ModFPoSu.h"
 #include "Font.h"
 #include "VertexArrayObject.h"
@@ -1097,10 +1098,6 @@ void drawCircleObject2(const PlayfieldView &view, HitObjects &objects, uSz index
 }
 }  // namespace
 
-// shared to avoid per-slider per-draw allocations
-static CONSTINIT std::vector<vec2> alwaysPointsBuf;
-static CONSTINIT std::vector<vec2> legacyScreenPointsBuf;
-
 namespace {
 // the drawn part of the curve while snaking in or shrinking
 std::pair<f32, f32> snakeRange(const HitObjects &objects, uSz index) {
@@ -1118,26 +1115,26 @@ std::pair<f32, f32> snakeRange(const HitObjects &objects, uSz index) {
 }  // namespace
 
 namespace {
-SliderRenderer::Body makeSliderBody(const PlayfieldView &view, const HitObjects &objects, uSz index, f32 alpha,
-                                    f32 from, f32 to) {
+void addSliderBody(const PlayfieldView &view, const HitObjects &objects, uSz index, f32 alpha, f32 from, f32 to,
+                   SliderRenderer::Batch &batch) {
     const HitObjectLook &l = objects.looks[index];
     const SliderState &s = objects.sliderAt(index);
-    alwaysPointsBuf.clear();
+    Mc::InlineVec<vec2, 3> alwaysPoints;
     // smooth begin/end while snaking/shrinking
     if(cv::slider_body_smoothsnake.getBool()) {
         if(cv::slider_shrink.getBool() && s.sliderSnakePercent > 0.999f) {
-            alwaysPointsBuf.push_back(view.osuCoords2Pixels(s.pointAt(s.slidePct)));  // curpoint
-            alwaysPointsBuf.push_back(view.osuCoords2Pixels(objects.rawPosAt(
+            alwaysPoints.push_back(view.osuCoords2Pixels(s.pointAt(s.slidePct)));  // curpoint
+            alwaysPoints.push_back(view.osuCoords2Pixels(objects.rawPosAt(
                 index, objects.endTimes[index] + 1)));  // endpoint (because setDrawPercent() causes the last
                                                         // circle mesh to become invisible too quickly)
         }
         if(cv::snaking_sliders.getBool() && s.sliderSnakePercent < 1.0f)
-            alwaysPointsBuf.push_back(
+            alwaysPoints.push_back(
                 view.osuCoords2Pixels(s.pointAt(s.sliderSnakePercent)));  // snakeoutpoint (only while snaking out)
     }
 
     SliderRenderer::Body body{
-        .alwaysPoints = alwaysPointsBuf,
+        .alwaysPoints = alwaysPoints,
         .hitcircleDiameter = view.getHitcircleDiameter(),
         .from = from,
         .to = to,
@@ -1148,14 +1145,14 @@ SliderRenderer::Body makeSliderBody(const PlayfieldView &view, const HitObjects 
         .alpha = alpha,
         .sliderTimeForRainbow = objects.clickTimes[index]};
 
+    Mc::InlineVec<vec2, 256> screenPoints;
     if(view.slidersRenderDynamically()) {
         // peppy sliders: the shape changes every frame
-        legacyScreenPointsBuf.clear();
-        Mc::ranges::assign(legacyScreenPointsBuf, s.curve.getPoints());
-        for(auto &screenPoint : legacyScreenPointsBuf) {
+        Mc::ranges::assign(screenPoints, s.curve.getPoints());
+        for(auto &screenPoint : screenPoints) {
             screenPoint = view.osuCoords2Pixels(screenPoint - s.stackOffset);
         }
-        body.points = legacyScreenPointsBuf;
+        body.points = screenPoints;
     } else {
         // vertex buffered sliders
         // as the base mesh is centered at (0, 0, 0) and in raw osu coordinates, we have to scale and translate it to
@@ -1170,46 +1167,48 @@ SliderRenderer::Body makeSliderBody(const PlayfieldView &view, const HitObjects 
 
         if(flags::has<ModFlags::FPS>(view.getModFlags())) body.translation += view.getFirstPersonCursorDelta();
     }
-    return body;
+    batch.add((u32)index, body);
 }
 }  // namespace
 
 namespace {
-// the live body, or the one fading out after the end
-std::optional<SliderRenderer::Body> sliderBody(const PlayfieldView &view, const HitObjects &objects, uSz index) {
+// adds the live body to batch, or the one fading out after the end
+void addSliderBody(const PlayfieldView &view, const HitObjects &objects, uSz index, SliderRenderer::Batch &batch) {
     const HitObjectLook &l = objects.looks[index];
     const SliderState &s = objects.sliderAt(index);
-    if(s.numCtrlPoints <= 0) return std::nullopt;
+    if(s.numCtrlPoints <= 0) return;
 
     const bool isCompletelyFinished = s.startFinished && s.endFinished && objects.finished[index];
     if((objects.visible[index] || (s.startFinished && !objects.finished[index])) && !isCompletelyFinished) {
         const f32 alpha = (cv::mod_hd_slider_fast_fade.getBool() ? l.alpha : s.bodyAlpha);
-        if(alpha <= 0.0f || !cv::slider_draw_body.getBool()) return std::nullopt;
+        if(alpha <= 0.0f || !cv::slider_draw_body.getBool()) return;
 
         const auto [from, to] = snakeRange(objects, index);
-        return makeSliderBody(view, objects, index, alpha, from, to);
+        addSliderBody(view, objects, index, alpha, from, to, batch);
+        return;
     }
 
     // fading out after the end hit (which finishes the slider, so never together with the live body above)
     const bool slider_fading_out = s.endSliderBodyFadeAnimation > 0.0f && s.endSliderBodyFadeAnimation != 1.0f;
     const bool instafade = cv::instafade_sliders.getBool() && cv::sv_allow_instafade.getBool();
-    if(flags::has<ModFlags::Hidden>(view.getModFlags()) || instafade || !slider_fading_out) return std::nullopt;
+    if(flags::has<ModFlags::Hidden>(view.getModFlags()) || instafade || !slider_fading_out) return;
 
-    if(!cv::slider_shrink.getBool())
-        return makeSliderBody(view, objects, index, 1.0f - s.endSliderBodyFadeAnimation, 0, 1);
-    if(!cv::slider_body_lazer_fadeout_style.getBool()) return std::nullopt;
+    if(!cv::slider_shrink.getBool()) {
+        addSliderBody(view, objects, index, 1.0f - s.endSliderBodyFadeAnimation, 0, 1, batch);
+        return;
+    }
+    if(!cv::slider_body_lazer_fadeout_style.getBool()) return;
 
-    alwaysPointsBuf.clear();
-    alwaysPointsBuf.push_back(view.osuCoords2Pixels(s.pointAt(s.slidePct)));
-    return SliderRenderer::Body{
-        .alwaysPoints = alwaysPointsBuf,
-        .hitcircleDiameter = view.getHitcircleDiameter(),
-        .from = 0.0f,
-        .to = 0.0f,
-        .skinSettings = {view.getSkin()},
-        .undimmedColor = view.getComboColor(objects.colorCounters[index], objects.colorOffsets[index]),
-        .alpha = 1.0f - s.endSliderBodyFadeAnimation,
-        .sliderTimeForRainbow = objects.clickTimes[index]};
+    const vec2 curPoint = view.osuCoords2Pixels(s.pointAt(s.slidePct));
+    batch.add((u32)index, SliderRenderer::Body{.alwaysPoints = {&curPoint, 1},
+                                               .hitcircleDiameter = view.getHitcircleDiameter(),
+                                               .from = 0.0f,
+                                               .to = 0.0f,
+                                               .skinSettings = {view.getSkin()},
+                                               .undimmedColor = view.getComboColor(objects.colorCounters[index],
+                                                                                   objects.colorOffsets[index]),
+                                               .alpha = 1.0f - s.endSliderBodyFadeAnimation,
+                                               .sliderTimeForRainbow = objects.clickTimes[index]});
 }
 }  // namespace
 
@@ -1262,8 +1261,7 @@ void drawSliderTail(const PlayfieldView &view, const HitObjects &objects, uSz in
 }  // namespace
 
 namespace {
-void drawSliderObject(const PlayfieldView &view, HitObjects &objects, uSz index,
-                      const SliderRenderer::BodySource &body) {
+void drawSliderObject(const PlayfieldView &view, HitObjects &objects, uSz index, SliderRenderer::Batch &batch) {
     const HitObjectLook &l = objects.looks[index];
     SliderState &s = objects.sliderAt(index);
     if(s.numCtrlPoints <= 0) return;
@@ -1276,7 +1274,7 @@ void drawSliderObject(const PlayfieldView &view, HitObjects &objects, uSz index,
     const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
     const bool tc = flags::has<ModFlags::Traceable>(curGameplayFlags);
 
-    SliderRenderer::draw(body);
+    batch.draw((u32)index);
 
     const bool isCompletelyFinished = s.startFinished && s.endFinished && objects.finished[index];
     // extra possibility to avoid flicker between the visible delay and the fadeout animation below
@@ -2383,23 +2381,6 @@ void rebuildMesh(const PlayfieldView &view, HitObjects &objects, uSz index) {
 
 void draw(const PlayfieldView &view, HitObjects &objects, std::span<const u32> indices, RenderTarget *sliderBodies,
           bool spinnersFirst) {
-    // the slider bodies, as SliderRenderer asks for them
-    struct Body final : SliderRenderer::BodySource {
-        Body(const PlayfieldView &view, const HitObjects &objects, u32 index)
-            : view(view), objects(objects), index(index) {}
-        [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override {
-            return sliderBody(this->view, this->objects, this->index);
-        }
-        const PlayfieldView &view;
-        const HitObjects &objects;
-        u32 index;
-    };
-    static CONSTINIT std::vector<Body> bodies;
-    bodies.clear();
-    for(const u32 i : indices) {
-        if(objects.types[i] == HitObjectType::SLIDER) bodies.emplace_back(view, objects, i);
-    }
-
     // in order to avoid covering circles/sliders with spinner skin elements, draw spinners first
     // and overlay circles/sliders on top
     // this logic could be embedded in the sort order itself but i'm lazy to check if that would mess anything else up
@@ -2410,15 +2391,16 @@ void draw(const PlayfieldView &view, HitObjects &objects, std::span<const u32> i
     }
 
     SliderRenderer::Batch batch{sliderBodies};
-    for(const Body &body : bodies) batch.queue(body);
-    const Body *body = bodies.data();
+    for(const u32 i : indices) {
+        if(objects.types[i] == HitObjectType::SLIDER) addSliderBody(view, objects, i, batch);
+    }
     for(const u32 i : indices) {
         switch(objects.types[i]) {
             case HitObjectType::CIRCLE:
                 drawCircleObject(view, objects, i);
                 break;
             case HitObjectType::SLIDER:
-                drawSliderObject(view, objects, i, *body++);
+                drawSliderObject(view, objects, i, batch);
                 break;
             case HitObjectType::SPINNER:
                 if(!spinnersFirst) drawSpinnerObject(view, objects, i);

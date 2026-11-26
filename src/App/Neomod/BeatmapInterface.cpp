@@ -1865,7 +1865,6 @@ void BeatmapInterface::drawHitObjects() {
             HitObjectDrawing::draw2(*this, objects, obj);
         }
     } else {
-        // the slider bodies are queued before any of the objects is drawn, so their fields render together
         const auto drawObjects = [&](std::span<const u32> indices) {
             HitObjectDrawing::draw(*this, objects, indices, osu->getSliderFrameBuffer(), false);
         };

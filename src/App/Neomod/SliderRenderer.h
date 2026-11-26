@@ -55,35 +55,22 @@ struct Body final {
     i32 sliderTimeForRainbow = 0;
 };
 
-// whatever draws a slider body: draw() and Batch::queue() ask it for the body of the current frame
-class BodySource {
-   public:
-    BodySource() = default;
-    virtual ~BodySource() = default;
-
-    BodySource(const BodySource &) = default;
-    BodySource &operator=(const BodySource &) = default;
-    BodySource(BodySource &&) = default;
-    BodySource &operator=(BodySource &&) = default;
-
-    // nullopt when there's nothing to draw. the spans only have to stay valid until the next call
-    [[nodiscard]] virtual std::optional<Body> getBody() const = 0;
-};
-
-// lends draw() the render target the bodies' fields go into. queue() the sources about to be drawn, in draw order, so
-// the first draw() renders the fields of as many of them as fit into the target's channels in one pass, instead of
-// switching render targets for every body
+// draws slider bodies through a render target. add() the bodies about to be drawn, in draw order, then draw() each one
+// where it goes among the other draws: the first draw() renders the fields of as many of them as fit into the target's
+// channels in one pass, instead of switching render targets for every body
 class Batch {
     NOCOPY_NOMOVE(Batch)
    public:
     explicit Batch(RenderTarget *rt);  // target-sized, untouched by anything else while the batch lives
     ~Batch();
 
-    void queue(const BodySource &source);
+    // copies the body and its points, so the spans only have to stay valid until it returns.
+    // id is what draw() takes, unique within the batch
+    void add(u32 id, const Body &body);
+    // shades the field of the body added as id while compositing it here, rendering the field first if needed.
+    // nothing if no body was added as id
+    void draw(u32 id);
 };
-
-// renders the body's distance field into the batch's render target, then shades it while compositing it here
-void draw(const BodySource &source);
 
 // for convar callbacks
 void onUniformConfigChanged();

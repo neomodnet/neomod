@@ -44,7 +44,7 @@ ConVar srt_points("srt_points", false, cv::CLIENT | TESTONLY,
                   "draw the bodies from their screen-space points, a disc each, like sliders that change shape every "
                   "frame (wobble, minimize)");
 ConVar srt_batch("srt_batch", true, cv::CLIENT | TESTONLY,
-                 "queue every body before drawing, so their fields render together (off: a field pass per body)");
+                 "add every body before drawing, so their fields render together (off: a field pass per body)");
 ConVar srt_poison("srt_poison", false, cv::CLIENT | TESTONLY,
                   "fill the render target with a full field in every channel first: whatever a composite reads "
                   "without its field pass having cleared it shows up as body");
@@ -76,13 +76,6 @@ f64 median(std::vector<f64> v) {
 f64 mean(const std::vector<f64> &v) { return v.empty() ? 0.0 : std::reduce(v.begin(), v.end()) / (f64)v.size(); }
 
 }  // namespace
-
-std::optional<SliderRenderer::Body> SliderRenderTest::TestBody::getBody() const {
-    SliderRenderer::Body b = body;
-    b.points = points;
-    b.alwaysPoints = caps;
-    return b;
-}
 
 SliderRenderTest::SliderRenderTest() {
     m_gradient = resourceManager->loadImage("default/slidergradient.png", "SRT_SLIDERGRADIENT");
@@ -259,10 +252,17 @@ void SliderRenderTest::draw() {
         }
     }
     {
+        // unbatched, every body is drawn as soon as it's added
         SliderRenderer::Batch batch{m_sliderRT};
+        for(u32 i = 0; i < m_bodies.size(); ++i) {
+            SliderRenderer::Body body = m_bodies[i].body;
+            body.points = m_bodies[i].points;
+            body.alwaysPoints = m_bodies[i].caps;
+            batch.add(i, body);
+            if(!scene.batch) batch.draw(i);
+        }
         if(scene.batch)
-            for(const TestBody &body : m_bodies) batch.queue(body);
-        for(const TestBody &body : m_bodies) SliderRenderer::draw(body);
+            for(u32 i = 0; i < m_bodies.size(); ++i) batch.draw(i);
     }
     const uSz drawn = m_bodies.size();
 
