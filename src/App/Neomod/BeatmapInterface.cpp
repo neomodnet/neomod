@@ -1545,6 +1545,7 @@ void BeatmapInterface::resetScore() {
     this->fFailAnim.stop();
     this->fFailAnim = 1.0f;
 
+    osu->getScore()->reset();
     ui->getHUD()->resetScoreboard();
     ui->getHUD()->resetInputOverlayTrail();
 
