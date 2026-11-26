@@ -100,7 +100,6 @@ CONVAR(slider_debug_wireframe, false, CLIENT | SERVER | PROTECTED | GAMEPLAY, "u
 CONVAR(win_global_media_hotkeys, true, CLIENT,
        "Watch for play/pause/next/previous media keys globally for main menu music (Windows only)");
 CONVAR(alt_f4_quits_even_while_playing, true, CLIENT);
-CONVAR(auto_and_relax_block_user_input, true, CLIENT);
 CONVAR(mod_suddendeath_restart, false, CLIENT,
        "osu! has this set to false (i.e. you fail after missing). if set to true, then "
        "behave like SS/PF, instantly restarting the map");
@@ -451,6 +450,7 @@ CONVAR(ar_override_lock, false, CLIENT | SERVER | PROTECTED | GAMEPLAY,
 CONVAR(ar_overridenegative, 0.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "use this to override below AR 0. active if value is less than 0, disabled otherwise. "
        "this override always overrides the other override.");
+CONVAR(auto_and_relax_block_user_input, true, CLIENT | SERVER | GAMEPLAY);
 CONVAR(autopilot_lenience, 0.75f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(autopilot_snapping_strength, 2.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "How many iterations of quadratic interpolation to use, more = snappier, 0 = linear");

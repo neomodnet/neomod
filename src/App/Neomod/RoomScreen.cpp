@@ -814,7 +814,7 @@ void RoomScreen::onModsChanged() {
     // our options menu's settings that are part of a play's mods aren't the room's business (see Replay::Mods::use()),
     // except for the nightcore our DT button shows then, and the no pausing goes without saying
     Replay::Mods mods = Replay::Mods::from_cvars();
-    mods.flags &= ~(ModFlags::NoHP | ModFlags::FPoSu | ModFlags::NoPausing);
+    mods.flags &= ~(ModFlags::NoHP | ModFlags::FPoSu | ModFlags::NoPausing | ModFlags::RelaxInputs);
     mods.notelock_type = Replay::Mods{}.notelock_type;
     if(!room.has_full_mods) {
         mods = Replay::Mods::from_legacy(mods.to_legacy());

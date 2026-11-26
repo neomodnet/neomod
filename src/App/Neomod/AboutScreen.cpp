@@ -423,6 +423,7 @@ void AboutScreen::buildChangelog() {
         R"(  - Flashlight icon on results and multiplayer)",
         R"(  - Freeze Frame approach circles)",
         R"(  - In-game scoreboard showing old score when starting a map)",
+        R"(  - Replays desyncing when tapping with Relax)",
         R"(  - Strict Tracking slider misses near ticks)",
         R"(  - Stuttering at very low speeds)",
     };

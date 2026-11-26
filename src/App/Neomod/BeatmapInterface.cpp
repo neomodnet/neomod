@@ -335,7 +335,7 @@ void BeatmapInterface::skipEmptySection() {
 void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
     if(this->isWatching()) return;
 
-    bool should_click = (!osu->getModAuto() && !osu->getModRelax()) || !cv::auto_and_relax_block_user_input.getBool();
+    bool should_click = (!osu->getModAuto() && !osu->getModRelax()) || this->getMods().has(ModFlags::RelaxInputs);
 
     // music position to be interped to next update (in update2())
     Click click{.timestampNS = timestamp, .cursorPos = this->getCursorPos(), .musicPosMS = this->getJudgeMusicPos()};

@@ -64,6 +64,7 @@ enum class ModFlags : u64 {
     DKS = 1ULL << 48,
     Traceable = 1ULL << 49,
     FreezeFrame = 1ULL << 50,
+    RelaxInputs = 1ULL << 51,
 
     // Non-submittable
     NoHP = 1ULL << 62,

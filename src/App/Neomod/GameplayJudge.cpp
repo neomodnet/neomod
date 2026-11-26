@@ -221,6 +221,12 @@ void GameplayJudge::simulate_to(i32 musicPos) {
         u8 clickKeys = keys & ~lastKeys;
         if(this->getMods().has(ModFlags::DKS)) clickKeys |= lastKeys & ~keys;
 
+        // cv::auto_and_relax_block_user_input
+        if((this->getMods().has(ModFlags::Autoplay) || this->getMods().has(ModFlags::Relax)) &&
+           !this->getMods().has(ModFlags::RelaxInputs)) {
+            clickKeys = 0;
+        }
+
         this->step(frame, (f64)(frame.cur_music_pos - prev_frame.cur_music_pos) / 1000.0 / this->getSpeedMultiplier(),
                    clickKeys);
     }
