@@ -1648,7 +1648,9 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
         }
     }
 
-    if((objects.finished[index] || !objects.visible[index]) && (deltaEnd > 0 || (deltaEnd < -fadeOutTimeMS))) return;
+    if((objects.finished[index] || !objects.visible[index]) &&
+       (std::round(deltaEnd) > 0 || (deltaEnd < -fadeOutTimeMS)))
+        return;
 
     const f64 curPosMS = objects.clickTimes[index] - l.deltaMS;
     const i32 endTimeMS = objects.endTimes[index];
