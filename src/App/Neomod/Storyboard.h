@@ -100,6 +100,7 @@ class Storyboard {
     void draw(Layer first, Layer last, const View &view) const;
 
     struct Impl;
+
    private:
-    StaticPImpl<Impl, 784> impl;
+    StaticPImpl<Impl, 792> impl;
 };

@@ -561,6 +561,22 @@ void StoryboardTest::runTests() {
             " F,0,2000,,0\n");
         TEST_ASSERT(loopFade.getSpriteState(0, 1000).has_value(), "a visible fade in a loop counts");
 
+        const auto fadeOut = storyboard(
+            "Sprite,Background,Centre,\"img.jpg\",320,240\n"
+            " F,0,1000,2000,1,0\n"
+            " M,0,1000,5000,0,0,100,100\n"
+            "Sprite,Background,Centre,\"img.jpg\",320,240\n"
+            " L,1000,3\n"
+            "  F,0,0,1000,1,0\n"
+            " M,0,1000,9000,0,0,100,100\n"
+            "Sprite,Background,Centre,\"img.jpg\",320,240\n"
+            " F,0,1000,2000,1,0\n"
+            " F,0,3000,,1\n"
+            " M,0,1000,5000,0,0,100,100\n");
+        TEST_ASSERT(fadeOut.getSpriteSpan(0).second == 2000.0, "a sprite ends once it fades out for good");
+        TEST_ASSERT(fadeOut.getSpriteSpan(1).second == 4000.0, "or once its last loop iteration fades it out");
+        TEST_ASSERT(fadeOut.getSpriteSpan(2).second == 5000.0, "but not when it fades in again");
+
         const auto animation = storyboard(
             "Animation,Background,Centre,\"img.jpg\",320,240,2,150,LoopForever\n"
             " S,0,1000,1500,0.08 // animation should start playing from this point in time..\n"

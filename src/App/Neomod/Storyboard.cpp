@@ -20,12 +20,14 @@
 #include "SString.h"
 #include "Sound.h"
 #include "SoundEngine.h"
+#include "VertexArrayObject.h"
 #include "crypto.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <numbers>
 #include <span>
 #include <tuple>
@@ -563,6 +565,7 @@ struct Storyboard::Impl {
     std::vector<Frame> frames;
     std::vector<Image *> images;
     std::vector<Sound *> sounds;
+    std::unique_ptr<VertexArrayObject> quads;  // the sprites drawn since the last image or blend mode change
     std::optional<Async::Future<MD5Hash>> hashing;
     std::optional<MD5Hash> hash;
 
@@ -579,12 +582,17 @@ struct Storyboard::Impl {
     void finish();
     void resolveFiles(std::span<const std::string> skinDirs);
 
+    // fn(group, add) for each sprite group at `time` (with the triggers fired by `firedBy`), where add(pick, list) puts
+    // one property list from the group into the pick for that property
+    template <typename Fn>
+    void eachGroup(u32 index, f64 time, f64 firedBy, Fn &&fn) const;
     // what each property goes by at `time` (with the triggers fired by `firedBy`)
     [[nodiscard]] Picks picksAt(u32 index, f64 time, f64 firedBy) const;
     // a sprite's slots, played on from where they are to the last grid frame by `time` (from the start when they're
     // past it)
     void playTo(u32 index, Slots &slots, f64 time) const;
-    [[nodiscard]] std::optional<SpriteState> stateAt(u32 index, f64 time) const;
+    // with `visibleOnly`, nothing for a sprite drawn fully transparent
+    [[nodiscard]] std::optional<SpriteState> stateAt(u32 index, f64 time, bool visibleOnly) const;
 
     void fire(TriggerCondition::Kind kind, const HitSound *sound, f64 time);
 };
@@ -917,6 +925,22 @@ void Storyboard::Impl::finish() {
             if(!visible(first->second->from) && firstVisible < INF) sprite.start = firstVisible;
         }
 
+        // it ends with its last F (in the last loop iteration) when the value it leaves is transparent
+        if(!alphas.empty() && sprite.triggers.empty()) {
+            Pick<f32> last;
+            f64 fadeEnd = -INF;
+            const auto add = [&](std::span<const Command<f32>> cmds, f64 offset) {
+                if(cmds.empty()) return;
+                last.sorted(cmds, offset, INF);
+                fadeEnd = std::max(fadeEnd, cmds.back().reach + offset);
+            };
+            add(this->lists[sprite.cmds.alpha], 0.0);
+            for(const auto &loop : loops) {
+                add(this->lists[loop.cmds.alpha], loop.start + loop.duration() * (loop.iterations - 1));
+            }
+            if(!visible(last.past.cmd->to)) sprite.end = std::min(sprite.end, fadeEnd);
+        }
+
         bool s = false, v = false, m = false, xy = false;
         const auto has = [&](const Group &g) {
             s |= !g.scale.empty(), v |= !g.vectorScale.empty(), m |= !g.move.empty();
@@ -1039,10 +1063,10 @@ void Storyboard::Impl::resolveFiles(std::span<const std::string> skinDirs) {
     }
 }
 
-Picks Storyboard::Impl::picksAt(u32 index, f64 time, f64 firedBy) const {
+template <typename Fn>
+void Storyboard::Impl::eachGroup(u32 index, f64 time, f64 firedBy, Fn &&fn) const {
     const Sprite &sprite = this->sprites[index];
-    Picks picks;
-    picks.each(sprite.cmds, [&](auto &pick, const auto &cmds) { pick.sorted(this->lists[cmds], 0.0, time); });
+    fn(sprite.cmds, [&](auto &pick, const auto &cmds) { pick.sorted(this->lists[cmds], 0.0, time); });
     for(const auto &loop : this->lists[sprite.loops]) {
         // each command repeats on its own: by now, the ones that started iteration k (counted from the loop's first
         // command) are on it, the others still on k - 1; before the loop they're all on the first, after it on the last
@@ -1051,15 +1075,20 @@ Picks Storyboard::Impl::picksAt(u32 index, f64 time, f64 firedBy) const {
         const f64 iteration = std::clamp(k, 0.0, (f64)(loop.iterations - 1));
         const f64 current = loop.start + duration * iteration;
         const f64 split = iteration == k && k > 0.0 ? time - current : INF;
-        picks.each(loop.cmds, [&](auto &pick, const auto &cmds) {
+        fn(loop.cmds, [&](auto &pick, const auto &cmds) {
             pick.loop(this->lists[cmds], current, current - duration, split, time);
         });
     }
     for(const auto &fired : sprite.fired == NO_INDEX ? std::span<const FiredTrigger>{} : this->fired[sprite.fired]) {
         if(fired.time > firedBy) continue;
-        picks.each(this->lists[sprite.triggers][fired.trigger].cmds,
-                   [&](auto &pick, const auto &cmds) { pick.sorted(this->lists[cmds], fired.time, time); });
+        fn(this->lists[sprite.triggers][fired.trigger].cmds,
+           [&](auto &pick, const auto &cmds) { pick.sorted(this->lists[cmds], fired.time, time); });
     }
+}
+
+Picks Storyboard::Impl::picksAt(u32 index, f64 time, f64 firedBy) const {
+    Picks picks;
+    this->eachGroup(index, time, firedBy, [&picks](const Group &group, const auto &add) { picks.each(group, add); });
     return picks;
 }
 
@@ -1074,9 +1103,19 @@ void Storyboard::Impl::playTo(u32 index, Slots &slots, f64 time) const {
     }
 }
 
-std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 time) const {
+std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 time, bool visibleOnly) const {
     const Sprite &sprite = this->sprites[index];
     if(!sprite.isLive(time)) return std::nullopt;
+
+    // a sprite with triggers shows nothing until a command sets its opacity
+    const auto opacity = [&](const Pick<f32> &alpha) {
+        return drawnOpacity(alpha.value(time).value_or(sprite.triggers.empty() ? 1.f : 0.f));
+    };
+    if(visibleOnly) {
+        Pick<f32> alpha;
+        this->eachGroup(index, time, INF, [&alpha](const Group &group, const auto &add) { add(alpha, group.alpha); });
+        if(opacity(alpha) == 0.f) return std::nullopt;
+    }
 
     const Picks picks = this->picksAt(index, time, INF);
     vec2 pos, scale;
@@ -1100,8 +1139,7 @@ std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 
         .scale = scale,
         .rotation = picks.rotation.value(time).value_or(0.f),
         .colour = picks.colour.value(time).value_or(vec3{1.f}),
-        // a sprite with triggers shows nothing until a command sets its opacity
-        .alpha = drawnOpacity(picks.alpha.value(time).value_or(sprite.triggers.empty() ? 1.f : 0.f)),
+        .alpha = opacity(picks.alpha),
         .flipH = picks.flipH.parameter(sprite.instantFlipH),
         .flipV = picks.flipV.parameter(sprite.instantFlipV),
         .additive = picks.additive.parameter(sprite.instantAdditive),
@@ -1231,7 +1269,7 @@ bool Storyboard::replacesBackground() const {
 
 std::optional<Storyboard::SpriteState> Storyboard::getSpriteState(uSz sprite, f64 time) const {
     if(sprite >= this->impl->sprites.size()) return std::nullopt;
-    return this->impl->stateAt((u32)sprite, time);
+    return this->impl->stateAt((u32)sprite, time, false);
 }
 
 std::pair<f64, f64> Storyboard::getSpriteSpan(uSz sprite) const {
@@ -1268,6 +1306,7 @@ void Storyboard::load(bool visualsOnly) {
                                     ? Impl::Frame{.image = nullptr, .scale = 1.f}
                                     : Impl::Frame{.image = sb.images[file], .scale = sb.imageFiles[file].scale});
         }
+        sb.quads.reset(g->createVertexArrayObject(DrawPrimitive::QUADS, DrawUsageType::DYNAMIC, false));
     }
 
     if(visualsOnly || sb.hashing || sb.hash) return;
@@ -1388,59 +1427,89 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
     const f32 scale = screen.getHeight() / Osu::osuBaseResolution.y;
     const vec2 topLeft{screen.getX() + (screen.getWidth() - Osu::osuBaseResolution.x * scale) / 2.f, screen.getY()};
 
+    // where View::transform() puts a point
+    const f32 radians = vec::radians(-view.rotation);
+    const auto viewed = [&](vec2 p) {
+        p = (p - view.pivot) * vec2{view.flipX ? -1.f : 1.f, view.flipY ? -1.f : 1.f};
+        return view.pivot + vec2{p.x * std::cos(radians) - p.y * std::sin(radians),
+                                 p.x * std::sin(radians) + p.y * std::cos(radians)};
+    };
+    // where a point in the storyboard area goes on the screen
+    const vec2 areaOrigin = viewed(topLeft);
+    const vec2 axisX = viewed(topLeft + vec2{scale, 0.f}) - areaOrigin;
+    const vec2 axisY = viewed(topLeft + vec2{0.f, scale}) - areaOrigin;
+    const auto onScreen = [&](vec2 p) { return areaOrigin + axisX * p.x + axisY * p.y; };
+
     // one that isn't made for widescreen shows only that area (axis-aligned: under playfield rotation, its bounds)
     if(!sb.widescreen) {
-        // (where View::transform() puts a point)
-        const f32 radians = vec::radians(-view.rotation);
-        const auto viewed = [&](vec2 p) {
-            p = (p - view.pivot) * vec2{view.flipX ? -1.f : 1.f, view.flipY ? -1.f : 1.f};
-            return view.pivot + vec2{p.x * std::cos(radians) - p.y * std::sin(radians),
-                                     p.x * std::sin(radians) + p.y * std::cos(radians)};
-        };
-        vec2 low = viewed(topLeft), high = low;
+        vec2 low = areaOrigin, high = areaOrigin;
         for(const vec2 corner : {vec2{Osu::osuBaseResolution.x, 0.f}, vec2{0.f, Osu::osuBaseResolution.y},
                                  vec2{Osu::osuBaseResolution.x, Osu::osuBaseResolution.y}}) {
-            const vec2 p = viewed(topLeft + corner * scale);
+            const vec2 p = onScreen(corner);
             low = vec::min(low, p), high = vec::max(high, p);
         }
         g->pushClipRect(McRect{low, high - low});
     }
 
+    // the quads are put together here and drawn in one go for each run of sprites with the same image and blending
+    VertexArrayObject &quads = *sb.quads;
+    const Image *batchImage = nullptr;
+    bool batchAdditive = false;
+    const auto flush = [&] {
+        if(quads.getVertices().empty()) return;
+        if(batchAdditive) g->setBlendMode(DrawBlendMode::ADDITIVE);
+        batchImage->bind();
+        g->drawVAO(&quads);
+        batchImage->unbind();
+        if(batchAdditive) g->setBlendMode(DrawBlendMode::ALPHA);
+        quads.clear();
+    };
+    g->setColor(0xffffffff);
+
     for(auto layer = (uSz)first; layer <= (uSz)last; layer++) {
         if(((Layer)layer == Layer::FAIL && sb.passing) || ((Layer)layer == Layer::PASS && !sb.passing)) continue;
 
         for(const u32 index : sb.live[layer]) {
-            const auto state = sb.stateAt(index, sb.time);
-            if(!state || state->alpha == 0.f || state->scale.x == 0.f || state->scale.y == 0.f) continue;
+            const auto state = sb.stateAt(index, sb.time, true);
+            if(!state || state->scale.x == 0.f || state->scale.y == 0.f) continue;
             const Sprite &sprite = sb.sprites[index];
             const auto [image, imageScale] = sb.frames[sprite.firstImage + state->frame];
             if(!image || !image->isReady()) continue;
 
+            if(image != batchImage || state->additive != batchAdditive) {
+                flush();
+                batchImage = image;
+                batchAdditive = state->additive;
+            }
+
             // a sprite is mirrored in place: where it is stays the same, flipped or with a negative scale
             const vec2 size{(f32)image->getWidth(), (f32)image->getHeight()};
             const vec2 originFromCenter = (sprite.origin - 0.5f) * size;
-            const bool mirrorX = state->flipH != (state->scale.x < 0.f);
-            const bool mirrorY = state->flipV != (state->scale.y < 0.f);
+            const vec2 mirror{state->flipH != (state->scale.x < 0.f) ? -1.f : 1.f,
+                              state->flipV != (state->scale.y < 0.f) ? -1.f : 1.f};
+            // the image edges, as offsets from its position before scaling and rotation
+            const vec2 low = -size / 2.f * mirror - originFromCenter;
+            const vec2 high = size / 2.f * mirror - originFromCenter;
+
+            // the image axes on the screen, scaled and rotated
+            const f32 cosine = std::cos(state->rotation), sine = std::sin(state->rotation);
+            const vec2 imageX = (axisX * cosine + axisY * sine) * std::abs(state->scale.x) * imageScale;
+            const vec2 imageY = (axisY * cosine - axisX * sine) * std::abs(state->scale.y) * imageScale;
+            const vec2 pos = onScreen(state->pos);
+            const auto corner = [&](f32 x, f32 y) {
+                const vec2 p = pos + imageX * x + imageY * y;
+                return vec3{p.x, p.y, 0.f};
+            };
+            quads.addVertices(
+                std::array{corner(low.x, low.y), corner(high.x, low.y), corner(high.x, high.y), corner(low.x, high.y)});
+            quads.addTexcoords(std::array{vec2{0.f, 0.f}, vec2{1.f, 0.f}, vec2{1.f, 1.f}, vec2{0.f, 1.f}});
 
             const vec3 colour = state->colour * view.brightness;
-            g->setColor(argb(state->alpha * view.alpha, colour.x, colour.y, colour.z));
-            if(state->additive) g->setBlendMode(DrawBlendMode::ADDITIVE);
-            g->pushTransform();
-            {
-                g->scale(mirrorX ? -1.f : 1.f, mirrorY ? -1.f : 1.f);
-                g->translate(-originFromCenter);
-                g->scale(std::abs(state->scale.x) * imageScale, std::abs(state->scale.y) * imageScale);
-                g->rotate(vec::degrees(state->rotation));
-                g->translate(state->pos);
-                g->scale(scale, scale);
-                g->translate(topLeft);
-                view.transform();
-                g->drawImage(image);
-            }
-            g->popTransform();
-            if(state->additive) g->setBlendMode(DrawBlendMode::ALPHA);
+            const Color color = argb(state->alpha * view.alpha, colour.x, colour.y, colour.z);
+            quads.addColors(std::array{color, color, color, color});
         }
     }
+    flush();
 
     if(!sb.widescreen) g->popClipRect();
 }
