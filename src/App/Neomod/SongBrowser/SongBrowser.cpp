@@ -2209,7 +2209,7 @@ void SongBrowser::scrollToSongButton(CarouselNode songButton, bool alignOnTop, b
               (alignOnTop ? (0) : (this->carousel->getSize().y / 2 - CarouselButton::getScaledBaseSize().y / 2))));
 }
 
-void SongBrowser::rebuildSongButtons() {
+bool SongBrowser::rebuildSongButtons() {
     std::vector<CarouselNode> rows;
     rows.reserve(this->visibleSongButtons.size());
 
@@ -2285,9 +2285,8 @@ void SongBrowser::rebuildSongButtons() {
         }
     }
 
-    this->carousel->resetAnimations();
     std::vector<f32> rowY = this->layoutRows(rows);
-    this->carousel->setRows(std::move(rows), std::move(rowY));
+    return this->carousel->setRows(std::move(rows), std::move(rowY));
 }
 
 std::vector<f32> SongBrowser::layoutRows(const std::vector<CarouselNode> &rows) const {
@@ -3006,8 +3005,7 @@ void SongBrowser::submitSearch() {
 
 void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(bool scrollToTop,
                                                                                 bool doRebuildSongButtons) {
-    // reset container and visible buttons list
-    this->carousel->clearRows();
+    // reset visible buttons list
     this->visibleSongButtons.clear();
 
     // optimization: currently, only grouping by collections can actually filter beatmaps
@@ -3093,7 +3091,8 @@ void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
         }
     }
 
-    if(doRebuildSongButtons) this->rebuildSongButtons();
+    // the same rows as before (e.g. a search that matched the same maps) stay where they are
+    if(doRebuildSongButtons && !this->rebuildSongButtons()) return;
 
     // scroll to top search result, or auto select the only result
     if(scrollToTop && !this->visibleSongButtons.empty()) {

@@ -25,8 +25,9 @@ class BeatmapCarousel final : public CBaseUIScrollView {
     void updateInput(CBaseUIEventCtx &c) override;
     void onCapturedMouseMove() override;
 
-    // the rows in display order with their target y (ascending)
-    void setRows(std::vector<CarouselNode> rows, std::vector<f32> rowY);
+    // the rows in display order with their target y (ascending), returns whether they changed.
+    // new rows restart the row animations, the same rows only move to their new y
+    bool setRows(std::vector<CarouselNode> rows, std::vector<f32> rowY);
     void clearRows();
     // new target y for the same rows
     void setRowPositions(std::vector<f32> rowY);
@@ -35,8 +36,6 @@ class BeatmapCarousel final : public CBaseUIScrollView {
     [[nodiscard]] inline f32 getRowY(size_t row) const { return this->rowY[row]; }
     // the row index for node, or getRows().size() if it isn't a row
     [[nodiscard]] size_t findRow(CarouselNode node) const;
-
-    void resetAnimations();
 
     void setHoveredRow(CarouselButton *row);
     void clearHoveredRow(CarouselButton *row);
@@ -47,6 +46,7 @@ class BeatmapCarousel final : public CBaseUIScrollView {
 
    private:
     bool updateWindow();
+    void resetAnimations();
     void applyMoveAwayState(CarouselButton *row, bool animate) const;
     CarouselButton *acquireButton(CarouselNode node);
     void releaseButton(CarouselButton *button);

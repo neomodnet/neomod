@@ -161,7 +161,8 @@ class SongBrowser final : public ScreenBackable {
     [[nodiscard]] bool isButtonVisible(CarouselNode node) const;
     bool scrollToBestButton();  // returns true if a scroll happened
     void scrollToSongButton(CarouselNode node, bool alignOnTop = false, bool knownVisible = false);
-    void rebuildSongButtons();
+    // returns whether the carousel rows changed
+    bool rebuildSongButtons();
     void recreateCollectionsButtons();
     void onGotNewLeaderboard(const MD5Hash &lbHash);
     // recomputes the grade every difficulty and set button shows

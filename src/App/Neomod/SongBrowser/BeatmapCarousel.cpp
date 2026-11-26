@@ -86,11 +86,16 @@ void BeatmapCarousel::onCapturedMouseMove() {
     if(this->updateWindow()) this->updateClipping();
 }
 
-void BeatmapCarousel::setRows(std::vector<CarouselNode> newRows, std::vector<f32> newRowY) {
+bool BeatmapCarousel::setRows(std::vector<CarouselNode> newRows, std::vector<f32> newRowY) {
     assert(newRows.size() == newRowY.size());
-    this->rows = std::move(newRows);
-    this->hoveredRow = {};
+    const bool changed = newRows != this->rows;
+    if(changed) {
+        this->resetAnimations();
+        this->rows = std::move(newRows);
+        this->hoveredRow = {};
+    }
     this->setRowPositions(std::move(newRowY));
+    return changed;
 }
 
 void BeatmapCarousel::clearRows() {
