@@ -237,7 +237,7 @@ void UI::draw() {
         }
     }
 
-    const bool isFPoSu = (cv::mod_fposu.getBool());
+    const bool isFPoSu = cv::mod_fposu.getBool();
 
     // draw everything in the correct order
     if(osu->isInPlayMode()) {  // if we are playing a beatmap

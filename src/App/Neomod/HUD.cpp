@@ -2353,8 +2353,6 @@ void HUD::updateInputOverlayDemo() {
 }
 
 void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
-    if(!cv::draw_inputoverlay_trail.getBool()) return;
-
     // drawDummy (options menu HUD preview) is the only caller outside of play mode; there is no
     // music clock there, so the trail runs on engine time (see updateInputOverlayDemo)
     const bool dummy = !osu->isInPlayMode();
@@ -2486,7 +2484,7 @@ void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
     const f32 yStart = osu->getVirtScreenHeight() / 2.f - (40.0f * oScale) * scale + yStartOffset;
 
     // trail (under the background and keys)
-    this->drawInputOverlayTrail(xStart, yStart, oScale, scale);
+    if(cv::draw_inputoverlay_trail.getBool()) this->drawInputOverlayTrail(xStart, yStart, oScale, scale);
 
     // background
     {
@@ -2674,8 +2672,6 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i3
 }
 
 void HUD::addCursorRipple(vec2 pos) {
-    if(!cv::draw_cursor_ripples.getBool()) return;
-
     CursorRippleElement ripple;
     ripple.pos = pos;
     ripple.time = engine->getTime() + cv::cursor_ripple_duration.getFloat();

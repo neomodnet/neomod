@@ -21,9 +21,9 @@ macro(set_download_name dep_name version url)
     set(${_upper_dep_name}_DL_NAME "${dep_name}-${version}${_temp_ext}")
 endmacro()
 
-set(SDL3_VERSION "c8da179691f909734cd1b124c930e49311428996")
+set(SDL3_VERSION "4c60f49b6b4bc7df1a97755ac63fba39641bfe96")
 set(SDL3_URL "https://github.com/libsdl-org/SDL/archive/${SDL3_VERSION}.tar.gz")
-set(SDL3_HASH "SHA512=9b3817b9fcda8fddeb33195f47a2c7800bf03bda5af07b5fa3e78cdfcc21a7897e0fd28b288f73460aff49f0b582252ff137d9641e0a0ed34a26c957227781e8")
+set(SDL3_HASH "SHA512=9655cab2ef61b52ca3b6293cfe1fa05f121da78dee4d59d3c420511702c69446e16fb4158a9a3de25144662576efbbf6c052a2d973d231e97514f9edd8b12a82")
 set_download_name("sdl3" "${SDL3_VERSION}" "${SDL3_URL}")
 
 set(BROTLI_VERSION "1.2.1")

@@ -336,7 +336,7 @@ class ConVar {
 
     [[nodiscard]] forceinline int getInt() const { return static_cast<int>(this->getDouble()); }
     [[nodiscard]] forceinline bool getBool() const { return !!static_cast<int>(this->getDouble()); }
-    [[nodiscard]] forceinline bool get() const { return !!static_cast<int>(this->getDouble()); }
+    [[nodiscard]] forceinline explicit operator bool() const { return this->getBool(); }
     [[nodiscard]] forceinline float getFloat() const { return static_cast<float>(this->getDouble()); }
 
     [[nodiscard]] forceinline cv::Range getRange() const { return this->range; }

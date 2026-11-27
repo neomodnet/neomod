@@ -666,10 +666,10 @@ void Osu::update() {
             } else if(fetch.status == MapFetcher::Status::NotFound) {
                 // the installer said so itself if a download failed
                 if(fetch.why != MapFetcher::Why::Install) {
-                    ui->getNotificationOverlay()->addToast(
-                        BanchoState::is_online() ? _("The map isn't installed and wasn't found online.")
-                                                 : _("The map isn't installed. Log in to download it."),
-                        ERROR_TOAST);
+                    ui->getNotificationOverlay()->addToast(BanchoState::is_online()
+                                                               ? _("The map isn't installed and wasn't found online.")
+                                                               : _("The map isn't installed. Log in to download it."),
+                                                           ERROR_TOAST);
                 }
                 this->pendingEditorLink.reset();
             }
@@ -2295,7 +2295,7 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
     if(do_animate) {
         if(down && can_press) {
             hud->animateCursorExpand();
-            hud->addCursorRipple(mouse->getPos());
+            if(cv::draw_cursor_ripples.getBool()) hud->addCursorRipple(mouse->getPos());
         } else if(!this->map_iface->isClickHeld()) {
             hud->animateCursorShrink();
         }

@@ -1,9 +1,7 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "VertexArrayObject.h"
 
-#include "Engine.h"
 #include "ContainerRanges.h"
-#include "Graphics.h"
 
 #include <algorithm>
 #include <utility>
