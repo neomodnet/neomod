@@ -267,7 +267,7 @@ struct NetworkImpl {
     void websocketSend();
 
     static uSz headerCallback(char* buffer, uSz size, uSz nitems, void* userdata);
-    static uSz writeCallback(void* contents, uSz size, uSz nmemb, void* userp);
+    static uSz writeCallback(char* contents, uSz size, uSz nmemb, void* userp);
     static i32 progressCallback(void* clientp, i64 dltotal, i64 dlnow, i64 ultotal, i64 ulnow);
 
     // main async thread
@@ -635,7 +635,7 @@ void NetworkImpl::Request::setupCurlHandle() {
     }
 }
 
-size_t NetworkImpl::writeCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+size_t NetworkImpl::writeCallback(char* contents, size_t size, size_t nmemb, void* userp) {
     auto* request = static_cast<Request*>(userp);
     const size_t real_size = size * nmemb;
 
@@ -644,8 +644,8 @@ size_t NetworkImpl::writeCallback(void* contents, size_t size, size_t nmemb, voi
     if(ws && !!(meta = curl_ws_meta(request->easy_handle))) {  // is websocket and has metadata
         // websocket frame data arrives here via curl_multi_perform
         if(real_size > 0 && (meta->flags & CURLWS_BINARY)) {
-            ws->in_partial.insert(ws->in_partial.end(), static_cast<u8*>(contents),
-                                  static_cast<u8*>(contents) + real_size);
+            ws->in_partial.insert(ws->in_partial.end(), reinterpret_cast<u8*>(contents),
+                                  reinterpret_cast<u8*>(contents) + real_size);
         }
         if(!ws->in_partial.empty() && meta->bytesleft == 0) {
             Sync::scoped_lock lock{ws->io_mutex};
@@ -657,7 +657,7 @@ size_t NetworkImpl::writeCallback(void* contents, size_t size, size_t nmemb, voi
             ws->status.store(WSStatus::DISCONNECTED, std::memory_order_relaxed);
         }
     } else if(!ws) {  // non-websocket path
-        Mc::ranges::append(request->response.body, std::span{static_cast<const u8*>(contents), real_size});
+        Mc::ranges::append(request->response.body, std::span{reinterpret_cast<const u8*>(contents), real_size});
     }
 
     return real_size;
