@@ -216,6 +216,7 @@ void PacketTest::update() {
         room.team_type = 1;
         room.freemods = 1;
         room.seed = 0xC0FFEE;
+        room.slots.resize(16);
         for(auto &slot : room.slots) slot.status = 1;  // open
         room.slots[0].status = 4;                      // not ready (occupied by us)
         room.slots[0].player_id = 2;
@@ -263,6 +264,7 @@ void PacketTest::update() {
         room.host_id = 2;
         room.freemods = 1;
         room.has_full_mods = true;
+        room.slots.resize(16);
         for(auto &slot : room.slots) slot.status = 1;  // open
         room.slots[0].status = 4;                      // not ready
         room.slots[0].player_id = 2;
