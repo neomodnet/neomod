@@ -420,13 +420,13 @@ void AboutScreen::buildChangelog() {
         R"(- Web: Added CJK text support)",
         R"(- Fixed:)",
         R"(  - "Game Pause" key on some screens)",
+        R"(  - Approach circles stuttering at very low speeds)",
         R"(  - Flashlight icon on results and multiplayer)",
         R"(  - Freeze Frame approach circles)",
         R"(  - In-game scoreboard showing old score when starting a map)",
         R"(  - Replays desyncing when tapping with Relax)",
         R"(  - Song browser jank especially when browsing collections)",
         R"(  - Strict Tracking slider misses near ticks)",
-        R"(  - Stuttering at very low speeds)",
     };
     changelogs.push_back(std::move(v45_01));
 
