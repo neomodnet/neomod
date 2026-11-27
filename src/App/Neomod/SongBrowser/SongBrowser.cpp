@@ -1315,11 +1315,11 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
     if(this->bVisible) {
         soundEngine->play(osu->getSkin()->s_expand);
 
+        this->updateLayout();
+
         if(this->bSongButtonsNeedSorting) {
             this->rebuildAfterGroupOrSortChange(this->curGroup);
         }
-
-        this->updateLayout();
 
         // we have to re-select the current beatmap to start playing music again
         osu->getMapInterface()->selectBeatmap();
@@ -1810,19 +1810,9 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
 // after a set's buttons were added/removed at runtime: user collections are derived from hashToDiffButton and
 // the visible list/carousel/difficulty buckets from the containers, so rebuild them (keeping the open collection)
 void SongBrowser::rebuildAfterSetChange() {
-    const std::string open_collection{this->openGroup ? this->data.groups[this->openGroup.idx].name : ""};
     this->recreateCollectionsButtons();
     this->bSongButtonsNeedSorting = true;
     this->rebuildAfterGroupOrSortChange(this->curGroup);
-
-    if(!open_collection.empty() && this->curGroup == GroupType::COLLECTIONS) {
-        for(const u32 collectionButton : this->collectionButtons) {
-            if(this->data.groups[collectionButton].name == open_collection) {
-                this->select(CarouselNode::group(collectionButton));
-                break;
-            }
-        }
-    }
 }
 
 void SongBrowser::applyReconcile(const ReconcileResult &r) {
@@ -2769,10 +2759,11 @@ void SongBrowser::rebuildSearchResults(bool scrollToTop) {
     // scroll to top search result, or auto select the only result
     if(scrollToTop && !this->visibleSongButtons.empty()) {
         if(this->visibleSongButtons.size() == 1 && !this->isSelected(this->visibleSongButtons[0])) {
+            this->scrollToSongButton(this->visibleSongButtons[0], false, false);
             this->selectSongButton(this->visibleSongButtons[0]);
-        } else if(!this->scrollToBestButton()) {
+        } else if(!this->scrollToBestButton(false)) {
             // scroll to the currently selected button if it's a search match, otherwise the first one
-            this->scrollToSongButton(this->visibleSongButtons[0]);
+            this->scrollToSongButton(this->visibleSongButtons[0], false, false);
         }
     }
 }
@@ -3053,8 +3044,12 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
         this->rebuildSongButtons();
     }
 
-    // (can't call it right here because we maybe have async)
-    this->scheduled_scroll_to_selected_button = ScheduledScroll::INSTANT;
+    if(this->bVisible && !this->bInSearch) {
+        this->scrollToBestButton(false);
+    } else {
+        // (can't call it right here because we maybe have async)
+        this->scheduled_scroll_to_selected_button = ScheduledScroll::INSTANT;
+    }
 }
 
 void SongBrowser::onSelectionMode() {
@@ -3536,9 +3531,6 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
 
     if(updateUI) {
         const i32 prevScrollPosY = (i32)this->carousel->getRelPosY();  // usability
-        // owned copy, since recreateCollectionsButtons() deletes the button
-        const std::string previouslySelectedCollectionName{this->openGroup ? this->data.groups[this->openGroup.idx].name
-                                                                           : ""};  // usability
 
         this->recreateCollectionsButtons();
         // only change carousel state if we're in collections
@@ -3546,16 +3538,10 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
             this->bSongButtonsNeedSorting = true;
             this->onSortChange("",
                                cv::songbrowser_sortingtype.getInt());  // (because this does the rebuildSongButtons())
-            if(previouslySelectedCollectionName.length() > 0) {
-                for(const u32 collectionButton : this->collectionButtons) {
-                    if(this->data.groups[collectionButton].name == previouslySelectedCollectionName) {
-                        this->select(CarouselNode::group(collectionButton));
-                        this->carousel->scrollToY(prevScrollPosY, false);
-                        // the scheduled scroll would open another collection with the selected map, or scroll to top
-                        this->scheduled_scroll_to_selected_button = ScheduledScroll::NONE;
-                        break;
-                    }
-                }
+            if(this->openGroup) {
+                this->carousel->scrollToY(prevScrollPosY, false);
+                // the scroll to the selected map would move away from where the collection was edited
+                this->scheduled_scroll_to_selected_button = ScheduledScroll::NONE;
             }
         }
     }
@@ -3717,6 +3703,8 @@ void SongBrowser::playSelectedDifficulty() {
 }
 
 void SongBrowser::recreateCollectionsButtons() {
+    std::string openCollection;
+
     // reset
     {
         // sanity
@@ -3729,7 +3717,10 @@ void SongBrowser::recreateCollectionsButtons() {
         const auto isCollection = [this](CarouselNode node) {
             return node.isGroup() && this->data.groups[node.idx].isCollection;
         };
-        if(isCollection(this->openGroup)) this->openGroup = {};
+        if(isCollection(this->openGroup)) {
+            openCollection = this->data.groups[this->openGroup.idx].name;
+            this->openGroup = {};
+        }
         if(isCollection(this->contextMenuNode)) this->contextMenuNode = {};
         this->collectionButtons.clear();
         auto &groups = this->data.groups;
@@ -3766,6 +3757,7 @@ void SongBrowser::recreateCollectionsButtons() {
         }
         std::ranges::sort(group.diffs);
         this->collectionButtons.push_back((u32)this->data.groups.size() - 1);
+        if(group.name == openCollection) this->openGroup = CarouselNode::group(this->collectionButtons.back());
     }
 
     // sort buttons by name

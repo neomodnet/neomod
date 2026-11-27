@@ -11,6 +11,8 @@
 #include "Engine.h"
 #include "Mouse.h"
 
+#include <algorithm>
+
 bool BeatmapCarousel::songButtonComparator(const CBaseUIElement *a, const CBaseUIElement *b) {
     return a->getRelPos().y < b->getRelPos().y;
 }
@@ -107,6 +109,9 @@ void BeatmapCarousel::setRowPositions(std::vector<f32> newRowY) {
     const f64 border = (f64)(i32)(this->getSize().y / 2);
     const dvec2 extent{this->rowY.empty() ? 0. : rowSize.x, this->rowY.empty() ? 0. : this->rowY.back() + rowSize.y};
     this->setScrollSize(extent + dvec2{border, border});
+    if(const f64 lowest = std::min(this->getSize().y - this->getScrollSize().y, 1.); this->getRelPosY() < lowest) {
+        this->scrollToY((i32)lowest, false);
+    }
 
     this->bWindowDirty = true;
 }

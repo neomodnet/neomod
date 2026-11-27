@@ -655,6 +655,8 @@ void CBaseUIScrollView::scrollToYInt(int scrollPosY, bool animated, bool slow) {
     } else {
         this->vScrollPos.y.stop();
         this->vScrollPos.y = targetY;
+        this->container.setPos(vec::round(dvec2{this->getPos()} + dvec2{this->vScrollPos}));
+        this->updateScrollbars();
     }
 }
 
@@ -683,6 +685,8 @@ void CBaseUIScrollView::scrollToXInt(int scrollPosX, bool animated, bool slow) {
     } else {
         this->vScrollPos.x.stop();
         this->vScrollPos.x = targetX;
+        this->container.setPos(vec::round(dvec2{this->getPos()} + dvec2{this->vScrollPos}));
+        this->updateScrollbars();
     }
 }
 
