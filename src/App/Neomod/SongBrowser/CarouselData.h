@@ -2,6 +2,7 @@
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include "types.h"
 
+#include <algorithm>
 #include <span>
 #include <string>
 #include <vector>
@@ -34,6 +35,11 @@ struct CarouselGroup {
     std::vector<CarouselNode> children;
     i32 numVisibleChildren{0};
     bool isCollection{false};
+    std::vector<u32> diffs;
+
+    [[nodiscard]] bool lists(u32 diff) const {
+        return !this->isCollection || std::ranges::binary_search(this->diffs, diff);
+    }
 };
 
 // the beatmaps the carousel is built from, as plain arrays processed by SongBrowser.

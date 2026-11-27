@@ -153,8 +153,8 @@ class SongBrowser final : public ScreenBackable {
     // place, removed) onto its buttons, keeping the selection where possible
     void applyReconcile(const ReconcileResult &r);
 
-    bool scrollToBestButton();  // returns true if a scroll happened
-    bool scrollToSongButton(CarouselNode node, bool alignOnTop = false);
+    bool scrollToBestButton(bool animated = true);  // returns true if a scroll happened
+    bool scrollToSongButton(CarouselNode node, bool alignOnTop = false, bool animated = true);
     // returns whether the carousel rows changed
     bool rebuildSongButtons();
     void recreateCollectionsButtons();
@@ -171,6 +171,7 @@ class SongBrowser final : public ScreenBackable {
     };
 
     [[nodiscard]] SetVisibility getSetVisibility(u32 set) const;
+    [[nodiscard]] bool isDiffShown(u32 diff) const;
 
     [[nodiscard]] inline bool isInSearch() const { return this->bInSearch; }
 
@@ -201,17 +202,6 @@ class SongBrowser final : public ScreenBackable {
     [[nodiscard]] const SCORE_SORTING_METHOD &getScoreSortingMethod() const;
 
     [[nodiscard]] inline GroupType getGroupingMode() const { return this->curGroup; }
-
-    [[nodiscard]] inline bool isInAlphanumericCollection() const {
-        return this->curGroup == GroupType::ARTIST ||   //
-               this->curGroup == GroupType::CREATOR ||  //
-               this->curGroup == GroupType::TITLE;      //
-    }
-
-    // TODO: get rid of this garbage (all grouping modes should behave in a predictable way)
-    [[nodiscard]] inline bool isInParentsCollapsedMode() const {
-        return this->isInAlphanumericCollection() || this->curGroup == GroupType::NO_GROUPING;
-    }
 
     void updateLayout() override;
     void onBack() override;
@@ -355,7 +345,8 @@ class SongBrowser final : public ScreenBackable {
     // vElements + the manually-managed containers (topbars, score browser, carousel, ...);
     // rebuilt on each getAllChildren() call (not for per-frame use)
     mutable std::vector<CBaseUIElement *> allChildren;
-    bool scheduled_scroll_to_selected_button = false;
+    enum class ScheduledScroll : u8 { NONE, ANIMATED, INSTANT };
+    ScheduledScroll scheduled_scroll_to_selected_button{ScheduledScroll::NONE};
     bool bInitializedBeatmaps{false};
     bool bSongButtonsNeedSorting{false};
 

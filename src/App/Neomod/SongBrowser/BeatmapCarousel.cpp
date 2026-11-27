@@ -109,8 +109,6 @@ void BeatmapCarousel::setRowPositions(std::vector<f32> newRowY) {
     this->setScrollSize(extent + dvec2{border, border});
 
     this->bWindowDirty = true;
-    this->updateWindow();
-    for(auto *button : this->windowButtons) button->updateLayoutEx();
 }
 
 size_t BeatmapCarousel::findRow(CarouselNode node) const {
@@ -161,7 +159,7 @@ bool BeatmapCarousel::updateWindow() {
     if(!this->rowY.empty()) {
         const f32 rowHeight = CarouselButton::getScaledBaseSize().y;
         const f32 slack = this->getSize().y * (CLIPPING_SCALE - 1.f) / 2.f + rowHeight;
-        const f32 top = this->getPos().y - this->container.getPos().y - slack;
+        const f32 top = -(f32)this->getRelPosY() - slack;
         const f32 bottom = top + this->getSize().y + 2.f * slack;
         begin = std::lower_bound(this->rowY.begin(), this->rowY.end(), top - rowHeight) - this->rowY.begin();
         end = std::lower_bound(this->rowY.begin() + (sSz)begin, this->rowY.end(), bottom) - this->rowY.begin();
@@ -172,7 +170,6 @@ bool BeatmapCarousel::updateWindow() {
     std::vector<CarouselButton *> previous = std::move(this->windowButtons);
     this->windowButtons.clear();
     this->container.invalidate();
-    const vec2 containerPos = this->container.getPos();
     for(size_t i = begin; i < end; i++) {
         const CarouselNode node = this->rows[i];
         CarouselButton *button = nullptr;
@@ -184,8 +181,8 @@ bool BeatmapCarousel::updateWindow() {
             button = this->acquireButton(node);
             button->setTargetRelPosY(this->rowY[i]);
             this->applyMoveAwayState(button, false);
-            button->setRect(McRect{containerPos + button->getRelPos(), button->getSize()});
         }
+        button->updateLayoutEx();
         this->windowButtons.push_back(button);
         this->container.addBaseUIElementRaw(button);
     }
