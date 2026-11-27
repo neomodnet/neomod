@@ -19,7 +19,7 @@ class CarouselButton : public CBaseUIButton {
     friend BeatmapCarousel;
 
    public:
-    CarouselButton(float xPos, float yPos, float xSize, float ySize, std::nullptr_t = {});
+    explicit CarouselButton(BeatmapCarousel &carousel);
     ~CarouselButton() override;
     void deleteAnimations();
 
@@ -90,6 +90,7 @@ class CarouselButton : public CBaseUIButton {
     static inline float lastHoverSoundTime{0.f};
     static inline float bgImageScale{1.f};
 
+    BeatmapCarousel &carousel;
     CarouselNode node;
 
     float fTargetRelPosY{0.f};

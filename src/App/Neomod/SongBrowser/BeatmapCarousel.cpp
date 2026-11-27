@@ -1,20 +1,15 @@
 // Copyright (c) 2025, WH, All rights reserved.
 
-#include "Logging.h"
 #include "BeatmapCarousel.h"
+#include "CBaseUIEventCtx.h"
 #include "CollectionButton.h"
-#include "SongBrowser.h"
 #include "CarouselButton.h"
 #include "SongButton.h"
 #include "SongDifficultyButton.h"
 #include "UI.h"
-#include "UIContextMenu.h"
 #include "OptionsOverlay.h"
 #include "Engine.h"
 #include "Mouse.h"
-#include "Keyboard.h"
-
-using namespace neomod::sbr;
 
 bool BeatmapCarousel::songButtonComparator(const CBaseUIElement *a, const CBaseUIElement *b) {
     return a->getRelPos().y < b->getRelPos().y;
@@ -136,14 +131,14 @@ CarouselButton *BeatmapCarousel::acquireButton(CarouselNode node) {
     } else {
         switch(node.kind) {
             case CarouselNode::Kind::SET:
-                button = this->buttons.emplace_back(std::make_unique<SongButton>()).get();
+                button = this->buttons.emplace_back(std::make_unique<SongButton>(*this)).get();
                 break;
             case CarouselNode::Kind::DIFF:
-                button = this->buttons.emplace_back(std::make_unique<SongDifficultyButton>()).get();
+                button = this->buttons.emplace_back(std::make_unique<SongDifficultyButton>(*this)).get();
                 break;
             case CarouselNode::Kind::GROUP:
             case CarouselNode::Kind::NONE:
-                button = this->buttons.emplace_back(std::make_unique<CollectionButton>()).get();
+                button = this->buttons.emplace_back(std::make_unique<CollectionButton>(*this)).get();
                 break;
         }
     }
@@ -234,32 +229,27 @@ void BeatmapCarousel::updateInput(CBaseUIEventCtx &c) {
 
     // handle right click absolute scrolling
     if(c.propagate_clicks) {
-        if(mouse->isRightDown() && !g_songbrowser->contextMenu->isMouseInside()) {
-            if(!g_songbrowser->bSongBrowserRightClickScrollCheck) {
-                g_songbrowser->bSongBrowserRightClickScrollCheck = true;
+        if(mouse->isRightDown()) {
+            if(!this->bRightClickScrollCheck) {
+                this->bRightClickScrollCheck = true;
 
                 bool isMouseInsideAnySongButton = false;
-                {
-                    const std::vector<CarouselButton *> &buttons = this->container.getElementsAs<CarouselButton>();
-                    for(auto *button : buttons) {
-                        if(button->isMouseInside()) {
-                            isMouseInsideAnySongButton = true;
-                            break;
-                        }
+                for(auto *button : this->windowButtons) {
+                    if(button->isMouseInside()) {
+                        isMouseInsideAnySongButton = true;
+                        break;
                     }
                 }
 
-                if(this->isMouseInside() && !ui->getOptionsOverlay()->isMouseInside() && !isMouseInsideAnySongButton)
-                    g_songbrowser->bSongBrowserRightClickScrolling = true;
-                else
-                    g_songbrowser->bSongBrowserRightClickScrolling = false;
+                this->bRightClickScrolling =
+                    this->isMouseInside() && !ui->getOptionsOverlay()->isMouseInside() && !isMouseInsideAnySongButton;
             }
         } else {
-            g_songbrowser->bSongBrowserRightClickScrollCheck = false;
-            g_songbrowser->bSongBrowserRightClickScrolling = false;
+            this->bRightClickScrollCheck = false;
+            this->bRightClickScrolling = false;
         }
 
-        if(g_songbrowser->bSongBrowserRightClickScrolling) {
+        if(this->bRightClickScrolling) {
             // map onto the scrollbar's track, the upper/lower bounds of the carousel are hidden behind the bars
             const f64 trackTop = this->getPos().y + this->fScrollbarInsetTop;
             const f64 trackHeight = this->getSize().y - this->fScrollbarInsetTop - this->fScrollbarInsetBottom;
@@ -267,160 +257,4 @@ void BeatmapCarousel::updateInput(CBaseUIEventCtx &c) {
             this->scrollToY(static_cast<int>(-mouseYPct * this->getScrollSize().y));
         }
     }
-}
-
-void BeatmapCarousel::onKeyUp(KeyboardEvent & /*e*/) { /*this->container.onKeyUp(e);*/ ; }
-
-// don't consume keys, we are not a keyboard listener, but called from SongBrowser::onKeyDown manually
-void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
-    /*this->container.onKeyDown(e);*/
-
-    SongBrowser *sb = g_songbrowser;
-    const CarouselData &data = sb->getCarouselData();
-
-    const auto childOf = [&data](CarouselNode node, bool bottom) -> CarouselNode {
-        if(node.isSet()) {
-            const auto children = data.setChildren(node.idx);
-            if(children.empty()) return {};
-            return CarouselNode::diff(bottom ? children.back() : children.front());
-        }
-        if(node.isGroup()) {
-            const auto &children = data.groups[node.idx].children;
-            if(children.empty()) return {};
-            return bottom ? children.back() : children.front();
-        }
-        return {};
-    };
-
-    // selection move
-    if(!keyboard->isAltDown() && key == KEY_DOWN) {
-        // get bottom selection
-        int selectedIndex = -1;
-        for(int i = 0; i < this->rows.size(); i++) {
-            if(sb->isSelected(this->rows[i])) selectedIndex = i;
-        }
-
-        // select +1
-        if(selectedIndex > -1 && selectedIndex + 1 < this->rows.size()) {
-            int nextSelectionIndex = selectedIndex + 1;
-            const CarouselNode nextButton = this->rows[nextSelectionIndex];
-
-            sb->select(nextButton, {.noSelectBottomChild = true});
-
-            // if this is a song button, select top child
-            if(nextButton.isSet()) {
-                if(const CarouselNode child = childOf(nextButton, false); child && !sb->isSelected(child))
-                    sb->select(child, {.noSelectBottomChild = true, .parentUnselected = true});
-            }
-        }
-    }
-
-    if(!keyboard->isAltDown() && key == KEY_UP) {
-        // get bottom selection
-        int selectedIndex = -1;
-        for(int i = 0; i < this->rows.size(); i++) {
-            if(sb->isSelected(this->rows[i])) selectedIndex = i;
-        }
-
-        // select -1
-        if(selectedIndex > -1 && selectedIndex - 1 > -1) {
-            int nextSelectionIndex = selectedIndex - 1;
-            const CarouselNode nextButton = this->rows[nextSelectionIndex];
-
-            sb->select(nextButton);
-            const bool isCollectionButton = nextButton.isGroup();
-
-            // automatically open collection on top of this one and go to bottom child
-            if(isCollectionButton && nextSelectionIndex - 1 > -1) {
-                nextSelectionIndex = nextSelectionIndex - 1;
-
-                if(nextSelectionIndex < this->rows.size() && this->rows[nextSelectionIndex].isGroup()) {
-                    const CarouselNode collection = this->rows[nextSelectionIndex];
-                    sb->select(collection);
-
-                    if(const CarouselNode child = childOf(collection, true); child && !sb->isSelected(child))
-                        sb->select(child);
-                }
-            }
-        }
-    }
-
-    if(key == KEY_LEFT && !sb->bLeft) {
-        sb->bLeft = true;
-
-        const bool jumpToNextGroup = keyboard->isShiftDown();
-
-        bool foundSelected = false;
-        for(sSz i = static_cast<sSz>(this->rows.size()) - 1; i >= 0; i--) {
-            const CarouselNode element = this->rows[i];
-            const bool isDiffButton = element.isSong();
-            const bool isCollectionButton = element.isGroup();
-            const bool isSongDifficultyButtonAndNotIndependent = isDiffButton && !sb->isIndependentDiff(element);
-
-            if(foundSelected && !sb->isSelected(element) && !isSongDifficultyButtonAndNotIndependent &&
-               (!jumpToNextGroup || isCollectionButton)) {
-                sb->bNextScrollToSongButtonJumpFixUseScrollSizeDelta = true;
-                {
-                    sb->select(element);
-
-                    if(isCollectionButton) {
-                        // automatically open collection below and go to bottom child
-                        if(const CarouselNode child = childOf(element, true); child && !sb->isSelected(child))
-                            sb->select(child);
-                    }
-                }
-                sb->bNextScrollToSongButtonJumpFixUseScrollSizeDelta = false;
-
-                break;
-            }
-
-            if(sb->isSelected(element)) foundSelected = true;
-        }
-    }
-
-    if(key == KEY_RIGHT && !sb->bRight) {
-        sb->bRight = true;
-
-        const bool jumpToNextGroup = keyboard->isShiftDown();
-
-        // get bottom selection
-        int selectedIndex = -1;
-        for(int i = 0; i < this->rows.size(); i++) {
-            if(sb->isSelected(this->rows[i])) selectedIndex = i;
-        }
-
-        if(selectedIndex > -1) {
-            for(size_t i = selectedIndex; i < this->rows.size(); i++) {
-                const CarouselNode element = this->rows[i];
-                const bool isDiffButton = element.isSong();
-                const bool isCollectionButton = element.isGroup();
-                const bool isSongDifficultyButtonAndNotIndependent = isDiffButton && !sb->isIndependentDiff(element);
-
-                if(!sb->isSelected(element) && !isSongDifficultyButtonAndNotIndependent &&
-                   (!jumpToNextGroup || isCollectionButton)) {
-                    sb->select(element);
-                    break;
-                }
-            }
-        }
-    }
-
-    if(key == KEY_PAGEUP) this->scrollY(static_cast<int>(this->getSize().y));
-    if(key == KEY_PAGEDOWN) this->scrollY(static_cast<int>(-this->getSize().y));
-
-    // group open/close
-    // NOTE: only closing works atm (no "focus" state on buttons yet)
-    if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && keyboard->isShiftDown()) {
-        for(size_t i = 0; i < this->rows.size(); i++) {
-            const CarouselNode element = this->rows[i];
-            if(element.isGroup() && sb->isSelected(element)) {
-                sb->select(element);
-                sb->scrollToSongButton(element);
-                break;
-            }
-        }
-    }
-
-    // selection select
-    if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && !keyboard->isShiftDown()) sb->playSelectedDifficulty();
 }

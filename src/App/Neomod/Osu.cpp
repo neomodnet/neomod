@@ -350,7 +350,6 @@ Osu::Osu()
         [] { cv::speed_override.setValue(cv::mod_doubletime_dummy.getBool() ? "1.5" : "-1.0"); });
     cv::mod_halftime_dummy.setCallback(
         [] { cv::speed_override.setValue(cv::mod_halftime_dummy.getBool() ? "0.75" : "-1.0"); });
-    cv::draw_songbrowser_thumbnails.setCallback(SA::MakeDelegate<&Osu::onThumbnailsToggle>(this));
     cv::prefer_cjk.setCallback(SA::MakeDelegate<&Osu::loadCJKFont>(this));
     cv::bleedingedge.setCallback(SA::MakeDelegate<&UpdateHandler::onBleedingEdgeChanged>(this->updateHandler.get()));
 
@@ -580,7 +579,6 @@ Osu::~Osu() {
         cv::speed_override.removeAllCallbacks();
         cv::mod_doubletime_dummy.removeAllCallbacks();
         cv::mod_halftime_dummy.removeAllCallbacks();
-        cv::draw_songbrowser_thumbnails.removeAllCallbacks();
         cv::bleedingedge.removeAllCallbacks();
         cv::mod_fullalternate.removeAllCallbacks();
         cv::mod_singletap.removeAllCallbacks();
@@ -2142,10 +2140,6 @@ void Osu::onSpeedChange(float speed) {
 
     // Update mod menu UI
     this->ui_memb->getModSelector()->useCurrentMods();
-}
-
-void Osu::onThumbnailsToggle() {
-    ui->getSongBrowser()->thumbnailYRatio = cv::draw_songbrowser_thumbnails.getBool() ? 1.333333f : 0.f;
 }
 
 void Osu::onPlayfieldChange() { this->map_iface->onModUpdate(); }

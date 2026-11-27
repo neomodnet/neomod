@@ -29,17 +29,10 @@ struct CarouselNode {
     static CarouselNode group(u32 idx) { return {.kind = Kind::GROUP, .idx = idx}; }
 };
 
-struct CarouselSelOpts {
-    bool noCallbacks{false};
-    bool noSelectBottomChild{false};
-    bool parentUnselected{false};
-};
-
 struct CarouselGroup {
     std::string name;
     std::vector<CarouselNode> children;
     i32 numVisibleChildren{0};
-    bool selected{false};
     bool isCollection{false};
 };
 
@@ -54,13 +47,11 @@ struct CarouselData {
     std::vector<u32> setDiffs;
     std::vector<ScoreGrade> setGrade;
     std::vector<u8> setDiffsSortedForStarIdx;
-    std::vector<u8> setSelected;
 
     std::vector<DatabaseBeatmap *> diffMap;
     std::vector<u32> diffSet;
     std::vector<ScoreGrade> diffGrade;
     std::vector<u8> diffGradeScheduled;
-    std::vector<u8> diffSelected;
     std::vector<u8> diffMatch;
 
     std::vector<CarouselGroup> groups;
@@ -77,11 +68,11 @@ struct CarouselData {
         this->setMap.reserve(sets);
         this->setRepresentative.reserve(sets);
         this->setGrade.reserve(sets);
-        for(auto *v : {&this->setDiffsSortedForStarIdx, &this->setSelected}) v->reserve(sets);
+        this->setDiffsSortedForStarIdx.reserve(sets);
         for(auto *v : {&this->setDiffs, &this->diffSet}) v->reserve(diffs);
         this->diffMap.reserve(diffs);
         this->diffGrade.reserve(diffs);
-        for(auto *v : {&this->diffGradeScheduled, &this->diffSelected, &this->diffMatch}) v->reserve(diffs);
+        for(auto *v : {&this->diffGradeScheduled, &this->diffMatch}) v->reserve(diffs);
     }
 
     void clear() { *this = {}; }

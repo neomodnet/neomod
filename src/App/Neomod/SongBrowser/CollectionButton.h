@@ -6,7 +6,7 @@
 class CollectionButton final : public CarouselButton {
     NOCOPY_NOMOVE(CollectionButton)
    public:
-    CollectionButton();
+    explicit CollectionButton(BeatmapCarousel &carousel);
     ~CollectionButton() override = default;
 
     void draw() override;

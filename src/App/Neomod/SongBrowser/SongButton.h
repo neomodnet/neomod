@@ -12,7 +12,7 @@ enum class ScoreGrade : u8;
 class SongButton : public CarouselButton {
     NOCOPY_NOMOVE(SongButton)
    public:
-    SongButton();
+    explicit SongButton(BeatmapCarousel &carousel);
     ~SongButton() override;
 
     void draw() override;

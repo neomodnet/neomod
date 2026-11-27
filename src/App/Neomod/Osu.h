@@ -274,7 +274,6 @@ class Osu final : public App, public MouseListener, public TouchListener {
     void updateAnimationSpeed();
 
     void onSpeedChange(float speed);
-    void onThumbnailsToggle();
 
     void onPlayfieldChange();
 

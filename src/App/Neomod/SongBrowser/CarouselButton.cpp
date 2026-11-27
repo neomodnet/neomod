@@ -23,12 +23,10 @@ using namespace neomod::sbr;
 
 // Color Button::inactiveDifficultyBackgroundColor = argb(255, 0, 150, 236); // blue
 
-CarouselButton::CarouselButton(float xPos, float yPos, float xSize, float ySize, std::nullptr_t nullp)
-    : CBaseUIButton(nullp, xPos, yPos, xSize, ySize) {
+CarouselButton::CarouselButton(BeatmapCarousel &carousel) : CBaseUIButton(nullptr, 0, 0, 0, 0), carousel(carousel) {
     this->setHandleRightMouse(true);
     this->font = osu->getSongBrowserFont();
     this->bVisible = false;
-    this->fTargetRelPosY = yPos;
     this->rect.setSize(CarouselButton::scaledBaseSize);
 }
 
@@ -124,10 +122,10 @@ void CarouselButton::updateInput(CBaseUIEventCtx &c) {
 void CarouselButton::updateLayoutEx() {
     if(this->bVisible) {  // lag prevention (animationHandler overflow)
         const float centerOffsetAnimationTarget =
-            ((cv::songbrowser_button_anim_y_curve.getBool() && !g_carousel->isScrollingFast())
+            ((cv::songbrowser_button_anim_y_curve.getBool() && !this->carousel.isScrollingFast())
                  ? 1.0f - std::clamp<float>(std::abs((this->getPos().y + (CarouselButton::scaledBaseSize.y / 2) -
-                                                      g_carousel->getPos().y - g_carousel->getSize().y / 2) /
-                                                     (g_carousel->getSize().y / 2)),
+                                                      this->carousel.getPos().y - this->carousel.getSize().y / 2) /
+                                                     (this->carousel.getSize().y / 2)),
                                             0.0f, 1.0f)
                  : 1.f) +
             (this->isSelected() && !cv::songbrowser_button_anim_y_curve.getBool() ? 0.5f : 0.0f);
@@ -137,12 +135,12 @@ void CarouselButton::updateLayoutEx() {
         }
 
         float centerOffsetVelocityAnimationTarget =
-            std::clamp<float>((std::abs(g_carousel->getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
+            std::clamp<float>((std::abs(this->carousel.getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
 
-        if(g_carousel->isScrollingFast() || !cv::songbrowser_button_anim_x_push.getBool())
+        if(this->carousel.isScrollingFast() || !cv::songbrowser_button_anim_x_push.getBool())
             centerOffsetVelocityAnimationTarget = 0.0f;
 
-        if(g_carousel->isScrolling())
+        if(this->carousel.isScrolling())
             this->fCenterOffsetVelocityAnimation.set(0.0f, 1.0f, anim::QuadOut);
         else
             this->fCenterOffsetVelocityAnimation.set(centerOffsetVelocityAnimationTarget, 1.25f, anim::QuadOut);
@@ -154,25 +152,25 @@ void CarouselButton::updateLayoutEx() {
 
     // this is the minimum offset necessary to not clip into the score scrollview (including all possible max animations
     // which can push us to the left, worst case)
-    float minOffset = g_carousel->getSize().x * (percentCenterOffsetAnimation + percentHoverOffsetAnimation);
+    float minOffset = this->carousel.getSize().x * (percentCenterOffsetAnimation + percentHoverOffsetAnimation);
 
     // also respect the width of the button image: push to the right until the edge of the button image can never be
     // visible even if all animations are fully active the 0.91f here heuristically pushes the buttons a bit further
     // to the right than would be necessary, to make animations work better on lower resolutions (would otherwise
     // hit the left edge too early)
     // NOTE @spec: this 0.91 and 0.09 relationship is extremely important for the actual offset amount somehow
-    const float buttonWidthCompensation = std::max(g_carousel->getSize().x - this->getActualWidth() * 0.91f, 0.0f);
+    const float buttonWidthCompensation = std::max(this->carousel.getSize().x - this->getActualWidth() * 0.91f, 0.0f);
     minOffset += buttonWidthCompensation;
 
     float offsetX =
-        minOffset - g_carousel->getSize().x *
+        minOffset - this->carousel.getSize().x *
                         (percentCenterOffsetAnimation * this->fCenterOffsetAnimation *
                              (1.0f - this->fCenterOffsetVelocityAnimation) +
                          percentHoverOffsetAnimation * this->fHoverOffsetAnimation -
                          percentVelocityOffsetAnimation * this->fCenterOffsetVelocityAnimation + this->fOffsetPercent);
     offsetX = std::clamp<float>(
         offsetX, 0.0f,
-        g_carousel->getSize().x -
+        this->carousel.getSize().x -
             this->getActualWidth() * 0.09f);  // WARNING: hardcoded to match 0.91f above for buttonWidthCompensation
 
     this->setRelPosX(offsetX);
@@ -180,7 +178,7 @@ void CarouselButton::updateLayoutEx() {
 
     // using setRect instead of setPos/setSize to avoid expensive comparisons
     // (which do nothing since CarouselButtons don't use onResized/onMoved)
-    this->setRect(McRect{g_carousel->container.getPos() + this->getRelPos(), CarouselButton::scaledBaseSize});
+    this->setRect(McRect{this->carousel.container.getPos() + this->getRelPos(), CarouselButton::scaledBaseSize});
 }
 
 CarouselButton *CarouselButton::setVisible(bool visible) {
@@ -194,9 +192,9 @@ CarouselButton *CarouselButton::setVisible(bool visible) {
         this->fHoverOffsetAnimation = 0.0f;
 
         float centerOffsetVelocityAnimationTarget =
-            std::clamp<float>((std::abs(g_carousel->getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
+            std::clamp<float>((std::abs(this->carousel.getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
 
-        if(g_carousel->isScrollingFast() || !cv::songbrowser_button_anim_x_push.getBool())
+        if(this->carousel.isScrollingFast() || !cv::songbrowser_button_anim_x_push.getBool())
             centerOffsetVelocityAnimationTarget = 0.0f;
 
         this->fCenterOffsetVelocityAnimation = centerOffsetVelocityAnimationTarget;
@@ -240,7 +238,7 @@ void CarouselButton::onMouseInside() {
     this->fHoverOffsetAnimation.set(1.0f, 1.0f * (1.0f - this->fHoverOffsetAnimation), anim::QuadOut);
 
     // move the rest of the buttons away from hovered-over one
-    g_carousel->setHoveredRow(this);
+    this->carousel.setHoveredRow(this);
 }
 
 void CarouselButton::onMouseOutside() {
@@ -249,7 +247,7 @@ void CarouselButton::onMouseOutside() {
     // reverse hover anim
     this->fHoverOffsetAnimation.set(0.0f, 1.0f * this->fHoverOffsetAnimation, anim::QuadOut);
 
-    g_carousel->clearHoveredRow(this);
+    this->carousel.clearHoveredRow(this);
 }
 
 void CarouselButton::setTargetRelPosY(float targetRelPosY) {

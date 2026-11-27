@@ -5,7 +5,7 @@
 class SongDifficultyButton final : public SongButton {
     NOCOPY_NOMOVE(SongDifficultyButton)
    public:
-    SongDifficultyButton() = default;
+    using SongButton::SongButton;
     ~SongDifficultyButton() override = default;
 
     void draw() override;

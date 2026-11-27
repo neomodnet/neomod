@@ -15,7 +15,7 @@
 
 using namespace neomod::sbr;
 
-CollectionButton::CollectionButton() : CarouselButton(0, 0, 0, 0, nullptr) {
+CollectionButton::CollectionButton(BeatmapCarousel &carousel) : CarouselButton(carousel) {
     // settings
     this->setOffsetPercent(0.075f * 0.5f);
 }
@@ -36,7 +36,7 @@ void CollectionButton::draw() {
     titleString.append(fmt::format(" ({} map{})", group.numVisibleChildren, group.numVisibleChildren == 1 ? "" : "s"));
     int textXOffset = size.x * 0.02f;
     float titleScale = (size.y * this->fTitleScale) / this->font->getHeight();
-    g->setColor(group.selected ? skin->c_song_select_active_text : skin->c_song_select_inactive_text);
+    g->setColor(this->isSelected() ? skin->c_song_select_active_text : skin->c_song_select_inactive_text);
     g->pushTransform();
     {
         g->scale(titleScale, titleScale);

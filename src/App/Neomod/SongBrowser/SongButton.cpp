@@ -21,7 +21,11 @@
 
 using namespace neomod::sbr;
 
-SongButton::SongButton() : CarouselButton(0, 0, 0, 0, nullptr) {}
+namespace {
+f32 getThumbnailYRatio() { return cv::draw_songbrowser_thumbnails.getBool() ? 1.333333f : 0.f; }
+}  // namespace
+
+SongButton::SongButton(BeatmapCarousel &carousel) : CarouselButton(carousel) {}
 
 SongButton::~SongButton() = default;
 
@@ -55,7 +59,7 @@ void SongButton::tick() {
     }
 
     // don't try to load images while scrolling fast to avoid lag
-    if(!g_carousel->isScrollingFast())
+    if(!this->carousel.isScrollingFast())
         this->fVisibleFor += engine->getFrameTime();
     else
         this->fVisibleFor = 0.f;
@@ -81,7 +85,7 @@ void SongButton::drawBeatmapBackgroundThumbnail(const Image *image) {
     const vec2 pos = this->getActualPos();
     const vec2 size = this->getActualSize();
 
-    const f32 thumbnailYRatio = g_songbrowser->thumbnailYRatio;
+    const f32 thumbnailYRatio = getThumbnailYRatio();
     const f32 beatmapBackgroundScale =
         Osu::getImageScaleToFillResolution(image, vec2(size.y * thumbnailYRatio, size.y)) * 1.05f;
 
@@ -197,7 +201,7 @@ void SongButton::updateLayoutEx() {
         this->fTextOffset += size.x * 0.02f * 2.0f;
         if(grade != ScoreGrade::N) this->fGradeOffset += this->calculateGradeWidth() / 2.f;
     } else {
-        const f32 thumbnailYRatio = g_songbrowser->thumbnailYRatio;
+        const f32 thumbnailYRatio = getThumbnailYRatio();
         this->fTextOffset += size.y * thumbnailYRatio + size.x * 0.02f;
         this->fGradeOffset += size.y * thumbnailYRatio + size.x * 0.0125f;
     }

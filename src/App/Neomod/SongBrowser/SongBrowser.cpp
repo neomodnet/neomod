@@ -293,17 +293,13 @@ void sort_by_keys(std::vector<T> &items, SortTypes::type method, KeyOf keyOf) {
 
 namespace neomod::sbr {
 SongBrowser *g_songbrowser{nullptr};
-BeatmapCarousel *g_carousel{nullptr};
 }  // namespace neomod::sbr
 
 SongBrowser::GlobalSongBrowserCtorDtor::GlobalSongBrowserCtorDtor(SongBrowser *sbrptr) {
     neomod::sbr::g_songbrowser = sbrptr;
 }
 
-SongBrowser::GlobalSongBrowserCtorDtor::~GlobalSongBrowserCtorDtor() {
-    neomod::sbr::g_songbrowser = nullptr;
-    neomod::sbr::g_carousel = nullptr;
-}
+SongBrowser::GlobalSongBrowserCtorDtor::~GlobalSongBrowserCtorDtor() { neomod::sbr::g_songbrowser = nullptr; }
 
 // a leaderboard waiting for buildScoreButtons()
 struct SongBrowser::PendingScores {
@@ -356,7 +352,6 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
 
     // build carousel first
     this->carousel = std::make_unique<BeatmapCarousel>(0.f, 0.f, 0.f, 0.f, "Carousel");
-    neomod::sbr::g_carousel = this->carousel.get();
 
     // convar callback
     cv::songbrowser_search_hardcoded_filter.setCallback(
@@ -372,17 +367,8 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     cv::name.setCallback(SA::MakeDelegate<&SongBrowser::refreshGrades>(this));
 
     // vars
-    this->bSongBrowserRightClickScrollCheck = false;
-    this->bSongBrowserRightClickScrolling = false;
-    this->bNextScrollToSongButtonJumpFixScheduled = false;
-    this->bNextScrollToSongButtonJumpFixUseScrollSizeDelta = false;
-    this->fNextScrollToSongButtonJumpFixOldScrollSizeY = 0.0f;
-    this->fNextScrollToSongButtonJumpFixOldRelPosY = 0.0f;
-
     this->bF2Pressed = false;
     this->bF3Pressed = false;
-    this->bLeft = false;
-    this->bRight = false;
 
     this->bRandomBeatmapScheduled = false;
 
@@ -498,8 +484,6 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->personalBestLabel->setDrawBackground(false);
     this->personalBestLabel->setDrawFrame(false);
     this->personalBestLabel->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
-
-    this->thumbnailYRatio = cv::draw_songbrowser_thumbnails.getBool() ? 1.333333f : 0.f;
 
     // behaviour
     this->fBackgroundFadeInTime = 0.0f;
@@ -766,34 +750,12 @@ CarouselNode SongBrowser::getDiffNodeByHash(const MD5Hash &diff_hash) const {
     return {};
 }
 
-bool SongBrowser::isSelected(CarouselNode node) const {
-    switch(node.kind) {
-        case CarouselNode::Kind::SET:
-            return this->data.setSelected[node.idx];
-        case CarouselNode::Kind::DIFF:
-            return this->data.diffSelected[node.idx];
-        case CarouselNode::Kind::GROUP:
-            return this->data.groups[node.idx].selected;
-        case CarouselNode::Kind::NONE:
-            break;
-    }
-    return false;
+CarouselNode SongBrowser::getSelectedSet() const {
+    return this->selectedDiff ? CarouselNode::set(this->data.diffSet[this->selectedDiff.idx]) : CarouselNode{};
 }
 
-void SongBrowser::setSelected(CarouselNode node, bool selected) {
-    switch(node.kind) {
-        case CarouselNode::Kind::SET:
-            this->data.setSelected[node.idx] = selected;
-            break;
-        case CarouselNode::Kind::DIFF:
-            this->data.diffSelected[node.idx] = selected;
-            break;
-        case CarouselNode::Kind::GROUP:
-            this->data.groups[node.idx].selected = selected;
-            break;
-        case CarouselNode::Kind::NONE:
-            break;
-    }
+bool SongBrowser::isSelected(CarouselNode node) const {
+    return node && (node == this->selectedDiff || node == this->openGroup || node == this->getSelectedSet());
 }
 
 bool SongBrowser::isSearchMatch(CarouselNode node) const { return !node.isDiff() || this->data.diffMatch[node.idx]; }
@@ -816,7 +778,7 @@ ScoreGrade SongBrowser::getGrade(CarouselNode node) const {
 bool SongBrowser::isIndependentDiff(CarouselNode node) const {
     if(!node.isDiff()) return true;
     const u32 set = this->data.diffSet[node.idx];
-    if(!this->data.setSelected[set]) return true;
+    if(this->getSelectedSet() != CarouselNode::set(set)) return true;
 
     // TODO: this logic is very weird and only works "accidentally";
     // you'd think returning true IFF (sibling->isSearchMatch() && sibling == this) would be enough,
@@ -903,76 +865,130 @@ void SongBrowser::updateGrade(u32 diff) {
     if(setGrade > maxGrade) setGrade = maxGrade;
 }
 
-void SongBrowser::select(CarouselNode node, SelOpts opts) {
-    const bool wasSelected = this->isSelected(node);
-    this->setSelected(node, true);
+void SongBrowser::select(CarouselNode node) { this->select(node, {}); }
 
-    // callback
-    if(opts.noCallbacks) return;
+void SongBrowser::select(CarouselNode node, SelOpts opts) {
     switch(node.kind) {
         case CarouselNode::Kind::SET:
-            this->onSetSelected(node.idx, wasSelected, opts);
-            break;
+            return this->selectSet(node.idx, opts);
         case CarouselNode::Kind::DIFF:
-            this->onDiffSelected(node.idx, wasSelected, opts);
-            break;
+            return this->selectDiff(node.idx, opts);
         case CarouselNode::Kind::GROUP:
-            this->onSelectionChange(node, true);
-            this->scrollToSongButton(node, true);
-            break;
+            return this->toggleGroup(node.idx);
         case CarouselNode::Kind::NONE:
-            break;
+            return;
     }
 }
 
-void SongBrowser::onSetSelected(u32 set, bool wasSelected, SelOpts opts) {
+void SongBrowser::selectSet(u32 set, SelOpts opts) {
     // resort children (since they might have been updated in the meantime)
     this->sortSetChildren(set);
 
     // update grade on children if necessary
     this->maybeUpdateSetGrades(set);
 
-    this->onSelectionChange(CarouselNode::set(set), false);
-
     // now, automatically select the bottom child (hardest diff, assuming default sorting, and respecting the current
     // search matches)
-    if(!opts.noSelectBottomChild) {
-        const auto children = this->data.setChildren(set);
-        for(sSz i = static_cast<sSz>(children.size()) - 1; i >= 0; --i) {
-            const u32 child = children[i];
-            // NOTE: if no search is active, then all search matches return true by default
-            if(!this->data.diffMatch[child]) continue;
-            this->select(CarouselNode::diff(child), {.noSelectBottomChild = true, .parentUnselected = !wasSelected});
-            break;
-        }
+    const auto children = this->data.setChildren(set);
+    for(size_t i = 0; i < children.size(); i++) {
+        const u32 child = children[opts.topChild ? i : children.size() - 1 - i];
+        // NOTE: if no search is active, then all search matches return true by default
+        if(this->data.diffMatch[child]) return this->selectDiff(child, opts);
     }
 }
 
-void SongBrowser::onDiffSelected(u32 diff, bool wasSelected, SelOpts opts) {
+void SongBrowser::selectDiff(u32 diff, SelOpts opts) {
     const CarouselNode node = CarouselNode::diff(diff);
-    const bool wasParentActuallySelected =
-        !this->isIndependentDiff(node) && !(opts.parentUnselected) && this->data.setSelected[this->data.diffSet[diff]];
+    const CarouselNode set = CarouselNode::set(this->data.diffSet[diff]);
+    const CarouselNode oldSet = this->getSelectedSet();
+    const bool wasSelected = this->selectedDiff == node;
 
     this->updateGrade(diff);
+    this->contextMenu->setVisible2(false);
 
-    if(!wasParentActuallySelected) {
-        this->requestNextScrollToSongButtonJumpFix(diff);
+    // NOTE: compensate potential scroll jump due to added/removed elements (feels a lot better this way, also easier on
+    // the eyes)
+    const auto anchorY = [&]() -> std::optional<f32> {
+        // technically not correct but feels a lot better for KEY_LEFT navigation
+        if(opts.anchorEnd) return (f32)this->carousel->getScrollSize().y;
+        return this->getNodeY(node);
+    };
+    const bool wasExpanded = oldSet == set && this->getSetVisibility(set.idx) == SetVisibility::SHOW_PARENT;
+    const std::optional<f32> anchorBefore = wasExpanded ? std::nullopt : anchorY();
+
+    if(oldSet != set) this->sortSetChildren(set.idx);
+    this->selectedDiff = node;
+
+    // try to avoid rebuilding by going through some cases we know can be skipped,
+    // in increasingly expensive order (as long as it's still worth it vs rebuilding)
+    bool rebuild = true;
+    bool doUpdateLayout = false;
+    if(oldSet == set) {
+        // skip rebuilding if we merely selected a sibling difficulty button
+        rebuild = false;
+        // the difficulties of an expanded set are spaced the same no matter which one of them is selected, but a
+        // set's only visible difficulty gets its spacing from being selected
+        doUpdateLayout = !wasSelected && this->getSetVisibility(set.idx) != SetVisibility::SHOW_PARENT;
+    } else if(oldSet) {
+        // if we got here, a slightly more expensive check: skip if the visibility of both sets is the same
+        const SetVisibility oldVis = this->getSetVisibility(oldSet.idx);
+        const SetVisibility newVis = this->getSetVisibility(set.idx);
+
+        // when in no grouping, parent buttons are expanded/unexpanded depending on their selection state and how many children they have visible
+        // otherwise we need to rebuild everything (with the current implementation) to un-expand the old parent and expand the new one
+
+        // EXCEPT! another edge case:when in GROUP_COLLECTIONS, there can be multiple occurrences of the same diff button
+        // across collections, and some sets may be collapsed while others aren't!
+
+        // (oldParentPtr->isVisible() == newParentPtr->isVisible()) ||
+        // TODO: this still unnecessarily rebuilds (see group by difficulty, each time the buttons jump jarringly was an unnecessary rebuild)
+        // above check helped but isn't correct for expanding unselected parents
+        // lazily commented out for now
+        if(oldVis == newVis && (oldVis != SetVisibility::SHOW_PARENT ||
+                                (!this->isInParentsCollapsedMode() && this->curGroup != GroupType::COLLECTIONS))) {
+            rebuild = false;
+            // sadly, we still need to update layout (cheaper than full rebuild though)
+            // this is because Y coordinates change depending on selection state and depend on all surrounding buttons
+            doUpdateLayout = true;
+        }
     }
 
-    this->onSelectionChange(node, true);
-    this->onDifficultySelected(this->data.diffMap[diff], wasSelected);
-    this->scrollToSongButton(node, /*alignOnTop=*/false, /*knownVisible=*/true);
+    if(rebuild) {
+        this->rebuildSongButtons();
+    } else if(doUpdateLayout) {
+        this->updateSongButtonLayout();
+    }
+
+    this->onDifficultySelected(this->data.diffMap[diff], wasSelected && !opts.noPlay);
+
+    if(anchorBefore) {
+        if(const std::optional<f32> anchorAfter = anchorY()) {
+            this->carousel->scrollToY((i32)(this->carousel->getRelPosY() - (*anchorAfter - *anchorBefore)), false);
+        }
+    }
+    if(!this->scrollToSongButton(node)) this->scheduled_scroll_to_selected_button = true;
 }
 
-f32 SongBrowser::getNodeY(CarouselNode node) const {
-    const auto &rows = this->carousel->getRows();
-    if(const size_t row = this->carousel->findRow(node); row < rows.size()) return this->carousel->getRowY(row);
-    if(node.isDiff()) {
-        if(const size_t row = this->carousel->findRow(CarouselNode::set(this->data.diffSet[node.idx]));
-           row < rows.size())
-            return this->carousel->getRowY(row);
-    }
-    return 0.f;
+void SongBrowser::toggleGroup(u32 group) {
+    const CarouselNode node = CarouselNode::group(group);
+    this->contextMenu->setVisible2(false);
+
+    // TODO: maybe expand this logic with per-group-type last-open-collection memory
+
+    // logic for allowing collections to be deselected by clicking on the same button (contrary to how beatmaps
+    // work)
+    this->openGroup = this->openGroup == node ? CarouselNode{} : node;
+
+    this->rebuildSongButtons();
+    this->scrollToSongButton(node, true);
+}
+
+std::optional<f32> SongBrowser::getNodeY(CarouselNode node) const {
+    const size_t numRows = this->carousel->getRows().size();
+    size_t row = this->carousel->findRow(node);
+    if(row == numRows && node.isDiff()) row = this->carousel->findRow(CarouselNode::set(this->data.diffSet[node.idx]));
+    if(row == numRows) return std::nullopt;
+    return this->carousel->getRowY(row);
 }
 
 // FIXME: this should not be a public function (way too multi-purpose, too many side effects)
@@ -1117,7 +1133,7 @@ void SongBrowser::tick() {
     // handle background search matcher
     if(this->searchHandle.valid() && this->searchHandle.is_ready()) {
         if(auto result = this->searchHandle.get(); !result) {
-            this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true);
+            this->rebuildSearchResults(true);
         } else if(result->index == this->searchIndex) {
             this->lastSearch = std::make_shared<const AsyncSongButtonMatcher::SearchResult>(std::move(*result));
         }
@@ -1129,7 +1145,7 @@ void SongBrowser::tick() {
         }
         this->shownSearch = this->lastSearch;
         this->updateSetRepresentatives();
-        this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(!rerun);
+        this->rebuildSearchResults(!rerun);
     }
     if(this->bInitializedBeatmaps && this->bInSearch && !this->searchHandle.valid() &&
        this->searchIndexedDiffs == this->data.diffMap.size() &&
@@ -1211,8 +1227,7 @@ void SongBrowser::onKeyDown(KeyboardEvent &key) {
 
     if(key == KEY_F5) this->refreshBeatmaps(this, /*full_rescan=*/true);
 
-    this->carousel->onKeyDown(key);
-    //if (key.isConsumed()) return;
+    this->navigateCarousel(key);
 
     // toggle auto
     if(key == KEY_A && keyboard->isControlDown()) ui->getModSelector()->toggleAuto();
@@ -1225,11 +1240,90 @@ void SongBrowser::onKeyUp(KeyboardEvent &key) {
     this->contextMenu->onKeyUp(key);
     if(key.isConsumed()) return;
 
-    if(key == KEY_LEFT) this->bLeft = false;
-    if(key == KEY_RIGHT) this->bRight = false;
-
     if(key == KEY_F2 || key == binds::RANDOM_BEATMAP) this->bF2Pressed = false;
     if(key == KEY_F3) this->bF3Pressed = false;
+}
+
+void SongBrowser::navigateCarousel(const KeyboardEvent &key) {
+    const std::vector<CarouselNode> &rows = this->carousel->getRows();
+
+    // get bottom selection
+    const auto selectedRow = [&]() -> sSz {
+        for(sSz i = static_cast<sSz>(rows.size()) - 1; i >= 0; i--) {
+            if(this->isSelected(rows[i])) return i;
+        }
+        return -1;
+    };
+    const auto selectBottomChild = [&](size_t row, SelOpts opts) {
+        size_t last = row;
+        while(last + 1 < rows.size() && !rows[last + 1].isGroup()) last++;
+        if(last != row && !this->isSelected(rows[last])) this->select(rows[last], opts);
+    };
+    const auto isStop = [this](CarouselNode row) {
+        return !this->isSelected(row) && this->isIndependentDiff(row) && (!keyboard->isShiftDown() || row.isGroup());
+    };
+
+    // selection move
+    if(!keyboard->isAltDown() && key == KEY_DOWN) {
+        // select +1 (song buttons select their top child)
+        if(const sSz selected = selectedRow(); selected > -1 && selected + 1 < static_cast<sSz>(rows.size())) {
+            this->select(rows[selected + 1], {.topChild = true});
+        }
+    }
+
+    if(!keyboard->isAltDown() && key == KEY_UP) {
+        // select -1
+        if(const sSz selected = selectedRow(); selected > 0) {
+            const CarouselNode prev = rows[selected - 1];
+            this->select(prev);
+
+            // automatically open collection on top of this one and go to bottom child
+            if(prev.isGroup() && selected - 2 >= 0 && rows[selected - 2].isGroup()) {
+                this->select(rows[selected - 2]);
+                selectBottomChild(selected - 2, {});
+            }
+        }
+    }
+
+    if(key == KEY_LEFT && !key.isRepeat()) {
+        bool foundSelected = false;
+        for(sSz i = static_cast<sSz>(rows.size()) - 1; i >= 0; i--) {
+            const CarouselNode row = rows[i];
+            if(foundSelected && isStop(row)) {
+                this->select(row, {.anchorEnd = true});
+                // automatically open collection below and go to bottom child
+                if(row.isGroup()) selectBottomChild(i, {.anchorEnd = true});
+                break;
+            }
+            if(this->isSelected(row)) foundSelected = true;
+        }
+    }
+
+    if(key == KEY_RIGHT && !key.isRepeat()) {
+        if(const sSz selected = selectedRow(); selected > -1) {
+            for(size_t i = selected; i < rows.size(); i++) {
+                if(isStop(rows[i])) {
+                    this->select(rows[i]);
+                    break;
+                }
+            }
+        }
+    }
+
+    if(key == KEY_PAGEUP) this->carousel->scrollY(static_cast<int>(this->carousel->getSize().y));
+    if(key == KEY_PAGEDOWN) this->carousel->scrollY(static_cast<int>(-this->carousel->getSize().y));
+
+    // group open/close
+    // NOTE: only closing works atm (no "focus" state on buttons yet)
+    if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && keyboard->isShiftDown()) {
+        if(const CarouselNode group = this->openGroup; this->carousel->findRow(group) < rows.size()) {
+            this->select(group);
+            this->scrollToSongButton(group);
+        }
+    }
+
+    // selection select
+    if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && !keyboard->isShiftDown()) this->playSelectedDifficulty();
 }
 
 CBaseUIElement *SongBrowser::getTextTarget(CBaseUIElement *focus) {
@@ -1346,8 +1440,7 @@ void SongBrowser::selectSelectedBeatmapSongButton() {
         return;
     }
 
-    this->setSelected(btn, false);  // if we select() it when already selected, it would start playing!
-    this->select(btn);
+    this->select(btn, {.noPlay = true});  // if we select() it when already selected, it would start playing!
 }
 
 void SongBrowser::onPlayEnd(bool quit) {
@@ -1355,7 +1448,7 @@ void SongBrowser::onPlayEnd(bool quit) {
     if(!quit) {
         this->rebuildScoreButtons();
 
-        if(this->selectedButton.isDiff()) this->updateGrade(this->selectedButton.idx);
+        if(this->selectedDiff) this->updateGrade(this->selectedDiff.idx);
     }
 
     // update song info
@@ -1371,115 +1464,6 @@ void SongBrowser::onPlayEnd(bool quit) {
             }
         }
         this->songInfo->setFromBeatmap(bm);
-    }
-}
-
-void SongBrowser::onSelectionChange(CarouselNode button, bool rebuild) {
-    const CarouselNode lastSelected = this->selectedButton;
-    this->selectedButton = button;
-    if(!button) return;
-
-    this->contextMenu->setVisible2(false);
-    if((lastSelected == button) && !rebuild) return;
-
-    // keep track and update all selection states
-    // I'm still not happy with this, but at least all state update logic is localized in this function instead of
-    // spread across all buttons
-
-    const CarouselNode prevSelDiffBtn = this->selectionPreviousSongDiffButton;
-    const CarouselNode prevSelSongBtn = this->selectionPreviousSongButton;
-    const CarouselNode prevSelColBtn = this->selectionPreviousCollectionButton;
-
-    const bool isSongButton = button.isSong();
-
-    if(button.isDiff()) {
-        if(prevSelDiffBtn && prevSelDiffBtn != button) {
-            this->setSelected(prevSelDiffBtn, false);
-        }
-
-        // support individual diffs independent from their parent song button container
-        {
-            const CarouselNode parentSongButton = CarouselNode::set(this->data.diffSet[button.idx]);
-            // if the new diff has a parent song button, then update its selection state (select it to stay consistent)
-            if(!this->isSelected(parentSongButton)) {
-                this->sortSetChildren(
-                    parentSongButton.idx);  // NOTE: workaround for disabled callback firing in select()
-                this->select(parentSongButton, {.noCallbacks = true});
-                this->onSelectionChange(parentSongButton, false);  // NOTE: recursive call
-
-                // reset last-selected button to the diff button after recursion
-                // instead of the parent (which will be hidden)
-                this->selectedButton = button;
-            }
-        }
-
-        this->selectionPreviousSongDiffButton = button;
-    } else if(button.isSet()) {
-        if(prevSelSongBtn && prevSelSongBtn != button) this->setSelected(prevSelSongBtn, false);
-        if(prevSelDiffBtn) this->setSelected(prevSelDiffBtn, false);
-
-        this->selectionPreviousSongButton = button;
-    } else if(button.isGroup()) {
-        // TODO: maybe expand this logic with per-group-type last-open-collection memory
-
-        // logic for allowing collections to be deselected by clicking on the same button (contrary to how beatmaps
-        // work)
-        const bool isTogglingCollection = (prevSelColBtn && prevSelColBtn == button);
-
-        if(prevSelColBtn) this->setSelected(prevSelColBtn, false);
-
-        this->selectionPreviousCollectionButton = button;
-
-        if(isTogglingCollection) this->selectionPreviousCollectionButton = {};
-    }
-
-    // try to avoid rebuilding by going through some cases we know can be skipped,
-    // in increasingly expensive order (as long as it's still worth it vs rebuilding)
-    // (no logic for collection buttons, it's not worth it)
-    bool doUpdateLayout = false;
-
-    // check old and new parent selections
-    // NOTE: using previously selected difficulty because previously selected song button has already been updated at this point...
-    if(rebuild && prevSelDiffBtn && isSongButton) {
-        const u32 oldParentPtr = this->data.diffSet[prevSelDiffBtn.idx];
-        const u32 newParentPtr = !button.isDiff() ? button.idx : this->data.diffSet[button.idx];
-
-        if(oldParentPtr == newParentPtr) {
-            // skip rebuilding if we merely selected a sibling difficulty button
-            rebuild = false;
-            // the difficulties of an expanded set are spaced the same no matter which one of them is selected, but a
-            // set's only visible difficulty gets its spacing from being selected
-            doUpdateLayout =
-                prevSelDiffBtn != button && this->getSetVisibility(newParentPtr) != SetVisibility::SHOW_PARENT;
-        } else {
-            // if we got here, a slightly more expensive check: skip if the visibility of both buttons are the same
-            const SetVisibility oldVis = this->getSetVisibility(oldParentPtr);
-            const SetVisibility newVis = this->getSetVisibility(newParentPtr);
-
-            // when in no grouping, parent buttons are expanded/unexpanded depending on their selection state and how many children they have visible
-            // otherwise we need to rebuild everything (with the current implementation) to un-expand the old parent and expand the new one
-
-            // EXCEPT! another edge case:when in GROUP_COLLECTIONS, there can be multiple occurrences of the same diff button
-            // across collections, and some sets may be collapsed while others aren't!
-
-            // (oldParentPtr->isVisible() == newParentPtr->isVisible()) ||
-            // TODO: this still unnecessarily rebuilds (see group by difficulty, each time the buttons jump jarringly was an unnecessary rebuild)
-            // above check helped but isn't correct for expanding unselected parents
-            // lazily commented out for now
-            if(oldVis == newVis && (oldVis != SetVisibility::SHOW_PARENT ||
-                                    (!this->isInParentsCollapsedMode() && this->curGroup != GroupType::COLLECTIONS))) {
-                rebuild = false;
-                // sadly, we still need to update layout (cheaper than full rebuild though)
-                // this is because Y coordinates change depending on selection state and depend on all surrounding buttons
-                doUpdateLayout = true;
-            }
-        }
-    }
-
-    if(rebuild) {
-        this->rebuildSongButtons();
-    } else if(doUpdateLayout) {
-        this->updateSongButtonLayout();
     }
 }
 
@@ -1648,10 +1632,8 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     osu->getMusicTrack()->releaseMap();
     ui->getMainMenu()->clearPreloadedMaps();
 
-    this->selectedButton = {};
-    this->selectionPreviousSongButton = {};
-    this->selectionPreviousSongDiffButton = {};
-    this->selectionPreviousCollectionButton = {};
+    this->selectedDiff = {};
+    this->openGroup = {};
     this->contextMenuNode = {};
 
     // delete local database and UI
@@ -1691,7 +1673,6 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     this->sPrevSearchString.clear();
     this->bSearchScheduled = false;
     this->fSearchShowTime = 0.0;
-    this->searchPrevGroup = std::nullopt;
 
     // force no grouping (TODO: is this even necessary? why is it here?)
     // if(this->curGroup != GroupType::NO_GROUPING) {
@@ -1774,7 +1755,6 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
     this->data.setDiffCount.push_back((u32)mapset->getDifficulties().size());
     this->data.setGrade.push_back(ScoreGrade::N);
     this->data.setDiffsSortedForStarIdx.push_back(0xFF);
-    this->data.setSelected.push_back(false);
     for(const auto &diff : mapset->getDifficulties()) {
         // must exist and be a difficulty
         assert(diff && diff->getDifficulties().empty());
@@ -1783,7 +1763,6 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
         this->data.diffSet.push_back(set);
         this->data.diffGrade.push_back(ScoreGrade::N);
         this->data.diffGradeScheduled.push_back(true);
-        this->data.diffSelected.push_back(false);
         this->data.diffMatch.push_back(true);
     }
     if(this->curSortMethod == SortType::RANKACHIEVED) {
@@ -1886,8 +1865,6 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
     };
 
     // the alphanumeric groups hold the parent, the difficulty/bpm/length groups hold the diffs
-    forget(this->selectedButton, btn);
-    forget(this->selectionPreviousSongButton, btn);
     unlink(this->artistCollectionButtons, btn);
     unlink(this->creatorCollectionButtons, btn);
     unlink(this->titleCollectionButtons, btn);
@@ -1895,8 +1872,7 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
 
     for(const u32 diff : this->data.setChildren(btn.idx)) {
         const CarouselNode child = CarouselNode::diff(diff);
-        forget(this->selectedButton, child);
-        forget(this->selectionPreviousSongDiffButton, child);
+        forget(this->selectedDiff, child);
         this->hashToDiffButton->erase(this->data.diffMap[diff]->getMD5());
         this->data.diffMap[diff] = nullptr;
         unlink(this->difficultyCollectionButtons, child);
@@ -1914,9 +1890,7 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
 // after a set's buttons were added/removed at runtime: user collections are derived from hashToDiffButton and
 // the visible list/carousel/difficulty buckets from the containers, so rebuild them (keeping the open collection)
 void SongBrowser::rebuildAfterSetChange() {
-    const std::string open_collection{this->selectionPreviousCollectionButton
-                                          ? this->data.groups[this->selectionPreviousCollectionButton.idx].name
-                                          : ""};
+    const std::string open_collection{this->openGroup ? this->data.groups[this->openGroup.idx].name : ""};
     this->recreateCollectionsButtons();
     this->bSongButtonsNeedSorting = true;
     this->rebuildAfterGroupOrSortChange(this->curGroup);
@@ -2002,37 +1976,6 @@ void SongBrowser::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_s
     if(selected_inside && !stays && !osu->getMusicTrack()->isHeld()) this->selectBeatmapset(new_set);
 }
 
-void SongBrowser::requestNextScrollToSongButtonJumpFix(u32 diff) {
-    this->bNextScrollToSongButtonJumpFixScheduled = true;
-
-    // use parent position only if the diff is NOT independent
-    // (i.e., parent is actually visible and expanded in the carousel)
-    const CarouselNode diffButton = CarouselNode::diff(diff);
-    this->fNextScrollToSongButtonJumpFixOldRelPosY =
-        (this->isIndependentDiff(diffButton) ? this->getNodeY(diffButton)
-                                             : this->getNodeY(CarouselNode::set(this->data.diffSet[diff])));
-
-    this->fNextScrollToSongButtonJumpFixOldScrollSizeY = (f32)this->carousel->getScrollSize().y;
-}
-
-bool SongBrowser::isButtonVisible(CarouselNode songButton) const {
-    const auto childrenContain = [this, songButton](CarouselNode btn) -> bool {
-        if(btn.isSet())
-            return Mc::ranges::contains(this->data.setChildren(btn.idx), songButton.idx) && songButton.isDiff();
-        return false;
-    };
-
-    for(const CarouselNode btn : this->visibleSongButtons) {
-        if(btn == songButton || childrenContain(btn)) return true;
-        if(btn.isGroup()) {
-            for(const CarouselNode child : this->data.groups[btn.idx].children) {
-                if(child == songButton || childrenContain(child)) return true;
-            }
-        }
-    }
-    return false;
-}
-
 SongBrowser::GroupList *SongBrowser::getCollectionButtonsForGroup(GroupType group) {
     switch(group) {
         case GroupType::ARTIST:
@@ -2056,12 +1999,9 @@ SongBrowser::GroupList *SongBrowser::getCollectionButtonsForGroup(GroupType grou
 }
 
 bool SongBrowser::scrollToBestButton() {
-    const auto ifSelected = [this](CarouselNode node) -> CarouselNode {
-        return node && this->isSelected(node) ? node : CarouselNode{};
-    };
-    const CarouselNode selDiff = ifSelected(this->selectionPreviousSongDiffButton);
-    const CarouselNode selParent = ifSelected(this->selectionPreviousSongButton);
-    const CarouselNode selCollection = ifSelected(this->selectionPreviousCollectionButton);
+    const CarouselNode selDiff = this->selectedDiff;
+    const CarouselNode selParent = this->getSelectedSet();
+    const CarouselNode selCollection = this->openGroup;
 
     const CarouselNode best = selDiff ? selDiff : selParent ? selParent : selCollection;
 
@@ -2072,7 +2012,7 @@ bool SongBrowser::scrollToBestButton() {
 
     if(this->curGroup == GroupType::NO_GROUPING) {
         // trivial case
-        if(this->isSearchMatch(best)) this->scrollToSongButton(best, false, true);
+        if(this->isSearchMatch(best)) this->scrollToSongButton(best);
         return this->isSearchMatch(best);
     } else {
         if(best.isGroup()) {
@@ -2155,21 +2095,15 @@ bool SongBrowser::scrollToBestButton() {
 
         if(target) {
             if(this->isSearchMatch(target)) {
-                bool selectedOrDeselected = false;
-                // deselect previous
-                if(selectedCollection && collectionContainingTarget &&
-                   selectedCollection != collectionContainingTarget) {
-                    this->setSelected(selectedCollection, false);
-                    selectedOrDeselected = true;
-                }
                 if(collectionContainingTarget && !this->isSelected(collectionContainingTarget)) {
+                    const std::optional<f32> before = this->getNodeY(collectionContainingTarget);
                     this->select(collectionContainingTarget);
-                    selectedOrDeselected = true;
+                    const std::optional<f32> after = this->getNodeY(collectionContainingTarget);
+                    if(before && after) {
+                        this->carousel->scrollToY((i32)(this->carousel->getRelPosY() - (*after - *before)), false);
+                    }
                 }
-                if(target.isDiff() && selectedOrDeselected) {
-                    this->requestNextScrollToSongButtonJumpFix(target.idx);
-                }
-                this->scrollToSongButton(target, false, true);
+                this->scrollToSongButton(target);
             }
             return this->isSearchMatch(target);
         } else {
@@ -2180,33 +2114,13 @@ bool SongBrowser::scrollToBestButton() {
     }
 }
 
-void SongBrowser::scrollToSongButton(CarouselNode songButton, bool alignOnTop, bool knownVisible) {
-    if(!songButton || (!knownVisible && !this->isButtonVisible(songButton))) {
-        return;
-    }
+bool SongBrowser::scrollToSongButton(CarouselNode songButton, bool alignOnTop) {
+    const std::optional<f32> y = this->getNodeY(songButton);
+    if(!y) return false;
 
-    // NOTE: compensate potential scroll jump due to added/removed elements (feels a lot better this way, also easier on
-    // the eyes)
-    if(this->bNextScrollToSongButtonJumpFixScheduled) {
-        this->bNextScrollToSongButtonJumpFixScheduled = false;
-
-        float delta = 0.0f;
-        {
-            if(!this->bNextScrollToSongButtonJumpFixUseScrollSizeDelta)
-                delta =
-                    (this->getNodeY(songButton) - this->fNextScrollToSongButtonJumpFixOldRelPosY);  // (default case)
-            else
-                delta = (f32)(this->carousel->getScrollSize().y -
-                              this->fNextScrollToSongButtonJumpFixOldScrollSizeY);  // technically not correct but feels
-                                                                                    // a lot better for KEY_LEFT
-                                                                                    // navigation
-        }
-        this->carousel->scrollToY((i32)(this->carousel->getRelPosY() - delta), false);
-    }
-
-    this->carousel->scrollToY(
-        (i32)(-this->getNodeY(songButton) +
-              (alignOnTop ? (0) : (this->carousel->getSize().y / 2 - CarouselButton::getScaledBaseSize().y / 2))));
+    this->carousel->scrollToY((
+        i32)(-*y + (alignOnTop ? (0) : (this->carousel->getSize().y / 2 - CarouselButton::getScaledBaseSize().y / 2))));
+    return true;
 }
 
 bool SongBrowser::rebuildSongButtons() {
@@ -2931,24 +2845,11 @@ void SongBrowser::onSearchUpdate() {
     const bool hasInSearchChanged = (prevInSearch != this->bInSearch);
 
     if(this->bInSearch) {
-        const bool shouldRefreshMatches =
-            hasSearchStringChanged || hasHardcodedSearchStringChanged || hasInSearchChanged;
-
-        // GROUP_COLLECTIONS is the only group that can filter beatmaps, so skip some work if we're not switching between that and something else
-        this->bShouldRecountMatchesAfterSearch =
-            this->bShouldRecountMatchesAfterSearch ||             //
-            shouldRefreshMatches ||                               //
-            (!this->searchPrevGroup.has_value() ||                //
-             (this->curGroup != this->searchPrevGroup.value() &&  //
-              (this->curGroup == GroupType::COLLECTIONS || this->searchPrevGroup.value() == GroupType::COLLECTIONS)));
-
-        this->searchPrevGroup = this->curGroup;
-
         // flag all search matches across entire database
-        if(shouldRefreshMatches) {
+        if(hasSearchStringChanged || hasHardcodedSearchStringChanged || hasInSearchChanged) {
             this->submitSearch();
         } else
-            this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true, true);
+            this->rebuildSearchResults(true);
 
         // (results are handled in update() once available)
     } else  // exit search
@@ -2967,12 +2868,8 @@ void SongBrowser::onSearchUpdate() {
         this->shownSearch = this->lastSearch;
         this->updateSetRepresentatives();
 
-        // remember which tab was selected, instead of defaulting back to no grouping
         // this also rebuilds the visible buttons list
-        if(this->searchPrevGroup.has_value()) {
-            auto prevgid = this->searchPrevGroup.value();
-            this->onGroupChange(GROUP_NAMES[prevgid], prevgid);
-        }
+        this->rebuildAfterGroupOrSortChange(this->curGroup);
     }
 
     this->sPrevSearchString = searchString;
@@ -2982,7 +2879,6 @@ void SongBrowser::onSearchUpdate() {
 void SongBrowser::submitSearch() {
     // stop potentially running async search
     this->checkHandleKillBackgroundSearchMatcher();
-    this->bShouldRecountMatchesAfterSearch = true;
     this->updateSearchIndex(std::numeric_limits<f64>::infinity());
 
     std::string query = AsyncSongButtonMatcher::combineQuery(this->search->getSearchString(),
@@ -3003,27 +2899,16 @@ void SongBrowser::submitSearch() {
                                                   osu->getMapInterface()->getSpeedMultiplier(), std::move(previous));
 }
 
-void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(bool scrollToTop,
-                                                                                bool doRebuildSongButtons) {
-    // reset visible buttons list
+void SongBrowser::rebuildVisibleSongButtons() {
     this->visibleSongButtons.clear();
-
-    // optimization: currently, only grouping by collections can actually filter beatmaps
-    // so don't reset search matches if switching between any other grouping mode
-    const bool recountMatches = this->bShouldRecountMatchesAfterSearch && this->bInSearch;
-    const bool canBreakEarly = !recountMatches;
-    if(recountMatches) {
-        this->currentVisibleSearchMatches = 0;
-        // don't re-count again next time
-        this->bShouldRecountMatchesAfterSearch = false;
-    }
+    this->currentVisibleSearchMatches = 0;
+    const bool countMatches = this->bInSearch;
 
     // use flagged search matches to rebuild visible song buttons
     if(this->curGroup == GroupType::NO_GROUPING) {
+        this->visibleSongButtons.reserve(this->setOrder.size());
         for(const u32 parentButton : this->setOrder) {
-            const SetVisibility visibility = this->getSetVisibility(parentButton);
-
-            switch(visibility) {
+            switch(this->getSetVisibility(parentButton)) {
                 case SetVisibility::HIDDEN:
                     // don't add to carousel
                     break;
@@ -3032,7 +2917,7 @@ void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
                     // add only the visible child
                     for(const u32 child : this->data.setChildren(parentButton)) {
                         if(this->data.diffMatch[child]) {
-                            if(recountMatches) this->currentVisibleSearchMatches++;
+                            if(countMatches) this->currentVisibleSearchMatches++;
                             this->visibleSongButtons.push_back(CarouselNode::diff(child));
                             break;  // only one visible child
                         }
@@ -3041,7 +2926,7 @@ void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
 
                 case SetVisibility::SHOW_PARENT:
                     // add parent (which will expand to show children if selected)
-                    if(recountMatches) {
+                    if(countMatches) {
                         for(const u32 child : this->data.setChildren(parentButton)) {
                             if(this->data.diffMatch[child]) {
                                 this->currentVisibleSearchMatches++;
@@ -3052,47 +2937,31 @@ void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
                     break;
             }
         }
-    } else {
-        if(auto *groupButtons = this->getCollectionButtonsForGroup(this->curGroup); !!groupButtons) {
-            for(const u32 groupButton : *groupButtons) {
-                bool isAnyMatchInGroup = false;
-
-                const auto &children = this->data.groups[groupButton].children;
-                for(const CarouselNode c : children) {
+    } else if(auto *groupButtons = this->getCollectionButtonsForGroup(this->curGroup); !!groupButtons) {
+        this->visibleSongButtons.reserve(groupButtons->size());
+        for(const u32 groupButton : *groupButtons) {
+            if(countMatches) {
+                const i32 matchesBefore = this->currentVisibleSearchMatches;
+                for(const CarouselNode c : this->data.groups[groupButton].children) {
                     if(c.isSet()) {
                         for(const u32 cc : this->data.setChildren(c.idx)) {
-                            if(this->data.diffMatch[cc]) {
-                                isAnyMatchInGroup = true;
-                                // also count total matching children while we're here
-                                // break out early if we're not searching, though
-                                if(canBreakEarly) {
-                                    break;
-                                } else {
-                                    this->currentVisibleSearchMatches++;
-                                }
-                            }
+                            if(this->data.diffMatch[cc]) this->currentVisibleSearchMatches++;
                         }
-
-                        if(canBreakEarly && isAnyMatchInGroup) break;
                     } else if(this->isSearchMatch(c)) {
-                        isAnyMatchInGroup = true;
-                        if(canBreakEarly) {
-                            break;
-                        } else {
-                            this->currentVisibleSearchMatches++;
-                        }
+                        this->currentVisibleSearchMatches++;
                     }
                 }
-
-                if(isAnyMatchInGroup || !this->bInSearch) {
-                    this->visibleSongButtons.push_back(CarouselNode::group(groupButton));
-                }
+                if(this->currentVisibleSearchMatches == matchesBefore) continue;
             }
+            this->visibleSongButtons.push_back(CarouselNode::group(groupButton));
         }
     }
+}
 
+void SongBrowser::rebuildSearchResults(bool scrollToTop) {
+    this->rebuildVisibleSongButtons();
     // the same rows as before (e.g. a search that matched the same maps) stay where they are
-    if(doRebuildSongButtons && !this->rebuildSongButtons()) return;
+    if(!this->rebuildSongButtons()) return;
 
     // scroll to top search result, or auto select the only result
     if(scrollToTop && !this->visibleSongButtons.empty()) {
@@ -3354,62 +3223,32 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
         this->bSongButtonsNeedSorting = false;
     }
 
-    this->visibleSongButtons.clear();
-
-    if(group == GroupType::NO_GROUPING) {
-        this->visibleSongButtons.reserve(this->setOrder.size());
-
-        // apply visibility logic
-        for(const u32 parentButton : this->setOrder) {
-            const SetVisibility visibility = this->getSetVisibility(parentButton);
-
-            switch(visibility) {
-                case SetVisibility::HIDDEN:
-                    break;
-
-                case SetVisibility::SINGLE_CHILD:
-                    for(const u32 child : this->data.setChildren(parentButton)) {
-                        if(this->data.diffMatch[child]) {
-                            this->visibleSongButtons.push_back(CarouselNode::diff(child));
-                            break;
-                        }
-                    }
-                    break;
-
-                case SetVisibility::SHOW_PARENT:
-                    this->visibleSongButtons.push_back(CarouselNode::set(parentButton));
-                    break;
-            }
-        }
-    } else {
+    if(forceSort || groupingChanged || sortingChanged || diffSortChanged) {
         if(auto *collBtns = this->getCollectionButtonsForGroup(group); !!collBtns) {
-            this->visibleSongButtons.reserve(collBtns->size());
-            for(const u32 group : *collBtns) {
-                this->visibleSongButtons.push_back(CarouselNode::group(group));
+            // rebucketing puts each set's difficulties next to each other, only the sort below orders them again
+            if(group == GroupType::DIFFICULTY) {
+                this->rebucketDifficultyCollections();
             }
 
-            if(forceSort || groupingChanged || sortingChanged || diffSortChanged) {
-                // rebucketing puts each set's difficulties next to each other, only the sort below orders them again
-                if(group == GroupType::DIFFICULTY) {
-                    this->rebucketDifficultyCollections();
-                }
-
-                for(const u32 button : *collBtns) {
-                    auto &children = this->data.groups[button].children;
-                    if(!children.empty()) {
-                        sort_by_keys(children, this->curSortMethod, [this](CarouselNode node) {
-                            return std::pair<const DatabaseBeatmap *, ScoreGrade>{this->getBeatmap(node),
-                                                                                  this->getGrade(node)};
-                        });
-                    }
+            for(const u32 button : *collBtns) {
+                auto &children = this->data.groups[button].children;
+                if(!children.empty()) {
+                    sort_by_keys(children, this->curSortMethod, [this](CarouselNode node) {
+                        return std::pair<const DatabaseBeatmap *, ScoreGrade>{this->getBeatmap(node),
+                                                                              this->getGrade(node)};
+                    });
                 }
             }
         }
     }
-    this->rebuildSongButtons();
 
     // keep search state consistent between tab changes
-    if(this->bInSearch) this->onSearchUpdate();
+    if(this->bInSearch) {
+        this->onSearchUpdate();
+    } else {
+        this->rebuildVisibleSongButtons();
+        this->rebuildSongButtons();
+    }
 
     // (can't call it right here because we maybe have async)
     this->scheduled_scroll_to_selected_button = true;
@@ -3443,13 +3282,13 @@ void SongBrowser::onSelectionRandom() {
 void SongBrowser::onSelectionOptions() {
     soundEngine->play(osu->getSkin()->s_click_button);
 
-    if(this->selectedButton) {
-        this->scrollToSongButton(this->selectedButton);
+    if(const CarouselNode selected = this->selectedDiff ? this->selectedDiff : this->openGroup) {
+        this->scrollToSongButton(selected);
 
         const vec2 heuristicSongButtonPositionAfterSmoothScrollFinishes =
             (this->carousel->getPos() + this->carousel->getSize() / 2.f);
 
-        this->openContextMenu(this->selectedButton, heuristicSongButtonPositionAfterSmoothScrollFinishes);
+        this->openContextMenu(selected, heuristicSongButtonPositionAfterSmoothScrollFinishes);
     }
 }
 
@@ -3840,15 +3679,7 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
             // remove diff from collection
 
             // get collection name by selection
-            std::string collectionName;
-            {
-                for(const u32 collectionButton : this->collectionButtons) {
-                    if(this->data.groups[collectionButton].selected) {
-                        collectionName = this->data.groups[collectionButton].name;
-                        break;
-                    }
-                }
-            }
+            const std::string collectionName{this->openGroup ? this->data.groups[this->openGroup.idx].name : ""};
 
             auto &collection = Collections::get_or_create_collection(collectionName);
             collection.remove_map(songButtonMap->getMD5());
@@ -3858,15 +3689,7 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
             // remove entire set from collection
 
             // get collection name by selection
-            std::string collectionName;
-            {
-                for(const u32 collectionButton : this->collectionButtons) {
-                    if(this->data.groups[collectionButton].selected) {
-                        collectionName = this->data.groups[collectionButton].name;
-                        break;
-                    }
-                }
-            }
+            const std::string collectionName{this->openGroup ? this->data.groups[this->openGroup.idx].name : ""};
 
             auto &collection = Collections::get_or_create_collection(collectionName);
             const std::vector<MD5Hash> beatmapSetHashes = getBeatmapSetHashesForSongButton();
@@ -3907,16 +3730,12 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
     if(updateUI) {
         const i32 prevScrollPosY = (i32)this->carousel->getRelPosY();  // usability
         // owned copy, since recreateCollectionsButtons() deletes the button
-        const std::string previouslySelectedCollectionName{
-            this->selectionPreviousCollectionButton
-                ? this->data.groups[this->selectionPreviousCollectionButton.idx].name
-                : ""};  // usability
+        const std::string previouslySelectedCollectionName{this->openGroup ? this->data.groups[this->openGroup.idx].name
+                                                                           : ""};  // usability
 
         this->recreateCollectionsButtons();
         // only change carousel state if we're in collections
         if(this->getGroupingMode() == GroupType::COLLECTIONS) {
-            this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
-                false, false);  // (last false = skipping rebuildSongButtons() here)
             this->bSongButtonsNeedSorting = true;
             this->onSortChange("",
                                cv::songbrowser_sortingtype.getInt());  // (because this does the rebuildSongButtons())
@@ -3946,11 +3765,8 @@ void SongBrowser::onGroupContextMenuAction(std::string_view text, int id) {
             Collections::save_collections_async();
 
             // delete UI
-            if(this->selectedButton == CarouselNode::group(*it)) this->selectedButton = {};
+            if(this->openGroup == CarouselNode::group(*it)) this->openGroup = {};
             this->collectionButtons.erase(it);
-
-            // reset UI state
-            this->selectionPreviousCollectionButton = {};
 
             // update UI
             this->bSongButtonsNeedSorting = true;
@@ -4090,14 +3906,7 @@ bool SongBrowser::selectPreviousRandomBeatmap() {
 }
 
 void SongBrowser::playSelectedDifficulty() {
-    const auto &elements{this->carousel->getRows()};
-
-    for(const CarouselNode element : elements) {
-        if(element.isDiff() && this->isSelected(element)) {
-            this->select(element);
-            break;
-        }
-    }
+    if(this->carousel->findRow(this->selectedDiff) < this->carousel->getRows().size()) this->select(this->selectedDiff);
 }
 
 void SongBrowser::recreateCollectionsButtons() {
@@ -4113,8 +3922,7 @@ void SongBrowser::recreateCollectionsButtons() {
         const auto isCollection = [this](CarouselNode node) {
             return node.isGroup() && this->data.groups[node.idx].isCollection;
         };
-        if(isCollection(this->selectedButton)) this->selectedButton = {};
-        if(isCollection(this->selectionPreviousCollectionButton)) this->selectionPreviousCollectionButton = {};
+        if(isCollection(this->openGroup)) this->openGroup = {};
         if(isCollection(this->contextMenuNode)) this->contextMenuNode = {};
         this->collectionButtons.clear();
         auto &groups = this->data.groups;
@@ -4173,7 +3981,6 @@ void SongBrowser::recreateCollectionsButtons() {
             this->data.groups.push_back(CarouselGroup{.name = std::string{collection.get_name()},
                                                       .children = std::move(folder),
                                                       .numVisibleChildren = 0,
-                                                      .selected = false,
                                                       .isCollection = true});
         }
     }

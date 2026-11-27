@@ -8,7 +8,6 @@
 #include <array>
 #include <memory>
 
-class SongBrowser;
 class CarouselButton;
 
 class BeatmapCarousel final : public CBaseUIScrollView {
@@ -16,9 +15,6 @@ class BeatmapCarousel final : public CBaseUIScrollView {
    public:
     BeatmapCarousel(float xPos = 0, float yPos = 0, float xSize = 0, float ySize = 0, std::string name = {});
     ~BeatmapCarousel() override;
-
-    void onKeyUp(KeyboardEvent &e) override;
-    void onKeyDown(KeyboardEvent &e) override;
 
     void draw() override;
     void tick() override;
@@ -69,6 +65,9 @@ class BeatmapCarousel final : public CBaseUIScrollView {
 
     // updated at the end of update()
     bool bIsScrollingFast{false};
+
+    bool bRightClickScrollCheck{false};
+    bool bRightClickScrolling{false};
 
     static bool songButtonComparator(const CBaseUIElement *a, const CBaseUIElement *b);
 };

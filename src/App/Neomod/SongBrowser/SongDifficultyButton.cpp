@@ -131,7 +131,7 @@ void SongDifficultyButton::tick() {
     }
 
     // don't try to load images while scrolling fast to avoid lag
-    if(!g_carousel->isScrollingFast())
+    if(!this->carousel.isScrollingFast())
         this->fVisibleFor += engine->getFrameTime();
     else
         this->fVisibleFor = 0.f;
