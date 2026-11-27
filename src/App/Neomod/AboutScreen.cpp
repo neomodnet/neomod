@@ -377,12 +377,12 @@ void AboutScreen::layoutTab(Tab tab) {
 void AboutScreen::onBack() { ui->setScreen(ui->getMainMenuBase()); }
 
 void AboutScreen::onChangeClicked(CBaseUIButton *button) {
-    const std::string changeTextMaybeContainingClickableURL{button->getText()};
+    const std::string_view changeTextMaybeContainingClickableURL{button->getText()};
 
     const auto maybeURLBeginIndex = changeTextMaybeContainingClickableURL.find("http");
     if(maybeURLBeginIndex != std::string::npos &&
        changeTextMaybeContainingClickableURL.find("://") != std::string::npos) {
-        std::string url = changeTextMaybeContainingClickableURL.substr(maybeURLBeginIndex);
+        std::string_view url = changeTextMaybeContainingClickableURL.substr(maybeURLBeginIndex);
         const auto urlEnd = url.find_first_of(")>");
         if(urlEnd != std::string::npos) url = url.substr(0, urlEnd);
 

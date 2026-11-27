@@ -73,7 +73,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         std::exit(-1);
     }
 
-    // quitting before the first frame (e.g. while minimized) is no start that stopped
     Mc::Startup::finished();
 
     auto *fmain = static_cast<SDLMain *>(appstate);
