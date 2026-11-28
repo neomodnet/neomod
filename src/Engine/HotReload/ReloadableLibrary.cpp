@@ -8,6 +8,7 @@
 #include "BaseEnvironment.h"
 #include "Environment.h"
 #include "File.h"
+#include "FsPath.h"
 #include "HostStamp.h"
 #include "Logging.h"
 #include "Paths.h"
@@ -26,7 +27,7 @@ namespace Mc {
 namespace {
 void removeCopy(const std::string &dir) {
     std::error_code ec;
-    std::filesystem::remove_all(File::getFsPath(dir), ec);
+    std::filesystem::remove_all(Mc::getFsPath(dir), ec);
 }
 }  // namespace
 

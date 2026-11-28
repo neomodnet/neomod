@@ -9,9 +9,8 @@
 #include <cstring>
 #include <string>
 #include <string_view>
-#include <algorithm>
-#include <filesystem>
-#include <fstream>
+#include <iosfwd>
+#include <memory>
 #include <span>
 
 #ifndef UTIL_MD5HASH_H
@@ -58,8 +57,7 @@ class FastIFStream final {
     uSz read_at(uSz offset, u8 *out, uSz n) noexcept;
 
     // open the file and stat its size, success returns filesize > 0
-    std::pair<uSz /*filesize*/, std::string /*error if filesize == 0*/> open_file(
-        const std::filesystem::path &read_path) noexcept;
+    std::pair<uSz /*filesize*/, std::string /*error if filesize == 0*/> open_file(std::string_view read_path) noexcept;
 
    private:
 #ifdef MCENGINE_PLATFORM_WINDOWS
@@ -144,7 +142,7 @@ class Reader {
             memcpy(out, &this->buffer[this->read_pos], len);
         } else {
             // wrap needed
-            uSz first_part = std::min(len, READ_BUFFER_SIZE - this->read_pos);
+            uSz first_part = len < READ_BUFFER_SIZE - this->read_pos ? len : READ_BUFFER_SIZE - this->read_pos;
             uSz second_part = len - first_part;
 
             memcpy(out, &this->buffer[this->read_pos], first_part);
@@ -303,9 +301,8 @@ class Writer {
     std::unique_ptr<u8[]> buffer;
 
     std::string write_path;
-    std::filesystem::path file_path;
-    std::filesystem::path tmp_file_path;
-    std::ofstream file;
+    std::string tmp_path;
+    std::unique_ptr<std::ofstream> file;
 
     uSz pos{0};
     bool error_flag{false};

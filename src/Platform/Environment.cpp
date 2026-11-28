@@ -9,6 +9,7 @@
 #include "MakeDelegateWrapper.h"
 #include "Mouse.h"
 #include "File.h"
+#include "FsPath.h"
 #include "RuntimePlatform.h"
 #include "SString.h"
 #include "Timing.h"
@@ -596,7 +597,7 @@ bool Environment::renameFile(Mc::cstr_view oldFileName, Mc::cstr_view newFileNam
         // a move between filesystems, copied and removed; never one file under two names (a name in other case where
         // case doesn't count), whose removal would take the copy with it
         if(std::error_code ec;
-           std::filesystem::equivalent(File::getFsPath(oldFileName), File::getFsPath(newFileName), ec)) {
+           std::filesystem::equivalent(Mc::getFsPath(oldFileName), Mc::getFsPath(newFileName), ec)) {
             return false;
         }
         const std::string tempFile = std::string{newFileName}.append(".tmp");
@@ -620,7 +621,7 @@ namespace {
 std::string manualDirectoryFixup(std::string_view input) {
     assert(!input.empty());
 
-    auto fsPath = File::getFsPath(input);
+    auto fsPath = Mc::getFsPath(input);
     // std::filesystem bogus (will crash if you try to get the wrong type of string from what you constructed it with)
     std::string ret;
     if constexpr(Env::cfg(OS::WINDOWS)) {
@@ -1059,7 +1060,7 @@ void Environment::openFileBrowser(std::string_view initialpath) const noexcept {
         bool success = SDL_OpenURL(encodedPath.c_str());
         if(!success && Env::cfg(OS::WINDOWS)) {
             // bullshit
-            auto fspath = File::getFsPath(initialpath);
+            auto fspath = Mc::getFsPath(initialpath);
             if(!fspath.empty()) {
                 namespace fs = std::filesystem;
                 std::error_code ec;
@@ -1993,7 +1994,7 @@ std::string Environment::getThingFromPathHelper(std::string_view path, bool fold
         const bool endsWithSeparator = retPath.back() == prefSep || retPath.back() == otherSep;
 
         std::error_code ec;
-        // const auto fsPath = File::getFsPath(retPath); // mingw-gcc bugs cause fs::canonical to just go crazy
+        // const auto fsPath = Mc::getFsPath(retPath); // mingw-gcc bugs cause fs::canonical to just go crazy
         auto abs_path =
             Env::cfg(OS::WINDOWS) ? fs::canonical(UniString::to_wide(retPath), ec) : fs::canonical(retPath, ec);
 

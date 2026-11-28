@@ -6,6 +6,7 @@
 #include "Engine.h"
 #include "Environment.h"
 #include "File.h"
+#include "FsPath.h"
 #include "Paths.h"
 #include "Timing.h"
 
@@ -29,7 +30,7 @@ DirectoryWatcherTest::DirectoryWatcherTest()
       m_two(m_root + "two/") {
     logRaw("DirectoryWatcherTest created");
     std::error_code ec;
-    std::filesystem::remove_all(File::getFsPath(m_root), ec);
+    std::filesystem::remove_all(Mc::getFsPath(m_root), ec);
     Environment::createDirectory(m_one);
     Environment::createDirectory(m_two);
 
@@ -143,7 +144,7 @@ void DirectoryWatcherTest::finish() {
     m_phase = Phase::DONE;
     for(auto *watch : {&m_first, &m_second, &m_other, &m_victim, &m_rearming, &m_late}) watch->reset();
     std::error_code ec;
-    std::filesystem::remove_all(File::getFsPath(m_root), ec);
+    std::filesystem::remove_all(Mc::getFsPath(m_root), ec);
     TEST_PRINT_RESULTS("DirectoryWatcherTest");
     engine->shutdown();
 }

@@ -6,6 +6,7 @@
 #include "Document.h"
 #include "Environment.h"
 #include "File.h"
+#include "FsPath.h"
 #include "SString.h"
 
 #include "fmt/format.h"
@@ -145,7 +146,7 @@ std::string newSet(std::string_view audio, std::string_view creator) {
 
 std::optional<std::string> takeIn(const std::string &folder, const std::string &path) {
     std::string name = Environment::getFileNameFromFilePath(path);
-    if(std::error_code ec; std::filesystem::equivalent(File::getFsPath(path), File::getFsPath(folder + name), ec)) {
+    if(std::error_code ec; std::filesystem::equivalent(Mc::getFsPath(path), Mc::getFsPath(folder + name), ec)) {
         return name;
     }
     const uSz dot = Mc::min(name.rfind('.'), name.size());

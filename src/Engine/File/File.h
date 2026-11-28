@@ -21,8 +21,7 @@
 
 #include "CStrView.h"
 
-#include <filesystem>
-#include <fstream>
+#include <iosfwd>
 #include <memory>
 #include <vector>
 #include <span>
@@ -65,14 +64,10 @@ class File {
 
    public:
     File(std::string_view filePath, MODE mode = MODE::READ);
-    ~File() = default;
+    ~File();
 
-    [[nodiscard]] constexpr bool canRead() const {
-        return this->bReady && this->ifstream && this->ifstream->good() && this->fileMode == MODE::READ;
-    }
-    [[nodiscard]] constexpr bool canWrite() const {
-        return this->bReady && this->ofstream && this->ofstream->good() && this->fileMode == MODE::WRITE;
-    }
+    [[nodiscard]] bool canRead() const;
+    [[nodiscard]] bool canWrite() const;
 
     bool write(std::span<const u8> buffer);
     bool writeLine(std::string_view line, bool insertNewline = true);
@@ -134,10 +129,6 @@ class File {
 
     static bool createDirectoryRecursive(std::string_view dir);
 
-    // fs::path works differently depending on the type of string it was constructed with
-    // so use this to get a unicode-constructed path on windows (convert), utf8 otherwise (passthrough)
-    [[nodiscard]] static std::filesystem::path getFsPath(std::string_view utf8path);
-
     // passthrough to "_wfopen" on Windows, "fopen" otherwise
     [[nodiscard]] static FILE *fopen_c(Mc::cstr_view utf8filename, const char *modes) noexcept;
 
@@ -156,12 +147,7 @@ class File {
     bool openForReading();
     bool openForWriting();
 
-    // internal path resolution helpers
-    [[nodiscard]] static File::FILETYPE existsCaseInsensitive(std::string &filePath, std::filesystem::path &path);
-    [[nodiscard]] static File::FILETYPE exists(std::string_view filePath, const std::filesystem::path &path);
-
     std::string sFilePath;
-    std::filesystem::path fsPath;
 
     // file streams
     std::unique_ptr<std::ifstream> ifstream;

@@ -10,6 +10,7 @@
 #include "Engine.h"
 #include "Environment.h"
 #include "File.h"
+#include "FsPath.h"
 #include "Font.h"
 #include "HitSounds.h"
 #include "MapFiles.h"
@@ -55,8 +56,8 @@ bool put(EditorState &state, const std::string &path, const std::string &stem,
     const std::string name = fmt::format("{}.{}", stem, extension);
     // chosen from the folder itself, it's there already
     std::error_code ec;
-    const auto target = File::getFsPath(folder + name);
-    if(!std::filesystem::equivalent(File::getFsPath(path), target, ec) && !File::copy(path, folder + name)) {
+    const auto target = Mc::getFsPath(folder + name);
+    if(!std::filesystem::equivalent(Mc::getFsPath(path), target, ec) && !File::copy(path, folder + name)) {
         ui->getNotificationOverlay()->addToast(tformat("{} couldn't be copied into the map folder.", name),
                                                ERROR_TOAST);
         return false;
@@ -66,7 +67,7 @@ bool put(EditorState &state, const std::string &path, const std::string &stem,
         const std::string_view other{file};
         const uSz dot = other.rfind('.');
         if(dot != std::string_view::npos && SString::strcase_equal(other.substr(0, dot), stem) &&
-           MapFiles::isSound(other) && !std::filesystem::equivalent(File::getFsPath(folder + file), target, ec)) {
+           MapFiles::isSound(other) && !std::filesystem::equivalent(Mc::getFsPath(folder + file), target, ec)) {
             Environment::deleteFile(folder + file);
         }
     }

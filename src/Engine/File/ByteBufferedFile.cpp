@@ -3,6 +3,7 @@
 
 #include "Logging.h"
 #include "File.h"
+#include "FsPath.h"
 #include "SyncMutex.h"
 #include "MD5Hash.h"
 
@@ -11,6 +12,8 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <fstream>
+#include <memory>
 #include <system_error>
 #include <cassert>
 #include <vector>
@@ -59,8 +62,9 @@ FastIFStream::~FastIFStream() noexcept {
 
 // open the file and stat its size.
 // success returns filesize > 0
-std::pair<uSz, std::string> FastIFStream::open_file(const fs::path &read_path) noexcept {
+std::pair<uSz, std::string> FastIFStream::open_file(std::string_view read_path_utf8) noexcept {
     std::pair<uSz, std::string> ret{0, ""};
+    const fs::path read_path = Mc::getFsPath(read_path_utf8);
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
     HANDLE h = CreateFileW(read_path.wstring().c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
@@ -138,7 +142,7 @@ using namespace detail;
 Reader::Reader(std::string_view readPath_param) noexcept
     : buffer(std::make_unique_for_overwrite<u8[]>(READ_BUFFER_SIZE)), read_path(readPath_param) {
     file_locks[path_to_lock_index(this->read_path)].lock_shared();
-    auto [size, err] = this->file.open_file(File::getFsPath(this->read_path));
+    auto [size, err] = this->file.open_file(this->read_path);
     if(size == 0 && !err.empty()) {
         this->set_error(err);
         debugLog("File {:s} error: {:s}", this->read_path, err);
@@ -391,24 +395,21 @@ Writer::Writer(std::string_view writePath_param)
     : buffer(std::make_unique_for_overwrite<u8[]>(WRITE_BUFFER_SIZE)), write_path(writePath_param) {
     file_locks[path_to_lock_index(this->write_path)].lock();
 
-    auto path = File::getFsPath(this->write_path);
-    this->file_path = path;
-
-    this->tmp_file_path = this->file_path;
+    this->tmp_path = this->write_path;
     if constexpr(!Env::cfg(OS::WASM)) {
         // on WASM/IDBFS, just write directly to the final path.
         // the .tmp+rename pattern doesn't trigger IDBFS autoPersist, so the rename
         // never gets synced to IndexedDB and the file is lost on next page load.
-        this->tmp_file_path += ".tmp";
+        this->tmp_path += ".tmp";
     }
 
-    if(auto parent = this->file_path.parent_path(); !parent.empty()) {
+    if(auto parent = Mc::getFsPath(this->write_path).parent_path(); !parent.empty()) {
         std::error_code ec;
         fs::create_directories(parent, ec);
     }
 
-    this->file.open(this->tmp_file_path, std::ios::binary);
-    if(!this->file.is_open()) {
+    this->file = std::make_unique<std::ofstream>(Mc::getFsPath(this->tmp_path), std::ios::binary);
+    if(!this->file->is_open()) {
         this->set_error(fmt::format("Failed to open file for writing: {:s}", std::generic_category().message(errno)));
         return;
     }
@@ -425,23 +426,24 @@ bool Writer::commit() noexcept {
     if(this->committed) return this->good();
     this->committed = true;
 
-    if(this->file.is_open()) {
+    if(this->file->is_open()) {
         this->flush();
-        this->file.close();
-        if(this->file.fail()) {
+        this->file->close();
+        if(this->file->fail()) {
             this->set_error(fmt::format("Failed to close file: {:s}", std::generic_category().message(errno)));
         }
     }
-    if(this->tmp_file_path == this->file_path) return this->good();
+    if(this->tmp_path == this->write_path) return this->good();
 
+    const fs::path tmp_file_path = Mc::getFsPath(this->tmp_path);
     std::error_code ec;
     if(this->error_flag) {
-        fs::remove(this->tmp_file_path, ec);
+        fs::remove(tmp_file_path, ec);
         return false;
     }
-    if(std::string error; !replace_file(this->tmp_file_path, this->file_path, error)) {
+    if(std::string error; !replace_file(tmp_file_path, Mc::getFsPath(this->write_path), error)) {
         this->set_error(fmt::format("Failed to replace the file: {:s}", error));
-        fs::remove(this->tmp_file_path, ec);
+        fs::remove(tmp_file_path, ec);
         return false;
     }
     return true;
@@ -475,12 +477,12 @@ void Writer::write_hash_digest(const MD5Hash &hash_digest) noexcept {
 }
 
 void Writer::flush() noexcept {
-    if(this->error_flag || !this->file.is_open()) {
+    if(this->error_flag || !this->file->is_open()) {
         return;
     }
 
-    this->file.write(reinterpret_cast<const char *>(&this->buffer[0]), static_cast<std::streamsize>(this->pos));
-    if(this->file.fail()) {
+    this->file->write(reinterpret_cast<const char *>(&this->buffer[0]), static_cast<std::streamsize>(this->pos));
+    if(this->file->fail()) {
         this->set_error(fmt::format("Failed to write to file: {:s}", std::generic_category().message(errno)));
         return;
     }
@@ -488,7 +490,7 @@ void Writer::flush() noexcept {
 }
 
 void Writer::write_bytes(const u8 *bytes, uSz n) noexcept {
-    if(this->error_flag || !this->file.is_open()) {
+    if(this->error_flag || !this->file->is_open()) {
         return;
     }
 
@@ -501,8 +503,8 @@ void Writer::write_bytes(const u8 *bytes, uSz n) noexcept {
 
     // more than the buffer holds goes straight to the file
     if(n > WRITE_BUFFER_SIZE) {
-        this->file.write(reinterpret_cast<const char *>(bytes), static_cast<std::streamsize>(n));
-        if(this->file.fail()) {
+        this->file->write(reinterpret_cast<const char *>(bytes), static_cast<std::streamsize>(n));
+        if(this->file->fail()) {
             this->set_error(fmt::format("Failed to write to file: {:s}", std::generic_category().message(errno)));
         }
         return;

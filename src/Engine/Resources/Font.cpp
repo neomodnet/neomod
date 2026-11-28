@@ -11,6 +11,7 @@
 #include "ConVar.h"
 #include "Engine.h"
 #include "File.h"
+#include "FsPath.h"
 #include "FixedSizeArray.h"
 #include "FontTypeMap.h"
 #include "Mouse.h"
@@ -1673,7 +1674,7 @@ std::vector<std::string> findSystemFallbacks() {
             if(remaining == 0) break;
             std::error_code ec;
             for(auto it = fs::recursive_directory_iterator(
-                    File::getFsPath(root),
+                    Mc::getFsPath(root),
                     fs::directory_options::skip_permission_denied | fs::directory_options::follow_directory_symlink,
                     ec);
                 remaining > 0 && it != fs::recursive_directory_iterator{}; it.increment(ec)) {

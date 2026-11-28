@@ -16,6 +16,7 @@
 #include "Engine.h"
 #include "Environment.h"
 #include "File.h"
+#include "FsPath.h"
 #include "i18n.h"
 #include "Logging.h"
 #include "MusicTrack.h"
@@ -329,7 +330,7 @@ Extracted copy_extracted(const std::string& from, std::string folder) {
 // installer's own writes (see enqueue_folder()): the mtime, or a sentinel for a folder that isn't there (an uninstall)
 fs::file_time_type folder_state(std::string_view folder) {
     std::error_code ec;
-    const auto mtime = fs::last_write_time(File::getFsPath(Mc::Paths::maps() + "/" + std::string{folder}), ec);
+    const auto mtime = fs::last_write_time(Mc::getFsPath(Mc::Paths::maps() + "/" + std::string{folder}), ec);
     return ec ? fs::file_time_type::min() : mtime;
 }
 

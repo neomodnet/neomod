@@ -6,6 +6,7 @@
 //===============================================================================//
 
 #include "File.h"
+#include "FsPath.h"
 #include "ContainerRanges.h"
 #include "ConVar.h"
 #include "Engine.h"
@@ -21,6 +22,7 @@
 #include <cerrno>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <utility>
 #include <vector>
 #include <cstdio>
@@ -964,7 +966,7 @@ std::vector<File::DirEntry> File::pruneDirectory(std::string_view dir, bool (*ma
 
         logIfCV(debug_cache, "evicting {}/{} ({})", dir, entry.name, expired ? "expired" : "over the size budget");
         std::error_code ec;
-        fs::remove(getFsPath(std::string{dir} + '/' + entry.name), ec);
+        fs::remove(Mc::getFsPath(std::string{dir} + '/' + entry.name), ec);
         return true;
     });
     return entries;
@@ -973,7 +975,7 @@ std::vector<File::DirEntry> File::pruneDirectory(std::string_view dir, bool (*ma
 bool File::createDirectoryRecursive(std::string_view dir) {
     while(dir.size() > 1 && (dir.back() == '/' || dir.back() == '\\')) dir.remove_suffix(1);
     std::error_code ec;
-    fs::create_directories(File::getFsPath(dir), ec);
+    fs::create_directories(Mc::getFsPath(dir), ec);
     return !ec;  // true if it's there already
 }
 
@@ -984,28 +986,34 @@ bool File::createDirectoryRecursive(std::string_view dir) {
 //------------------------------------------------------------------------------
 // path resolution methods
 //------------------------------------------------------------------------------
+namespace {
+File::FILETYPE pathExists(std::string_view filePath, const fs::path &path);
+File::FILETYPE pathExistsCaseInsensitive(std::string &filePath, fs::path &path);
+}  // namespace
+
 // public static
 File::FILETYPE File::existsCaseInsensitive(std::string &filePath) {
     if(filePath.empty()) return FILETYPE::NONE;
 
-    auto fsPath = getFsPath(filePath);
-    return File::existsCaseInsensitive(filePath, fsPath);
+    auto fsPath = Mc::getFsPath(filePath);
+    return pathExistsCaseInsensitive(filePath, fsPath);
 }
 
 File::FILETYPE File::exists(std::string_view filePath) {
     if(filePath.empty()) return FILETYPE::NONE;
 
-    return File::exists(filePath, File::getFsPath(filePath));
+    return pathExists(filePath, Mc::getFsPath(filePath));
 }
 
-// private (cache the fs::path)
-File::FILETYPE File::existsCaseInsensitive(std::string &filePath, fs::path &path) {
+namespace {
+// like File::existsCaseInsensitive, with the fs::path already made
+File::FILETYPE pathExistsCaseInsensitive(std::string &filePath, fs::path &path) {
     // windows is already case insensitive
     if constexpr(Env::cfg(OS::WINDOWS)) {
-        return File::exists(filePath, path);
+        return pathExists(filePath, path);
     }
 
-    auto retType = File::exists(filePath, path);
+    auto retType = pathExists(filePath, path);
 
     if(retType == File::FILETYPE::NONE)
         return File::FILETYPE::NONE;
@@ -1037,7 +1045,7 @@ File::FILETYPE File::existsCaseInsensitive(std::string &filePath, fs::path &path
     return fileType;
 }
 
-File::FILETYPE File::exists(std::string_view filePath, const fs::path &path) {
+File::FILETYPE pathExists(std::string_view filePath, const fs::path &path) {
     using enum File::FILETYPE;
     if(filePath.empty()) return NONE;
 
@@ -1060,6 +1068,7 @@ File::FILETYPE File::exists(std::string_view filePath, const fs::path &path) {
     return type_from_stat(tempst);
 #endif
 }
+}  // namespace
 
 void File::normalizeSlashes(std::string &str, unsigned char oldSlash, unsigned char newSlash) noexcept {
     Mc::ranges::replace(str, oldSlash, newSlash);
@@ -1072,7 +1081,7 @@ void File::normalizeSlashes(std::string &str, unsigned char oldSlash, unsigned c
     });
 }
 
-fs::path File::getFsPath(std::string_view utf8path) {
+fs::path Mc::getFsPath(std::string_view utf8path) {
     if(utf8path.empty()) return fs::path{};
 #ifdef MCENGINE_PLATFORM_WINDOWS
     return fs::path{adjust_path(utf8path)};
@@ -1110,8 +1119,8 @@ bool File::copy(std::string_view fromPath, std::string_view toPath) {
         return false;
     }
 
-    auto srcPath = getFsPath(fromPath);
-    auto dstPath = getFsPath(toPath);
+    auto srcPath = Mc::getFsPath(fromPath);
+    auto dstPath = Mc::getFsPath(toPath);
 
     std::error_code ec;
     fs::copy_file(srcPath, dstPath, fs::copy_options::overwrite_existing, ec);
@@ -1127,8 +1136,7 @@ bool File::copy(std::string_view fromPath, std::string_view toPath) {
 //------------------------------------------------------------------------------
 // File implementation
 //------------------------------------------------------------------------------
-File::File(std::string_view filePath, MODE mode)
-    : sFilePath(filePath), fsPath(getFsPath(filePath)), fileMode(mode), bReady(false) {
+File::File(std::string_view filePath, MODE mode) : sFilePath(filePath), fileMode(mode), bReady(false) {
     logIfCV(debug_file, "Opening {:s}", this->sFilePath);
 
     if(mode == MODE::READ) {
@@ -1140,21 +1148,32 @@ File::File(std::string_view filePath, MODE mode)
     this->bReady = true;
 }
 
+File::~File() = default;
+
+bool File::canRead() const {
+    return this->bReady && this->ifstream && this->ifstream->good() && this->fileMode == MODE::READ;
+}
+
+bool File::canWrite() const {
+    return this->bReady && this->ofstream && this->ofstream->good() && this->fileMode == MODE::WRITE;
+}
+
 bool File::openForReading() {
+    fs::path fsPath = Mc::getFsPath(this->sFilePath);
     int statRet = -1;
     // get file stats
     // not using the stat_c helper because that would do redundant path conversion/validation
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    statRet = stat_w(this->fsPath.c_str(), &this->fsstat);
+    statRet = stat_w(fsPath.c_str(), &this->fsstat);
     if(statRet == 0) {
         // convert fs::path back to utf8
-        this->sFilePath = UniString::to_utf8(this->fsPath.wstring());
+        this->sFilePath = UniString::to_utf8(fsPath.wstring());
     }
 #else
     statRet = stat64(this->sFilePath.c_str(), &this->fsstat);
     if(statRet != 0) {
         // try case-insensitive lookup if stat failed
-        if(File::existsCaseInsensitive(this->sFilePath, this->fsPath) != FILETYPE::NONE) {
+        if(pathExistsCaseInsensitive(this->sFilePath, fsPath) != FILETYPE::NONE) {
             // re-stat
             statRet = stat64(this->sFilePath.c_str(), &this->fsstat);
         }
@@ -1185,12 +1204,12 @@ bool File::openForReading() {
     // create and open input file stream
     this->ifstream = std::make_unique<std::ifstream>();
     assert(this->ifstream);
-    this->ifstream->open(this->fsPath, std::ios::in | std::ios::binary);
+    this->ifstream->open(fsPath, std::ios::in | std::ios::binary);
 
     // check if file opened successfully
     if(!this->ifstream->good()) {
         debugLog("File Error: Couldn't open file {:s} (fsPath: {:s}) for reading", this->sFilePath,
-                 Env::cfg(OS::WINDOWS) ? UniString::to_utf8(this->fsPath.wstring()) : this->fsPath.string());
+                 Env::cfg(OS::WINDOWS) ? UniString::to_utf8(fsPath.wstring()) : fsPath.string());
         return false;
     }
 
@@ -1198,10 +1217,11 @@ bool File::openForReading() {
 }
 
 bool File::openForWriting() {
+    const fs::path fsPath = Mc::getFsPath(this->sFilePath);
     // create parent directories if needed
-    if(!this->fsPath.parent_path().empty()) {
+    if(!fsPath.parent_path().empty()) {
         std::error_code ec;
-        fs::create_directories(this->fsPath.parent_path(), ec);
+        fs::create_directories(fsPath.parent_path(), ec);
         if(ec) {
             debugLog("File Error: Couldn't create parent directories for {:s} (error: {:s})", this->sFilePath,
                      ec.message());
@@ -1212,12 +1232,12 @@ bool File::openForWriting() {
     // create and open output file stream
     this->ofstream = std::make_unique<std::ofstream>();
     assert(this->ofstream);
-    this->ofstream->open(this->fsPath, std::ios::out | std::ios::trunc | std::ios::binary);
+    this->ofstream->open(fsPath, std::ios::out | std::ios::trunc | std::ios::binary);
 
     // check if file opened successfully
     if(!this->ofstream->good()) {
         debugLog("File Error: Couldn't open file {:s} (fsPath: {:s}) for writing", this->sFilePath,
-                 Env::cfg(OS::WINDOWS) ? UniString::to_utf8(this->fsPath.wstring()) : this->fsPath.string());
+                 Env::cfg(OS::WINDOWS) ? UniString::to_utf8(fsPath.wstring()) : fsPath.string());
         return false;
     }
 

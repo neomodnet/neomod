@@ -17,6 +17,7 @@
 #include "BeatmapInstaller.h"
 #include "Engine.h"
 #include "File.h"
+#include "FsPath.h"
 #include "ReplayFile.h"
 #include "NotificationOverlay.h"
 #include "AsyncPool.h"
@@ -2130,7 +2131,7 @@ void Database::findDatabases() {
 
     for(const auto &[type, pathstr] : this->database_files) {
         std::error_code ec;
-        auto db_filesize = std::filesystem::file_size(File::getFsPath(pathstr), ec);
+        auto db_filesize = std::filesystem::file_size(Mc::getFsPath(pathstr), ec);
         if(!ec && db_filesize > 0) {
             this->total_bytes += db_filesize;
         }
@@ -2138,7 +2139,7 @@ void Database::findDatabases() {
 
     for(const auto &[type, pathstr] : this->external_databases) {
         std::error_code ec;
-        auto db_filesize = std::filesystem::file_size(File::getFsPath(pathstr), ec);
+        auto db_filesize = std::filesystem::file_size(Mc::getFsPath(pathstr), ec);
         if(!ec && db_filesize > 0) {
             this->total_bytes += db_filesize;
         }

@@ -11,6 +11,7 @@
 #define LSUFFIX ".dll"
 
 #include "File.h"
+#include "FsPath.h"
 #include "RuntimePlatform.h"
 
 #include "WinDebloatDefs.h"
@@ -149,7 +150,7 @@ lib_obj *load_lib(decltype(nullptr)) {
 }
 
 // module names are compared as paths with backslashes
-bool is_loaded(const char *path) { return GetModuleHandleW(File::getFsPath(path).make_preferred().c_str()) != nullptr; }
+bool is_loaded(const char *path) { return GetModuleHandleW(Mc::getFsPath(path).make_preferred().c_str()) != nullptr; }
 
 #else
 

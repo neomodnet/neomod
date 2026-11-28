@@ -25,6 +25,7 @@
 #include "Engine.h"
 #include "Environment.h"
 #include "File.h"
+#include "FsPath.h"
 #include "GameRules.h"
 #include "Graphics.h"
 #include "HUD.h"
@@ -1717,8 +1718,7 @@ void Editor::save(const std::function<void()> &then) {
         const std::string from = db->pathOf(document.getLocation()), to = db->pathOf(renamed);
         std::error_code ec;
         // on a filesystem that ignores case, a name that differs only in case is the same file
-        if(Environment::fileExists(to) &&
-           !std::filesystem::equivalent(File::getFsPath(from), File::getFsPath(to), ec)) {
+        if(Environment::fileExists(to) && !std::filesystem::equivalent(Mc::getFsPath(from), Mc::getFsPath(to), ec)) {
             notify(tformat("The file keeps its name, another file in its folder is called {}.", name));
         } else if(!Environment::renameFile(from, to)) {
             notify(tformat("The file keeps its name, it couldn't be renamed to {}.", name));

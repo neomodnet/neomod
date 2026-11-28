@@ -23,6 +23,7 @@
 #include "Deflate.h"
 #include "Environment.h"
 #include "File.h"
+#include "FsPath.h"
 #include "HitObjects.h"
 #include "KeyBindings.h"
 #include "KeyboardEvent.h"
@@ -2423,7 +2424,7 @@ class EditorTests {
         const std::string e = d + "400,350,3500,1,0,0:0:0:0:\r\n";
         namespace fs = std::filesystem;
         std::error_code ec;
-        fs::remove_all(File::getFsPath(Mc::Paths::editor() + "/history/editor-history-tests"), ec);
+        fs::remove_all(Mc::getFsPath(Mc::Paths::editor() + "/history/editor-history-tests"), ec);
         const auto at = [](std::string file) {
             return Database::MapLocation{
                 .root = Database::MapRoot::Neomod, .folder = "editor-history-tests", .file = std::move(file)};
@@ -2485,7 +2486,7 @@ class EditorTests {
             TEST_ASSERT(again.size() == 3 && bad != again.end() && !EditorHistory::read(*bad),
                         "a .tmp is no version, and a version with sizes its file can't hold reads as none");
         }
-        fs::remove_all(File::getFsPath(Mc::Paths::editor() + "/history/editor-history-tests"), ec);
+        fs::remove_all(Mc::getFsPath(Mc::Paths::editor() + "/history/editor-history-tests"), ec);
 
         // restoring a version is a step
         auto doc = mapOf(a);
