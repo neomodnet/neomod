@@ -9,7 +9,6 @@
 #include "glm/trigonometric.hpp"
 
 // commonly-included stdlib includes
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cassert>

@@ -3,7 +3,6 @@
 #include "types.h"
 #include "UIScreen.h"
 
-#include <functional>
 #include <string>
 
 class LoadingScreen;

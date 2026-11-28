@@ -12,8 +12,6 @@
 #include "Mouse.h"
 #include "Graphics.h"
 #include "CBaseUIDispatch.h"
-
-#include <unordered_set>
 #include "Algorithms.h"
 
 // #include "ResourceManager.h"

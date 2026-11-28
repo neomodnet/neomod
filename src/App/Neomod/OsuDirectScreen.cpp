@@ -49,7 +49,6 @@
 #include "DatabaseBeatmap.h"
 #include "Algorithms.h"
 
-#include <charconv>
 #include <cmath>
 #include <functional>
 #include <optional>

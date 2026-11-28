@@ -36,13 +36,11 @@
 #ifndef BUILD_TOOLS_ONLY
 #include "fmt/format.h"
 #include "fmt/ostream.h"
-#include "fmt/chrono.h"
 #include "fmt/ranges.h"
 #include "fmt/printf.h"
 #endif
 
 // commonly-included stdlib includes
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -54,27 +52,20 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
-#include <filesystem>
-#include <fstream>
 #include <functional>
-#include <future>
 #include <initializer_list>
-#include <iomanip>
-#include <iostream>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <queue>
-#include <ranges>
 #include <set>
 #include <span>
 #include <stop_token>
 #include <string_view>
 #include <string>
 #include <system_error>
-#include <thread>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>

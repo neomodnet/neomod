@@ -14,7 +14,6 @@
 
 #include <vector>
 #include <memory>
-#include <deque>
 #include <string_view>
 
 #ifndef APP_H

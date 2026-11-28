@@ -28,7 +28,6 @@
 #include <cmath>
 #include <limits>
 #include <memory>
-#include <numbers>
 #include <span>
 #include <tuple>
 #include <utility>

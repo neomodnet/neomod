@@ -33,7 +33,6 @@
 
 #include "binary_embed.h"
 
-#include <stack>
 #include <utility>
 
 static_assert(MultisampleType{0} == MultisampleType::X0);

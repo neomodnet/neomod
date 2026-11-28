@@ -4,7 +4,6 @@
 #include "BanchoProtocol.h"
 #include "ModFlags.h"
 
-#include <unordered_map>
 #include <string>
 #include <vector>
 

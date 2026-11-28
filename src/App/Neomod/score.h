@@ -3,7 +3,6 @@
 #include "Replay.h"
 
 #include <vector>
-#include <unordered_set>
 
 class ConVar;
 class DatabaseBeatmap;
