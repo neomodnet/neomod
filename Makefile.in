@@ -11367,6 +11367,7 @@ $(DEPS_PREFIX)/rapidjson-$(RAPIDJSON_COMMIT).built: $(DEPS_CACHE)/rapidjson-$(RA
 @BUILD_GLM_TRUE@	$(MKDIR_P) $(DEPS_PREFIX)/glm/build $(DEPS_PREFIX)/include
 @BUILD_GLM_TRUE@	$(TAR) xf $(DEPS_CACHE)/glm-$(GLM_VERSION).tar.gz -C $(DEPS_PREFIX)/glm --strip-components=1 && \
 @BUILD_GLM_TRUE@	cd $(DEPS_PREFIX)/glm && \
+@BUILD_GLM_TRUE@	patch -Np1<$(BUILD_MISCDIR)/glm-clang-warning.patch && \
 @BUILD_GLM_TRUE@	PKG_CONFIG="$(PKG_CONFIG)" \
 @BUILD_GLM_TRUE@	LDFLAGS="$(LDFLAGS)" $(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 @BUILD_GLM_TRUE@		-D GLM_BUILD_TESTS=OFF \

@@ -1,0 +1,25 @@
+diff --git a/../glm/detail/type_half.inl b/../glm/detail/type_half.inl
+index 5d239cf..608c58e 100644
+--- a/../glm/detail/type_half.inl
++++ b/../glm/detail/type_half.inl
+@@ -4,9 +4,19 @@ namespace detail
+ 	GLM_FUNC_QUALIFIER float overflow()
+ 	{
+ 		volatile float f = 1e10;
+-
++#		if GLM_SILENT_WARNINGS == GLM_ENABLE
++#			if GLM_COMPILER & GLM_COMPILER_CLANG
++#				pragma clang diagnostic push
++#				pragma clang diagnostic ignored "-Wunsequenced-volatile"
++#			endif
++#		endif
+ 		for(int i = 0; i < 10; ++i)
+ 			f = f * f; // this will overflow before the for loop terminates
++#		if GLM_SILENT_WARNINGS == GLM_ENABLE
++#			if GLM_COMPILER & GLM_COMPILER_CLANG
++#				pragma clang diagnostic pop
++#			endif
++#		endif
+ 		return f;
+ 	}
+ 

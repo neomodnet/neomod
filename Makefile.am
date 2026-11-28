@@ -607,6 +607,7 @@ $(DEPS_PREFIX)/glm-$(GLM_VERSION).built: $(DEPS_CACHE)/glm-$(GLM_VERSION).tar.gz
 	$(MKDIR_P) $(DEPS_PREFIX)/glm/build $(DEPS_PREFIX)/include
 	$(TAR) xf $(DEPS_CACHE)/glm-$(GLM_VERSION).tar.gz -C $(DEPS_PREFIX)/glm --strip-components=1 && \
 	cd $(DEPS_PREFIX)/glm && \
+	patch -Np1<$(BUILD_MISCDIR)/glm-clang-warning.patch && \
 	PKG_CONFIG="$(PKG_CONFIG)" \
 	LDFLAGS="$(LDFLAGS)" $(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 		-D GLM_BUILD_TESTS=OFF \
