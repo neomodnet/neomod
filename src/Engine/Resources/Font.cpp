@@ -598,9 +598,7 @@ void McFontImpl::drawStringPlain(std::optional<TextFX> effects) {
 
 void McFontImpl::drawString(std::string_view text, std::optional<TextFX> effects) {
     if(!m_parent->isReady()) return;
-
-    const auto numCodepoints = UniString::num_codepoints(text);
-    if(numCodepoints == 0 || numCodepoints > cv::r_drawstring_max_string_length.getInt()) return;
+    if(const auto len = text.length(); len == 0 || len > cv::r_drawstring_max_string_length.getInt()) return;
 
     // compute directional expansion for shadow/outline effects.
     // shadow extends to the bottom-right only; outline extends in all directions.

@@ -2756,9 +2756,10 @@ void SongBrowser::rebuildSearchResults(bool scrollToTop) {
     // the same rows as before (e.g. a search that matched the same maps) stay where they are
     if(!this->rebuildSongButtons()) return;
 
-    // scroll to top search result, or auto select the only result
+    // scroll to top search result, or auto select the only result (a held selection stays)
     if(scrollToTop && !this->visibleSongButtons.empty()) {
-        if(this->visibleSongButtons.size() == 1 && !this->isSelected(this->visibleSongButtons[0])) {
+        if(this->visibleSongButtons.size() == 1 && !this->isSelected(this->visibleSongButtons[0]) &&
+           !osu->getMusicTrack()->isHeld()) {
             this->scrollToSongButton(this->visibleSongButtons[0], false, false);
             this->selectSongButton(this->visibleSongButtons[0]);
         } else if(!this->scrollToBestButton(false)) {
