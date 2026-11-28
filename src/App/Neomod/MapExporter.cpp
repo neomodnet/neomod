@@ -78,7 +78,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                 std::string export_folder_sub =
                     single_archive
                         ? export_folder_top +
-                              fmt::format("temp-{}/", Timing::formatUTC("%F-%H-%M-%S", Timing::getUnixTime()))
+                              fmt::format("temp-{}/", Timing::formatUTC("%Y-%m-%d-%H-%M-%S", Timing::getUnixTime()))
                         : export_folder_top;
 
                 if(single_archive) {

@@ -235,7 +235,7 @@ ExportResult run(const Job &job) {
 
     std::string name = job.name;
     if(name.empty() && job.mixed) {
-        name = "random mix " + Timing::formatUTC("%F %H-%M-%S", now);
+        name = "random mix " + Timing::formatUTC("%Y-%m-%d %H-%M-%S", now);
     } else if(name.empty()) {
         const bool filled_in = Mc::ranges::any_of(
             sources, [](const Source &source) { return source.tier == Tier::Fallback && !source.packed.empty(); });
@@ -254,7 +254,7 @@ ExportResult run(const Job &job) {
             log += fmt::format("skin: {}\n", job.skin_name);
         }
         if(!job.fallback_dir.empty()) log += fmt::format("fallback skin: {}\n", job.fallback_name);
-        log += fmt::format("exported: {} UTC with {}\n", Timing::formatUTC("%F %T", now), job.version);
+        log += fmt::format("exported: {} UTC with {}\n", Timing::formatUTC("%Y-%m-%d %H:%M:%S", now), job.version);
 
         for(const Tier tier : {Tier::Skin, Tier::Fallback, Tier::Default}) {
             for(const auto &source : sources) {

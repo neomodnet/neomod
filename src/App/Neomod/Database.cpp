@@ -1120,8 +1120,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     tformat("{} was written by a newer version, ignoring it", neomod_maps_path), ERROR_TOAST);
             } else if(version < NEOMOD_MAPS_DB_VERSION) {
                 // Reading from older database version: backup just in case
-                auto backup_path =
-                    fmt::format("{}.{}-{}", neomod_maps_path, version, Timing::formatUTC("%F", Timing::getUnixTime()));
+                auto backup_path = fmt::format("{}.{}-{}", neomod_maps_path, version,
+                                               Timing::formatUTC("%Y-%m-%d", Timing::getUnixTime()));
                 if(File::copy(neomod_maps_path, backup_path)) {
                     debugLog("older database {} < {}, backed up {} -> {}", version, NEOMOD_MAPS_DB_VERSION,
                              neomod_maps_path, backup_path);
@@ -2202,7 +2202,8 @@ void Database::loadScores(std::string_view dbPath) {
         return;
     } else if(db_version < NEOMOD_SCORE_DB_VERSION) {
         // Reading from older database version: backup just in case
-        auto backup_path = fmt::format("{}.{}-{}", dbPath, db_version, Timing::formatUTC("%F", Timing::getUnixTime()));
+        auto backup_path =
+            fmt::format("{}.{}-{}", dbPath, db_version, Timing::formatUTC("%Y-%m-%d", Timing::getUnixTime()));
         if(File::copy(dbPath, backup_path)) {
             debugLog("older database {} < {}, backed up {} -> {}", db_version, NEOMOD_SCORE_DB_VERSION, dbPath,
                      backup_path);

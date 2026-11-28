@@ -3969,7 +3969,7 @@ void SongBrowserImpl::onGroupContextMenuAction(std::string_view text, int id) {
         std::string colNameSanitized = collection_name;
         SString::trim_inplace(colNameSanitized);
         if(colNameSanitized.empty()) {
-            colNameSanitized = "Untitled-Collection-" + Timing::formatUTC("%F-%H-%M-%S", Timing::getUnixTime());
+            colNameSanitized = "Untitled-Collection-" + Timing::formatUTC("%Y-%m-%d-%H-%M-%S", Timing::getUnixTime());
         } else {
             Mc::ranges::replace(colNameSanitized, '\\', '_');
             Mc::ranges::replace(colNameSanitized, '/', '_');

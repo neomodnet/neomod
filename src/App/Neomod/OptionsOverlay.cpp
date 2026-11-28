@@ -4722,7 +4722,7 @@ void OptionsOverlayImpl::save() {
             debugLog("WARNING: read no data from previous osu.cfg!");
             // back it up just in case
             const std::string backup_name =
-                fmt::format("{}.{}.bak", cfg_name, Timing::formatUTC("%F", Timing::getUnixTime()));
+                fmt::format("{}.{}.bak", cfg_name, Timing::formatUTC("%Y-%m-%d", Timing::getUnixTime()));
             if(File::copy(cfg_name, backup_name)) {
                 debugLog("backed up {} -> {}", cfg_name, backup_name);
             }
