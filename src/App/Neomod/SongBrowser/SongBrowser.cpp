@@ -58,6 +58,7 @@
 #include "CBaseUILabel.h"
 #include "BeatmapCarousel.h"
 #include "CarouselButton.h"
+#include "CarouselData.h"
 #include "AsyncSongButtonMatcher.h"
 #include "UserCard.h"
 #include "InfoLabel.h"
@@ -73,26 +74,435 @@
 #include "ContainerRanges.h"
 #include "NeomodEnvInterop.h"
 #include "OsuKeyBinds.h"
+#include "AsyncCancellable.h"
+#include "Hashing.h"
+#include "MapFetcher.h"
+#include "MD5Hash.h"
+#include "Registration.h"
+#include "StrainGraph.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <memory>
 #include <charconv>
 #include <cstring>
 #include <limits>
+#include <optional>
 #include <span>
+#include <string>
 #include <tuple>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "fmt/chrono.h"
 
-struct SongBrowser::MD5HashMap : public Hash::flat::map<MD5Hash, u32> {};
-struct SongBrowser::PendingReselect {
+namespace neomod::sbr {
+SongBrowser *g_songbrowser{nullptr};
+}  // namespace neomod::sbr
+
+namespace {
+namespace SortTypes {
+enum type : i8 { ARTIST, BPM, CREATOR, DATEADDED, DIFFICULTY, LENGTH, TITLE, RANKACHIEVED, DATEPLAYED, MAX };
+};
+
+namespace GroupTypes {
+enum type : i8 {
+    ARTIST,
+    BPM,
+    CREATOR,
+    DATEADDED,  // unimpl
+    DIFFICULTY,
+    LENGTH,
+    TITLE,
+    COLLECTIONS,
+    NO_GROUPING,
+    MAX
+};
+};
+
+struct GlobalSongBrowserCtorDtor {
+    NOCOPY_NOMOVE(GlobalSongBrowserCtorDtor)
+   public:
+    GlobalSongBrowserCtorDtor() = delete;
+    GlobalSongBrowserCtorDtor(SongBrowser *sbrptr) { neomod::sbr::g_songbrowser = sbrptr; }
+    ~GlobalSongBrowserCtorDtor() { neomod::sbr::g_songbrowser = nullptr; }
+};
+
+// a leaderboard waiting for buildScoreButtons()
+struct PendingScores {
+    const DatabaseBeatmap *map{nullptr};
+    OnlineLeaderboard lb;  // local leaderboards only fill the scores
+    // online leaderboards show the player's best on the server in a box below the list
+    bool personal_best_box{false};
+};
+
+// the selection a database load selects again once it's done
+struct PendingReselect {
     Database::MapLocation where;
     MD5Hash md5;
 };
+
+struct SelOpts {
+    bool topChild{false};
+    bool anchorEnd{false};
+    bool noPlay{false};
+};
+}  // namespace
+
+// TODO: move all of the scrolling/button management logic to BeatmapCarousel
+struct SongBrowserImpl final {
+    NOCOPY_NOMOVE(SongBrowserImpl)
+   public:
+    using SortType = SortTypes::type;
+    using GroupType = GroupTypes::type;
+    // group indices (into CarouselData::groups) for one grouping, in display order
+    using GroupList = std::vector<u32>;
+
+    SongBrowserImpl() = delete;
+    SongBrowserImpl(SongBrowser *parent);
+    ~SongBrowserImpl();
+
+    void draw();
+    void tick();
+    void updateInput(CBaseUIEventCtx &c);
+    bool onWheel(WheelDelta vertical, WheelDelta horizontal);
+    void onKeyDown(KeyboardEvent &key);
+    void onKeyUp(KeyboardEvent &key);
+    CBaseUIElement *getTextTarget(CBaseUIElement *focus);
+    void onResolutionChange(vec2 newResolution);
+    CBaseUIContainer *setVisible(bool visible);
+    [[nodiscard]] std::span<CBaseUIElement *const> getAllChildren() const;
+    void updateLayout();
+    void onBack();
+
+    bool selectBeatmapset(const BeatmapSet *set);
+    void selectSelectedBeatmapSongButton();
+    void onPlayEnd(bool quit);
+    void onDifficultySelected(DatabaseBeatmap *map, bool play = false);
+    void onScoreContextMenu(ScoreButton *scoreButton, int id);
+
+    void select(CarouselNode node);
+    void select(CarouselNode node, SelOpts opts);
+    void selectDiff(u32 diff, SelOpts opts);
+    [[nodiscard]] bool isSelected(CarouselNode node) const;
+    [[nodiscard]] bool isSetSelected(u32 set) const;
+    // only difficulties can not match the search
+    [[nodiscard]] bool isSearchMatch(CarouselNode node) const;
+    [[nodiscard]] DatabaseBeatmap *getBeatmap(CarouselNode node) const;
+    [[nodiscard]] ScoreGrade getGrade(CarouselNode node) const;
+    [[nodiscard]] bool isIndependentDiff(CarouselNode node) const;
+    // whether the carousel has diff, as its own row or collapsed into a set row
+    [[nodiscard]] bool isDiffShown(u32 diff) const;
+    [[nodiscard]] std::span<const u32> getNeighbours(u32 diff) const;
+    [[nodiscard]] const std::vector<CarouselNode> &getRows() const;
+    [[nodiscard]] CarouselNode getDiffNodeByHash(const MD5Hash &diff_hash) const;
+    // the position of diff in diffs (which are in carousel order), or diffs.size()
+    [[nodiscard]] size_t findDiff(std::span<const u32> diffs, u32 diff) const;
+    [[nodiscard]] std::optional<f32> getNodeY(CarouselNode node) const;
+    [[nodiscard]] std::vector<f32> layoutRows(const std::vector<CarouselNode> &rows) const;
+    void toggleGroup(u32 group);
+    void navigateCarousel(const KeyboardEvent &key);
+    void openContextMenu(CarouselNode node, vec2 pos);
+
+    void maybeUpdateGrade(u32 diff);
+    void maybeUpdateSetGrades(u32 set);
+    void updateGrade(u32 diff);
+    // recomputes the grade every difficulty and set button shows
+    void refreshGrades();
+
+    void highlightScore(const FinishedScore &scoreToHighlight);
+    void selectSongButton(CarouselNode node);
+    bool selectRandomBeatmap();
+    bool selectPreviousRandomBeatmap();
+    void playSelectedDifficulty();
+    void playNextRandomBeatmap() {
+        this->selectRandomBeatmap();
+        this->playSelectedDifficulty();
+    }
+    // plays a selected map's music as stable's song select does: the file that was already loaded goes on where it
+    // was (also where a quit play paused it) unless it's nearly at its end, a new one starts at its restart point
+    void playPreviewMusic(DatabaseBeatmap *map);
+
+    void refreshBeatmaps(UIScreen *next_screen, bool full_rescan = false);
+    void onDatabaseLoadingFinished(bool isNextScreenSongBrowser);
+    void applyReconcile(const ReconcileResult &r);
+    void addBeatmapSet(BeatmapSet *beatmap, bool initialSongBrowserLoad = false);
+    // unlinks the set's buttons from every container and deletes them (the db side has already happened);
+    // if the loaded map was in the set, a random one is selected instead
+    void removeBeatmapSet(const BeatmapSet *set);
+    // a set the db updated in place (new/changed/removed difficulties): swap its buttons, keep the selection
+    void replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set);
+    void unlinkBeatmapSet(const BeatmapSet *set);
+    void rebuildAfterSetChange();
+
+    bool scrollToBestButton(bool animated = true);  // returns true if a scroll happened
+    bool scrollToSongButton(CarouselNode node, bool alignOnTop = false, bool animated = true);
+    // returns whether the carousel rows changed
+    bool rebuildSongButtons();
+    void rebuildVisibleSongButtons();
+    void recreateCollectionsButtons();
+    void initializeGroupingButtons();
+    GroupList *getCollectionButtonsForGroup(GroupType group);
+    void updateSongButtonLayout();
+
+    void onGotNewLeaderboard(const MD5Hash &lbHash);
+    void rebuildScoreButtons();
+    // shows the scores rebuildScoreButtons() collected once the pp the buttons show is known (polled from tick())
+    void buildScoreButtons();
+    void updateScoreBrowserLayout();
+
+    // returns true if we drew anything
+    bool drawBeatmapOrMenuBackground();
+    void drawStrainGraphOverlay();
+
+    void updateSearchIndex(f64 budget);
+    void checkHandleKillBackgroundSearchMatcher();
+    void onSearchUpdate();
+    void submitSearch();
+    void rebuildSearchResults(bool scrollToTop);
+
+    void onFilterScoresClicked(CBaseUIButton *button);
+    void onFilterScoresChange(std::string_view text, int id = -1);
+    void onSortScoresClicked(CBaseUIButton *button);
+    void onSortScoresChange(std::string_view text, int id = -1);
+    [[nodiscard]] SongBrowser::ScoreComparator getScoreComparator() const;
+    void onWebClicked(CBaseUIButton *button);
+
+    void onQuickGroupClicked(CBaseUIButton *button, MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT);
+    void onGroupClicked(CBaseUIButton *button);
+    void onGroupChange(std::string_view text, int id = -1);
+    void onSortClicked(CBaseUIButton *button);
+    void onSortChange(std::string_view text, int id = -1);
+    void rebuildAfterGroupOrSortChange(GroupType group, const std::optional<SortType> &sortMethod = std::nullopt);
+
+    void onSelectionMode();
+    void onSelectionMods();
+    void onSelectionRandom();
+    void onSelectionOptions();
+
+    void onScoreClicked(ScoreButton *button);
+
+    void openSongContextMenu(vec2 pos);
+    void onSongContextMenu(std::string_view text, int id = -1);
+    void onAddToCollectionConfirmed(std::string_view text, int id = -1);
+    void onCreateNewCollectionConfirmed(std::string_view text, int id = -1);
+    void onDeleteBeatmapConfirmed(std::string_view text, int id = -1);
+    void onSongContextMenuAction(std::string_view text, int id);
+    void onOpenBeatmapFolderClicked();
+    void onEditClicked();
+    void openGroupContextMenu(vec2 pos);
+    void onGroupContextMenu(std::string_view text, int id = -1);
+    void onRenameCollectionConfirmed(std::string_view text, int id = -1);
+    void onDeleteCollectionConfirmed(std::string_view text, int id = -1);
+    void onGroupContextMenuAction(std::string_view text, int id);
+
+    GlobalSongBrowserCtorDtor global_songbrowser_;
+
+    // Map sorting/filtering
+    struct MAP_SORTING_METHOD {
+        std::string_view name;
+    };
+
+    std::array<MAP_SORTING_METHOD, SortType::MAX> MAP_SORTING_METHODS;
+    std::array<std::string_view, GroupType::MAX> GROUP_NAMES;
+
+    // Score sorting
+    struct SCORE_SORTING_METHOD {
+        std::string_view name;
+        SongBrowser::ScoreComparator comparator;
+    };
+
+    static constexpr int NUM_SCORE_SORTING_METHODS{6};
+    static constexpr int DEFAULT_SCORE_SORTING_INDEX{NUM_SCORE_SORTING_METHODS - 1};
+    std::array<SCORE_SORTING_METHOD, NUM_SCORE_SORTING_METHODS> SCORE_SORTING_METHODS;
+
+    StrainGraph strainGraph;
+
+    GroupType curGroup{GroupType::NO_GROUPING};
+    SortType curSortMethod{SortType::ARTIST};
+    u8 lastDiffSortModIndex;
+
+    // top bar left
+    CBaseUIContainer *topbarLeft;
+    InfoLabel *songInfo;
+    CBaseUIButton *filterScoresDropdown;
+    CBaseUIButton *sortScoresDropdown;
+    CBaseUIButton *webButton;
+
+    // top bar right
+    CBaseUIContainer *topbarRight;
+    CBaseUILabel *groupLabel;
+    CBaseUIButton *groupButton;
+    CBaseUILabel *sortLabel;
+    CBaseUIButton *sortButton;
+    UIContextMenu *contextMenu;
+
+    CBaseUIButton *groupByCollectionBtn;
+    CBaseUIButton *groupByArtistBtn;
+    CBaseUIButton *groupByDifficultyBtn;
+    CBaseUIButton *groupByNothingBtn;
+
+    // score browser
+    std::vector<ScoreButton *> scoreButtonCache;
+    CBaseUIScrollView *scoreBrowser;
+    CBaseUIElement *scoreBrowserScoresStillLoadingElement;
+    CBaseUIElement *scoreBrowserNoRecordsSetElement;
+    std::unique_ptr<CBaseUIContainer> personalBestContainer{nullptr};
+    CBaseUILabel *personalBestLabel;
+    ScoreButton *personalBestButton = nullptr;
+    std::unique_ptr<PendingScores> pendingScores;
+
+    // song carousel
+    std::unique_ptr<BeatmapCarousel> carousel{nullptr};
+    // vElements + the manually-managed containers (topbars, score browser, carousel, ...);
+    // rebuilt on each getAllChildren() call (not for per-frame use)
+    mutable std::vector<CBaseUIElement *> allChildren;
+    enum class ScheduledScroll : u8 { NONE, ANIMATED, INSTANT };
+    ScheduledScroll scheduled_scroll_to_selected_button{ScheduledScroll::NONE};
+    bool bInitializedBeatmaps{false};
+    bool bSongButtonsNeedSorting{false};
+
+    // song browser selection state logic
+    CarouselNode selectedDiff;
+    CarouselNode openGroup;
+    CarouselNode contextMenuNode;
+
+    // beatmap database
+    CarouselData data;
+    // every difficulty in sort order, and where each one comes in it (ascending along diffOrder)
+    std::vector<u32> diffOrder;
+    std::vector<u32> diffRank;
+
+    // the groups with a row, and the difficulties the carousel has (collapsed or not) in its order:
+    // the search matches of the open group, or of everything without grouping
+    std::vector<u32> visibleGroups;
+    std::vector<u32> shownDiffs;
+    UIOverlay *loadingOverlay{nullptr};
+
+    // keeps the database in sync with maps/ while it's loaded (a load scans maps/ itself)
+    Mc::Registration mapsWatch;
+
+    Hash::flat::map<MD5Hash, u32> hashToDiffButton;
+    std::optional<PendingReselect> reselect;
+
+    GroupList titleCollectionButtons;
+    GroupList artistCollectionButtons;
+    GroupList creatorCollectionButtons;
+
+    GroupList dateaddedCollectionButtons;  // not implemented yet
+    GroupList difficultyCollectionButtons;
+    GroupList bpmCollectionButtons;
+    GroupList lengthCollectionButtons;
+
+    GroupList collectionButtons;
+
+    std::string sLastOsuFolder;
+
+    // keys
+    bool bF2Pressed;
+    bool bF3Pressed;
+    bool bRandomBeatmapScheduled;
+
+    // behaviour
+    const DatabaseBeatmap *lastSelectedBeatmap{nullptr};
+    AnimFloat fPulseAnimation;
+    float fBackgroundFadeInTime;
+    std::vector<const DatabaseBeatmap *> previousRandomBeatmaps;
+
+    // map auto-download, set by SongBrowser::selectOrDownload()
+    i32 map_autodl = 0;
+    i32 set_autodl = 0;
+    MD5Hash md5_autodl{};
+
+    // drives the map_autodl/set_autodl intent flags to a terminal verdict
+    MapFetcher autodl_fetcher;
+
+    // search
+    UISearchOverlay *search;
+    std::string sPrevSearchString;
+    std::string sPrevHardcodedSearchString;
+    bool bSearchScheduled{false};
+    f64 fSearchShowTime{0.0};
+    bool bInSearch;
+    i32 currentVisibleSearchMatches{0};
+    Async::CancellableHandle<std::optional<AsyncSongButtonMatcher::SearchResult>> searchHandle;
+    std::shared_ptr<AsyncSongButtonMatcher::SearchIndex> searchIndex{
+        std::make_shared<AsyncSongButtonMatcher::SearchIndex>()};
+    u32 searchIndexedDiffs{0};
+    std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> lastSearch;
+    std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> shownSearch;
+
+    SongBrowser *parent;
+};
+
+// passthroughs
+SongBrowser::SongBrowser() : ScreenBackable(), pImpl(this) {}
+SongBrowser::~SongBrowser() = default;
+
+void SongBrowser::draw() { return pImpl->draw(); }
+void SongBrowser::tick() { return pImpl->tick(); }
+void SongBrowser::updateInput(CBaseUIEventCtx &c) { return pImpl->updateInput(c); }
+bool SongBrowser::onWheel(WheelDelta vertical, WheelDelta horizontal) { return pImpl->onWheel(vertical, horizontal); }
+void SongBrowser::onKeyDown(KeyboardEvent &e) { return pImpl->onKeyDown(e); }
+void SongBrowser::onKeyUp(KeyboardEvent &e) { return pImpl->onKeyUp(e); }
+CBaseUIElement *SongBrowser::getTextTarget(CBaseUIElement *focus) { return pImpl->getTextTarget(focus); }
+void SongBrowser::onResolutionChange(vec2 newResolution) { return pImpl->onResolutionChange(newResolution); }
+CBaseUIContainer *SongBrowser::setVisible(bool visible) { return pImpl->setVisible(visible); }
+std::span<CBaseUIElement *const> SongBrowser::getAllChildren() const { return pImpl->getAllChildren(); }
+void SongBrowser::updateLayout() { return pImpl->updateLayout(); }
+void SongBrowser::onBack() { return pImpl->onBack(); }
+
+bool SongBrowser::selectBeatmapset(const BeatmapSet *set) { return pImpl->selectBeatmapset(set); }
+void SongBrowser::selectSelectedBeatmapSongButton() { return pImpl->selectSelectedBeatmapSongButton(); }
+void SongBrowser::onPlayEnd(bool quit) { return pImpl->onPlayEnd(quit); }
+void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
+    return pImpl->onDifficultySelected(map, play);
+}
+void SongBrowser::onScoreContextMenu(ScoreButton *scoreButton, int id) {
+    return pImpl->onScoreContextMenu(scoreButton, id);
+}
+void SongBrowser::select(CarouselNode node) { return pImpl->select(node); }
+bool SongBrowser::isSelected(CarouselNode node) const { return pImpl->isSelected(node); }
+DatabaseBeatmap *SongBrowser::getBeatmap(CarouselNode node) const { return pImpl->getBeatmap(node); }
+ScoreGrade SongBrowser::getGrade(CarouselNode node) const { return pImpl->getGrade(node); }
+bool SongBrowser::isIndependentDiff(CarouselNode node) const { return pImpl->isIndependentDiff(node); }
+const CarouselData &SongBrowser::getCarouselData() const { return pImpl->data; }
+void SongBrowser::openContextMenu(CarouselNode node, vec2 pos) { return pImpl->openContextMenu(node, pos); }
+void SongBrowser::maybeUpdateGrade(u32 diff) { return pImpl->maybeUpdateGrade(diff); }
+void SongBrowser::maybeUpdateSetGrades(u32 set) { return pImpl->maybeUpdateSetGrades(set); }
+void SongBrowser::highlightScore(const FinishedScore &scoreToHighlight) {
+    return pImpl->highlightScore(scoreToHighlight);
+}
+bool SongBrowser::selectRandomBeatmap() { return pImpl->selectRandomBeatmap(); }
+bool SongBrowser::selectPreviousRandomBeatmap() { return pImpl->selectPreviousRandomBeatmap(); }
+void SongBrowser::playNextRandomBeatmap() { return pImpl->playNextRandomBeatmap(); }
+void SongBrowser::selectSongButton(CarouselNode node) { return pImpl->selectSongButton(node); }
+void SongBrowser::selectOrDownload(i32 set_id, i32 map_id, const MD5Hash &md5) {
+    pImpl->set_autodl = set_id;
+    pImpl->map_autodl = map_id;
+    pImpl->md5_autodl = md5;
+}
+void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
+    return pImpl->refreshBeatmaps(next_screen, full_rescan);
+}
+void SongBrowser::applyReconcile(const ReconcileResult &r) { return pImpl->applyReconcile(r); }
+void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) { return pImpl->onGotNewLeaderboard(lbHash); }
+void SongBrowser::rebuildScoreButtons() { return pImpl->rebuildScoreButtons(); }
+std::span<const u32> SongBrowser::getNeighbours(u32 diff) const { return pImpl->getNeighbours(diff); }
+const std::vector<CarouselNode> &SongBrowser::getRows() const { return pImpl->getRows(); }
+CarouselNode SongBrowser::getDiffNodeByHash(const MD5Hash &diff_hash) const {
+    return pImpl->getDiffNodeByHash(diff_hash);
+}
+bool SongBrowser::isCarouselBuilt() const { return !pImpl->diffOrder.empty(); }
+SongBrowser::ScoreComparator SongBrowser::getScoreComparator() const { return pImpl->getScoreComparator(); }
+void SongBrowser::onFilterScoresChange(std::string_view text, int id) { return pImpl->onFilterScoresChange(text, id); }
+void SongBrowser::onSelectionMode() { return pImpl->onSelectionMode(); }
+void SongBrowser::onSelectionMods() { return pImpl->onSelectionMods(); }
+void SongBrowser::onSelectionRandom() { return pImpl->onSelectionRandom(); }
+void SongBrowser::onSelectionOptions() { return pImpl->onSelectionOptions(); }
 
 namespace {
 constexpr const Color highlightColor = argb(255, 0, 255, 0);
@@ -368,25 +778,7 @@ size_t group_index(GroupTypes::type grouping, const DatabaseBeatmap &diff) {
 }
 }  // namespace
 
-namespace neomod::sbr {
-SongBrowser *g_songbrowser{nullptr};
-}  // namespace neomod::sbr
-
-SongBrowser::GlobalSongBrowserCtorDtor::GlobalSongBrowserCtorDtor(SongBrowser *sbrptr) {
-    neomod::sbr::g_songbrowser = sbrptr;
-}
-
-SongBrowser::GlobalSongBrowserCtorDtor::~GlobalSongBrowserCtorDtor() { neomod::sbr::g_songbrowser = nullptr; }
-
-// a leaderboard waiting for buildScoreButtons()
-struct SongBrowser::PendingScores {
-    const DatabaseBeatmap *map{nullptr};
-    OnlineLeaderboard lb;  // local leaderboards only fill the scores
-    // online leaderboards show the player's best on the server in a box below the list
-    bool personal_best_box{false};
-};
-
-SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
+SongBrowserImpl::SongBrowserImpl(SongBrowser *parent) : global_songbrowser_(parent), parent(parent) {
     this->MAP_SORTING_METHODS = {{{_("By Artist")},         //
                                   {_("By BPM")},            //
                                   {_("By Creator")},        //
@@ -425,8 +817,6 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
 
     this->lastDiffSortModIndex = StarPrecalc::active_idx;
 
-    this->hashToDiffButton = std::make_unique<MD5HashMap>();
-
     // build carousel first
     this->carousel = std::make_unique<BeatmapCarousel>(0.f, 0.f, 0.f, 0.f, "Carousel");
 
@@ -437,11 +827,11 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
                 cv::songbrowser_search_hardcoded_filter.setValue("");
         });
     // they decide whether the score buttons show pp, which buildScoreButtons() may have to wait for
-    cv::scores_always_display_pp.setCallback(SA::MakeDelegate<&SongBrowser::rebuildScoreButtons>(this));
-    cv::scores_sort_by_pp.setCallback(SA::MakeDelegate<&SongBrowser::rebuildScoreButtons>(this));
-    cv::songbrowser_grades_current_name.setCallback(SA::MakeDelegate<&SongBrowser::refreshGrades>(this));
-    cv::songbrowser_grades_current_server.setCallback(SA::MakeDelegate<&SongBrowser::refreshGrades>(this));
-    cv::name.setCallback(SA::MakeDelegate<&SongBrowser::refreshGrades>(this));
+    cv::scores_always_display_pp.setCallback(SA::MakeDelegate<&SongBrowserImpl::rebuildScoreButtons>(this));
+    cv::scores_sort_by_pp.setCallback(SA::MakeDelegate<&SongBrowserImpl::rebuildScoreButtons>(this));
+    cv::songbrowser_grades_current_name.setCallback(SA::MakeDelegate<&SongBrowserImpl::refreshGrades>(this));
+    cv::songbrowser_grades_current_server.setCallback(SA::MakeDelegate<&SongBrowserImpl::refreshGrades>(this));
+    cv::name.setCallback(SA::MakeDelegate<&SongBrowserImpl::refreshGrades>(this));
 
     // vars
     this->bF2Pressed = false;
@@ -455,19 +845,19 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->topbarLeft->addBaseUIElement(this->songInfo);
 
     this->filterScoresDropdown = new UIButtonRounded(0, 0, 0, 0, "", _("Local"), 5);
-    this->filterScoresDropdown->setClickCallback(SA::MakeDelegate<&SongBrowser::onFilterScoresClicked>(this));
+    this->filterScoresDropdown->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onFilterScoresClicked>(this));
     this->filterScoresDropdown->setDrawShadow(true)->setDrawBackground(false);
     this->topbarLeft->addBaseUIElement(this->filterScoresDropdown);
 
     this->sortScoresDropdown = new UIButtonRounded(0, 0, 0, 0, "", _("By score"), 5);
     this->sortScoresDropdown->setDrawShadow(true)->setDrawBackground(false);
-    this->sortScoresDropdown->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortScoresClicked>(this));
+    this->sortScoresDropdown->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onSortScoresClicked>(this));
     this->topbarLeft->addBaseUIElement(this->sortScoresDropdown);
 
     // TRANSLATORS: button that opens the selected beatmap on the website
     this->webButton = new UIButtonRounded(0, 0, 0, 0, "", _("Web"), 5);
     this->webButton->setDrawShadow(true)->setDrawBackground(false);
-    this->webButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onWebClicked>(this));
+    this->webButton->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onWebClicked>(this));
     this->topbarLeft->addBaseUIElement(this->webButton);
 
     // build topbar right
@@ -487,7 +877,7 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
 
         this->groupButton = new UIButtonRounded(0, 0, 0, 0, "", _("No Grouping"), 5);
         this->groupButton->setDrawShadow(true)->setDrawBackground(false);
-        this->groupButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onGroupClicked>(this));
+        this->groupButton->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onGroupClicked>(this));
         this->groupButton->setDrawsOnTop(true);
         this->topbarRight->addBaseUIElement(this->groupButton);
 
@@ -505,7 +895,7 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
 
         this->sortButton = new UIButtonRounded(0, 0, 0, 0, "", _("By Date Added"), 5);
         this->sortButton->setDrawShadow(true)->setDrawBackground(false);
-        this->sortButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortClicked>(this));
+        this->sortButton->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onSortClicked>(this));
         this->sortButton->setDrawsOnTop(true);
         this->topbarRight->addBaseUIElement(this->sortButton);
 
@@ -513,25 +903,25 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
         this->groupByCollectionBtn = new UIButtonRounded(0, 0, 0, 0, "", _("Collections"), 5);
         this->groupByCollectionBtn->setDrawShadow(true)->setDrawBackground(false);
         this->groupByCollectionBtn->setHandleRightMouse(true);
-        this->groupByCollectionBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
+        this->groupByCollectionBtn->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onQuickGroupClicked>(this));
         this->groupByCollectionBtn->setDrawsOnTop(true);
         this->topbarRight->addBaseUIElement(this->groupByCollectionBtn);
         this->groupByArtistBtn = new UIButtonRounded(0, 0, 0, 0, "", _("By Artist"), 5);
         this->groupByArtistBtn->setDrawShadow(true)->setDrawBackground(false);
         this->groupByArtistBtn->setHandleRightMouse(true);
-        this->groupByArtistBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
+        this->groupByArtistBtn->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onQuickGroupClicked>(this));
         this->groupByArtistBtn->setDrawsOnTop(true);
         this->topbarRight->addBaseUIElement(this->groupByArtistBtn);
         this->groupByDifficultyBtn = new UIButtonRounded(0, 0, 0, 0, "", _("By Difficulty"), 5);
         this->groupByDifficultyBtn->setDrawShadow(true)->setDrawBackground(false);
         this->groupByDifficultyBtn->setHandleRightMouse(true);
-        this->groupByDifficultyBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
+        this->groupByDifficultyBtn->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onQuickGroupClicked>(this));
         this->groupByDifficultyBtn->setDrawsOnTop(true);
         this->topbarRight->addBaseUIElement(this->groupByDifficultyBtn);
         this->groupByNothingBtn = new UIButtonRounded(0, 0, 0, 0, "", _("No Grouping"), 5);
         this->groupByNothingBtn->setDrawShadow(true)->setDrawBackground(false);
         this->groupByNothingBtn->setHandleRightMouse(true);
-        this->groupByNothingBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
+        this->groupByNothingBtn->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onQuickGroupClicked>(this));
         this->groupByNothingBtn->setDrawsOnTop(true);
         this->topbarRight->addBaseUIElement(this->groupByNothingBtn);
     }
@@ -577,7 +967,7 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->updateLayout();
 }
 
-SongBrowser::~SongBrowser() {
+SongBrowserImpl::~SongBrowserImpl() {
     BatchDiffCalc::abort_calc();
     AsyncPPC::set_map(nullptr);
     VolNormalization::abort();
@@ -609,7 +999,7 @@ SongBrowser::~SongBrowser() {
     cv::name.removeCallback();
 }
 
-bool SongBrowser::drawBeatmapOrMenuBackground() {
+bool SongBrowserImpl::drawBeatmapOrMenuBackground() {
     g->setColor(0xff000000);
     g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
     bool drew = false;
@@ -660,8 +1050,8 @@ bool SongBrowser::drawBeatmapOrMenuBackground() {
     return drew;
 }
 
-void SongBrowser::draw() {
-    if(!this->bVisible) return;
+void SongBrowserImpl::draw() {
+    if(!parent->bVisible) return;
 
     // draw background
     this->drawBeatmapOrMenuBackground();
@@ -752,7 +1142,7 @@ void SongBrowser::draw() {
 
     // NOTE: Intentionally not calling ScreenBackable::draw() here, since we're already drawing
     //       the back button in draw_bottombar().
-    UIScreen::draw();  // NOLINT(bugprone-parent-virtual-call)
+    parent->UIScreen::draw();  // NOLINT(bugprone-parent-virtual-call)
 
     // no beatmaps found (osu folder is probably invalid)
     if(db->getBeatmapSets().size() == 0) {
@@ -800,7 +1190,7 @@ void SongBrowser::draw() {
     }
 }
 
-void SongBrowser::drawStrainGraphOverlay() {
+void SongBrowserImpl::drawStrainGraphOverlay() {
     const f32 graphWidth = this->scoreBrowser->getSize().x;
 
     const f32
@@ -820,35 +1210,37 @@ void SongBrowser::drawStrainGraphOverlay() {
                            graphWidth, strainHeight, alpha, !keyboard->isShiftDown(), !keyboard->isControlDown());
 }
 
-CarouselNode SongBrowser::getDiffNodeByHash(const MD5Hash &diff_hash) const {
-    if(const auto &it = this->hashToDiffButton->find(diff_hash); it != this->hashToDiffButton->end()) {
+CarouselNode SongBrowserImpl::getDiffNodeByHash(const MD5Hash &diff_hash) const {
+    if(const auto &it = this->hashToDiffButton.find(diff_hash); it != this->hashToDiffButton.end()) {
         return CarouselNode::diff(it->second);
     }
     return {};
 }
 
-bool SongBrowser::isSetSelected(u32 set) const {
+bool SongBrowserImpl::isSetSelected(u32 set) const {
     return this->selectedDiff && this->data.diffSet[this->selectedDiff.idx] == set;
 }
 
 // never a set row: a selected set shows all of its difficulties
-bool SongBrowser::isSelected(CarouselNode node) const {
+bool SongBrowserImpl::isSelected(CarouselNode node) const {
     return node && (node == this->selectedDiff || node == this->openGroup);
 }
 
-bool SongBrowser::isSearchMatch(CarouselNode node) const { return !node.isDiff() || this->data.diffMatch[node.idx]; }
+bool SongBrowserImpl::isSearchMatch(CarouselNode node) const {
+    return !node.isDiff() || this->data.diffMatch[node.idx];
+}
 
-size_t SongBrowser::findDiff(std::span<const u32> diffs, u32 diff) const {
+size_t SongBrowserImpl::findDiff(std::span<const u32> diffs, u32 diff) const {
     const auto it =
         Mc::ranges::lower_bound(diffs, this->diffRank[diff], {}, [this](u32 d) { return this->diffRank[d]; });
     return it != diffs.end() && *it == diff ? (size_t)(it - diffs.begin()) : diffs.size();
 }
 
-bool SongBrowser::isDiffShown(u32 diff) const {
+bool SongBrowserImpl::isDiffShown(u32 diff) const {
     return this->findDiff(this->shownDiffs, diff) < this->shownDiffs.size();
 }
 
-std::span<const u32> SongBrowser::getNeighbours(u32 diff) const {
+std::span<const u32> SongBrowserImpl::getNeighbours(u32 diff) const {
     const std::span<const u32> shown{this->shownDiffs};
     size_t begin = this->findDiff(shown, diff);
     if(begin == shown.size()) return {};
@@ -860,14 +1252,14 @@ std::span<const u32> SongBrowser::getNeighbours(u32 diff) const {
     return shown.subspan(begin, end - begin);
 }
 
-const std::vector<CarouselNode> &SongBrowser::getRows() const { return this->carousel->getRows(); }
+const std::vector<CarouselNode> &SongBrowserImpl::getRows() const { return this->carousel->getRows(); }
 
-DatabaseBeatmap *SongBrowser::getBeatmap(CarouselNode node) const {
+DatabaseBeatmap *SongBrowserImpl::getBeatmap(CarouselNode node) const {
     return node.isSong() ? this->data.diffMap[node.idx] : nullptr;
 }
 
 // a set row shows the best grade of its difficulties
-ScoreGrade SongBrowser::getGrade(CarouselNode node) const {
+ScoreGrade SongBrowserImpl::getGrade(CarouselNode node) const {
     if(node.isDiff()) return this->data.diffGrade[node.idx];
     ScoreGrade best = ScoreGrade::N;
     if(node.isSet()) {
@@ -876,7 +1268,7 @@ ScoreGrade SongBrowser::getGrade(CarouselNode node) const {
     return best;
 }
 
-bool SongBrowser::isIndependentDiff(CarouselNode node) const {
+bool SongBrowserImpl::isIndependentDiff(CarouselNode node) const {
     if(!node.isDiff()) return true;
     const u32 set = this->data.diffSet[node.idx];
     if(!this->isSetSelected(set)) return true;
@@ -888,15 +1280,15 @@ bool SongBrowser::isIndependentDiff(CarouselNode node) const {
     return true;
 }
 
-void SongBrowser::maybeUpdateGrade(u32 diff) {
+void SongBrowserImpl::maybeUpdateGrade(u32 diff) {
     if(this->data.diffGradeScheduled[diff]) this->updateGrade(diff);
 }
 
-void SongBrowser::maybeUpdateSetGrades(u32 set) {
+void SongBrowserImpl::maybeUpdateSetGrades(u32 set) {
     for(const u32 diff : this->data.setChildren(set)) this->maybeUpdateGrade(diff);
 }
 
-void SongBrowser::updateGrade(u32 diff) {
+void SongBrowserImpl::updateGrade(u32 diff) {
     if(!cv::scores_enabled.getBool()) {
         return;
     }
@@ -924,9 +1316,9 @@ void SongBrowser::updateGrade(u32 diff) {
     this->data.diffGrade[diff] = maxGrade;
 }
 
-void SongBrowser::select(CarouselNode node) { this->select(node, {}); }
+void SongBrowserImpl::select(CarouselNode node) { this->select(node, {}); }
 
-void SongBrowser::select(CarouselNode node, SelOpts opts) {
+void SongBrowserImpl::select(CarouselNode node, SelOpts opts) {
     switch(node.kind) {
         case CarouselNode::Kind::SET: {
             // the bottom one of its difficulties (the hardest, assuming default sorting), or the top one
@@ -942,7 +1334,7 @@ void SongBrowser::select(CarouselNode node, SelOpts opts) {
     }
 }
 
-void SongBrowser::selectDiff(u32 diff, SelOpts opts) {
+void SongBrowserImpl::selectDiff(u32 diff, SelOpts opts) {
     const CarouselNode node = CarouselNode::diff(diff);
     const bool wasSelected = this->selectedDiff == node;
     const bool wasExpanded = this->isSetSelected(this->data.diffSet[diff]);
@@ -973,7 +1365,7 @@ void SongBrowser::selectDiff(u32 diff, SelOpts opts) {
     if(!this->scrollToSongButton(node)) this->scheduled_scroll_to_selected_button = ScheduledScroll::ANIMATED;
 }
 
-void SongBrowser::toggleGroup(u32 group) {
+void SongBrowserImpl::toggleGroup(u32 group) {
     const CarouselNode node = CarouselNode::group(group);
     this->contextMenu->setVisible2(false);
 
@@ -988,7 +1380,7 @@ void SongBrowser::toggleGroup(u32 group) {
     this->scrollToSongButton(node, true);
 }
 
-std::optional<f32> SongBrowser::getNodeY(CarouselNode node) const {
+std::optional<f32> SongBrowserImpl::getNodeY(CarouselNode node) const {
     const size_t numRows = this->carousel->getRows().size();
     size_t row = this->carousel->findRow(node);
     if(row == numRows && node.isDiff()) {
@@ -1002,7 +1394,7 @@ std::optional<f32> SongBrowser::getNodeY(CarouselNode node) const {
 }
 
 // FIXME: this should not be a public function (way too multi-purpose, too many side effects)
-bool SongBrowser::selectBeatmapset(const BeatmapSet *set) {
+bool SongBrowserImpl::selectBeatmapset(const BeatmapSet *set) {
     if(db->isLoading()) {
         debugLog("Can't select a beatmapset while database is loading!");
         return false;
@@ -1011,7 +1403,7 @@ bool SongBrowser::selectBeatmapset(const BeatmapSet *set) {
     assert(set);
     if(!this->bInitializedBeatmaps) {
         const auto &first = *set->getDifficulties()[0];
-        this->reselect = std::make_unique<PendingReselect>(db->locate(first), first.getMD5());
+        this->reselect.emplace(db->locate(first), first.getMD5());
         return false;
     }
 
@@ -1035,8 +1427,8 @@ bool SongBrowser::selectBeatmapset(const BeatmapSet *set) {
     }
 }
 
-void SongBrowser::tick() {
-    ScreenBackable::tick();
+void SongBrowserImpl::tick() {
+    parent->ScreenBackable::tick();
 
     // flush diffcalc results to database
     // do this even if not visible, but not during gameplay
@@ -1058,7 +1450,7 @@ void SongBrowser::tick() {
         }
     }
 
-    if(!this->bVisible) return;
+    if(!parent->bVisible) return;
 
     // avoid ticking extra ui elements when not visible
     this->personalBestContainer->tick();
@@ -1168,19 +1560,19 @@ void SongBrowser::tick() {
     }
 }
 
-void SongBrowser::updateInput(CBaseUIEventCtx &c) {
-    if(!this->bVisible) return;
+void SongBrowserImpl::updateInput(CBaseUIEventCtx &c) {
+    if(!parent->bVisible) return;
 
     // registered FIRST = lowest wheel priority in this group: every hovered candidate
     // (score browser, context menu, the carousel itself) gets first refusal
-    if(c.propagate_clicks) c.addWheelClaim(this);
+    if(c.propagate_clicks) c.addWheelClaim(parent);
 
     this->personalBestContainer->updateInput(c);
     if(this->personalBestButton && this->personalBestButton->isVisible() && this->personalBestButton->isMouseInside()) {
         // HACKHACK: don't hover score button list buttons under personal best!
         this->scoreBrowser->stealFocus();
     }
-    ScreenBackable::updateInput(c);
+    parent->ScreenBackable::updateInput(c);
 
     // NOTE: This is placed before BottomBar::updateInput(), otherwise the context menu would close
     //       on a bottombar selector click (yeah, a bit hacky)
@@ -1196,13 +1588,13 @@ void SongBrowser::updateInput(CBaseUIEventCtx &c) {
     this->carousel->updateInput(c);
 }
 
-bool SongBrowser::onWheel(WheelDelta vertical, WheelDelta horizontal) {
+bool SongBrowserImpl::onWheel(WheelDelta vertical, WheelDelta horizontal) {
     return this->carousel->onWheel(vertical, horizontal);
 }
 
-void SongBrowser::onKeyDown(KeyboardEvent &key) {
-    UIScreen::onKeyDown(key);  // NOLINT(bugprone-parent-virtual-call) only used for options menu
-    if(!this->bVisible || key.isConsumed()) return;
+void SongBrowserImpl::onKeyDown(KeyboardEvent &key) {
+    parent->UIScreen::onKeyDown(key);  // NOLINT(bugprone-parent-virtual-call) only used for options menu
+    if(!parent->bVisible || key.isConsumed()) return;
 
     // context menu
     this->contextMenu->onKeyDown(key);
@@ -1233,7 +1625,7 @@ void SongBrowser::onKeyDown(KeyboardEvent &key) {
         BottomBar::press_button(BottomBar::OPTIONS);
     }
 
-    if(key == KEY_F5) this->refreshBeatmaps(this, /*full_rescan=*/true);
+    if(key == KEY_F5) this->refreshBeatmaps(parent, /*full_rescan=*/true);
 
     this->navigateCarousel(key);
 
@@ -1243,7 +1635,7 @@ void SongBrowser::onKeyDown(KeyboardEvent &key) {
     key.consume();
 }
 
-void SongBrowser::onKeyUp(KeyboardEvent &key) {
+void SongBrowserImpl::onKeyUp(KeyboardEvent &key) {
     // context menu
     this->contextMenu->onKeyUp(key);
     if(key.isConsumed()) return;
@@ -1252,7 +1644,7 @@ void SongBrowser::onKeyUp(KeyboardEvent &key) {
     if(key == KEY_F3) this->bF3Pressed = false;
 }
 
-void SongBrowser::navigateCarousel(const KeyboardEvent &key) {
+void SongBrowserImpl::navigateCarousel(const KeyboardEvent &key) {
     const std::vector<CarouselNode> &rows = this->carousel->getRows();
 
     const auto move = [&](sSz dir, auto &&stops, SelOpts opts) {
@@ -1300,15 +1692,15 @@ void SongBrowser::navigateCarousel(const KeyboardEvent &key) {
     if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && !keyboard->isShiftDown()) this->playSelectedDifficulty();
 }
 
-CBaseUIElement *SongBrowser::getTextTarget(CBaseUIElement *focus) {
-    if(!this->isVisible()) return nullptr;
+CBaseUIElement *SongBrowserImpl::getTextTarget(CBaseUIElement *focus) {
+    if(!parent->isVisible()) return nullptr;
     if(focus) return focus;
     // an open searchable context menu has its own box
     if(auto *menuSearch = this->contextMenu->getSearchTextbox()) return menuSearch;
     return this->search;
 }
 
-void SongBrowser::onResolutionChange(vec2 newResolution) {
+void SongBrowserImpl::onResolutionChange(vec2 newResolution) {
     // button sizes are rounded to whole pixels for the current resolution, so relaying them out moves the content by
     // (size delta * number of buttons above it), while the scroll position is an absolute offset into that content:
     // keep the button closest to the carousel's center at the same relative height instead
@@ -1334,15 +1726,15 @@ void SongBrowser::onResolutionChange(vec2 newResolution) {
     }
 
     CarouselButton::updateResolution();
-    ScreenBackable::onResolutionChange(newResolution);
+    parent->ScreenBackable::onResolutionChange(newResolution);
 
     if(anchor) {
         this->carousel->scrollToY((i32)std::round(anchorPct * this->carousel->getSize().y - centerY(*anchor)), false);
     }
 }
 
-[[nodiscard]] std::span<CBaseUIElement *const> SongBrowser::getAllChildren() const {
-    this->allChildren.assign(this->vElements.begin(), this->vElements.end());
+[[nodiscard]] std::span<CBaseUIElement *const> SongBrowserImpl::getAllChildren() const {
+    this->allChildren.assign(parent->vElements.begin(), parent->vElements.end());
     for(CBaseUIElement *extra :
         {static_cast<CBaseUIElement *>(this->topbarLeft), static_cast<CBaseUIElement *>(this->topbarRight),
          static_cast<CBaseUIElement *>(this->contextMenu), static_cast<CBaseUIElement *>(this->scoreBrowser),
@@ -1354,19 +1746,19 @@ void SongBrowser::onResolutionChange(vec2 newResolution) {
     return this->allChildren;
 }
 
-CBaseUIContainer *SongBrowser::setVisible(bool visible) {
-    if(BanchoState::spectating && visible) return this;  // don't allow song browser to be visible while spectating
-    if(visible == this->bVisible) return this;
+CBaseUIContainer *SongBrowserImpl::setVisible(bool visible) {
+    if(BanchoState::spectating && visible) return parent;  // don't allow song browser to be visible while spectating
+    if(visible == parent->bVisible) return parent;
 
     // Load DB if we haven't attempted yet
     if(visible && this->diffOrder.empty() && !db->isFinished()) {
-        this->refreshBeatmaps(this);
-        return this;
+        this->refreshBeatmaps(parent);
+        return parent;
     }
 
-    this->bVisible = visible;
+    parent->bVisible = visible;
 
-    if(this->bVisible) {
+    if(parent->bVisible) {
         soundEngine->play(osu->getSkin()->s_expand);
 
         this->updateLayout();
@@ -1395,15 +1787,15 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
     }
 
     ui->getChat()->updateVisibility();
-    return this;
+    return parent;
 }
 
-void SongBrowser::selectSelectedBeatmapSongButton() {
+void SongBrowserImpl::selectSelectedBeatmapSongButton() {
     const DatabaseBeatmap *map = nullptr;
-    if(this->hashToDiffButton->empty() || !(map = osu->getMapInterface()->getBeatmap())) return;
+    if(this->hashToDiffButton.empty() || !(map = osu->getMapInterface()->getBeatmap())) return;
 
-    auto it = this->hashToDiffButton->find(map->getMD5());
-    if(it == this->hashToDiffButton->end()) {
+    auto it = this->hashToDiffButton.find(map->getMD5());
+    if(it == this->hashToDiffButton.end()) {
         debugLog("No song button found for currently selected beatmap...");
         return;
     }
@@ -1417,7 +1809,7 @@ void SongBrowser::selectSelectedBeatmapSongButton() {
     this->select(btn, {.noPlay = true});  // if we select() it when already selected, it would start playing!
 }
 
-void SongBrowser::onPlayEnd(bool quit) {
+void SongBrowserImpl::onPlayEnd(bool quit) {
     // update score displays
     if(!quit) {
         this->rebuildScoreButtons();
@@ -1441,7 +1833,7 @@ void SongBrowser::onPlayEnd(bool quit) {
     }
 }
 
-void SongBrowser::playPreviewMusic(DatabaseBeatmap *map) {
+void SongBrowserImpl::playPreviewMusic(DatabaseBeatmap *map) {
     MusicTrack *music = osu->getMusicTrack();
     switch(music->load(map, true /*async*/)) {
         case MusicTrack::Loaded::NO_AUDIO:
@@ -1462,7 +1854,7 @@ void SongBrowser::playPreviewMusic(DatabaseBeatmap *map) {
     music->setLoop(cv::beatmap_preview_music_loop.getBool());
 }
 
-void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
+void SongBrowserImpl::onDifficultySelected(DatabaseBeatmap *map, bool play) {
     // deselect = unload
     osu->getMapInterface()->deselectBeatmap();
 
@@ -1511,11 +1903,12 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
     this->webButton->setVisible((this->songInfo->getBeatmapID() > 0) || (this->songInfo->getBeatmapSetID() > 0));
 }
 
-class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
+namespace {
+class BeatmapLoadingOverlay final : public LoadingScreen {
     NOCOPY_NOMOVE(BeatmapLoadingOverlay)
    public:
     BeatmapLoadingOverlay() = delete;
-    BeatmapLoadingOverlay(SongBrowser *songbrowser, BGImageHandler *bghandler, UIScreen *parent)
+    BeatmapLoadingOverlay(SongBrowserImpl *songbrowser, BGImageHandler *bghandler, UIScreen *parent)
         : LoadingScreen(parent), sbr(songbrowser), bgih(bghandler) {}
     ~BeatmapLoadingOverlay() override = default;
 
@@ -1560,7 +1953,7 @@ class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
         this->sbr->loadingOverlay = nullptr;
 
         // finish loading
-        this->sbr->onDatabaseLoadingFinished(/*isNextScreenSongBrowser=*/this->getParent() == this->sbr);
+        this->sbr->onDatabaseLoadingFinished(/*isNextScreenSongBrowser=*/this->getParent() == this->sbr->parent);
 
         // kill ourselves
         auto tmp = ui->popOverlay(this);
@@ -1568,11 +1961,12 @@ class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
     }
 
    private:
-    SongBrowser *sbr;
+    SongBrowserImpl *sbr;
     BGImageHandler *bgih;
 };
+}  // namespace
 
-void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
+void SongBrowserImpl::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     if(osu->isInPlayMode()) return;
 
     if(!!this->loadingOverlay) {
@@ -1590,7 +1984,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     // remember for initial songbrowser load
     if(const BeatmapDifficulty *map = osu->getMapInterface()->getBeatmap();
        !!map && map->getMD5() != MD5Hash::sentinel && !map->getMD5().is_suspicious()) {
-        this->reselect = std::make_unique<PendingReselect>(db->locate(*map), map->getMD5());
+        this->reselect.emplace(db->locate(*map), map->getMD5());
     }
 
     // reset
@@ -1613,7 +2007,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     // delete local database and UI
     this->carousel->clearRows();
 
-    this->hashToDiffButton->clear();
+    this->hashToDiffButton.clear();
     this->data.clear();
     this->diffOrder.clear();
     this->diffRank.clear();
@@ -1672,7 +2066,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
 }
 
 // this is an insane hack to be calling from places that don't even use songbrowser
-void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad) {
+void SongBrowserImpl::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad) {
     if(!this->bInitializedBeatmaps && !initialSongBrowserLoad) {
         this->bSongButtonsNeedSorting = true;
         return;
@@ -1703,11 +2097,11 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
         this->diffRank.push_back(std::numeric_limits<u32>::max());
 
         // map each difficulty hash to its button
-        this->hashToDiffButton->emplace(diff->getMD5(), diff_idx);
+        this->hashToDiffButton.emplace(diff->getMD5(), diff_idx);
     }
 }
 
-void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
+void SongBrowserImpl::unlinkBeatmapSet(const BeatmapSet *set) {
     const auto set_it = Mc::ranges::find(this->data.setMap, set);
     if(set_it == this->data.setMap.end()) return;
     const u32 idx = (u32)(set_it - this->data.setMap.begin());
@@ -1724,7 +2118,7 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
 
     for(const u32 diff : this->data.setChildren(idx)) {
         if(this->selectedDiff == CarouselNode::diff(diff)) this->selectedDiff = {};
-        this->hashToDiffButton->erase(this->data.diffMap[diff]->getMD5());
+        this->hashToDiffButton.erase(this->data.diffMap[diff]->getMD5());
         this->data.diffMap[diff] = nullptr;
     }
     *set_it = nullptr;
@@ -1736,13 +2130,13 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
 
 // after a set's buttons were added/removed at runtime: user collections are derived from hashToDiffButton and
 // the order, groups and rows from the difficulties, so rebuild them (keeping the open collection)
-void SongBrowser::rebuildAfterSetChange() {
+void SongBrowserImpl::rebuildAfterSetChange() {
     this->recreateCollectionsButtons();
     this->bSongButtonsNeedSorting = true;
     this->rebuildAfterGroupOrSortChange(this->curGroup);
 }
 
-void SongBrowser::applyReconcile(const ReconcileResult &r) {
+void SongBrowserImpl::applyReconcile(const ReconcileResult &r) {
     // a selected map that a new object replaced (its file's content changed, or it moved here) is that object from now
     // on, so the set changes below treat it as a map that stayed (a held selection is its holder's)
     bool followed = false;
@@ -1782,7 +2176,7 @@ void SongBrowser::applyReconcile(const ReconcileResult &r) {
     }
 }
 
-void SongBrowser::removeBeatmapSet(const BeatmapSet *set) {
+void SongBrowserImpl::removeBeatmapSet(const BeatmapSet *set) {
     if(!this->bInitializedBeatmaps) return;
 
     // the loaded map's object outlives its set, its button doesn't
@@ -1794,7 +2188,7 @@ void SongBrowser::removeBeatmapSet(const BeatmapSet *set) {
     if(selected_inside && !osu->getMusicTrack()->isHeld()) this->selectRandomBeatmap();
 }
 
-void SongBrowser::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set) {
+void SongBrowserImpl::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set) {
     if(!this->bInitializedBeatmaps) return;
 
     // surviving difficulties keep their objects (already re-parented to new_set), so a selected one stays valid
@@ -1813,7 +2207,7 @@ void SongBrowser::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_s
     if(selected_inside && !stays && !osu->getMusicTrack()->isHeld()) this->selectBeatmapset(new_set);
 }
 
-SongBrowser::GroupList *SongBrowser::getCollectionButtonsForGroup(GroupType group) {
+SongBrowserImpl::GroupList *SongBrowserImpl::getCollectionButtonsForGroup(GroupType group) {
     switch(group) {
         case GroupType::ARTIST:
             return &this->artistCollectionButtons;
@@ -1835,7 +2229,7 @@ SongBrowser::GroupList *SongBrowser::getCollectionButtonsForGroup(GroupType grou
     return nullptr;
 }
 
-bool SongBrowser::scrollToBestButton(bool animated) {
+bool SongBrowserImpl::scrollToBestButton(bool animated) {
     const CarouselNode best = this->selectedDiff ? this->selectedDiff : this->openGroup;
     if(!best) {
         this->carousel->scrollToY(0, animated);
@@ -1875,7 +2269,7 @@ bool SongBrowser::scrollToBestButton(bool animated) {
     return true;
 }
 
-bool SongBrowser::scrollToSongButton(CarouselNode songButton, bool alignOnTop, bool animated) {
+bool SongBrowserImpl::scrollToSongButton(CarouselNode songButton, bool alignOnTop, bool animated) {
     const std::optional<f32> y = this->getNodeY(songButton);
     if(!y) return false;
 
@@ -1885,7 +2279,7 @@ bool SongBrowser::scrollToSongButton(CarouselNode songButton, bool alignOnTop, b
     return true;
 }
 
-bool SongBrowser::rebuildSongButtons() {
+bool SongBrowserImpl::rebuildSongButtons() {
     std::vector<CarouselNode> rows;
     rows.reserve(this->visibleGroups.size() + this->shownDiffs.size());
 
@@ -1918,7 +2312,7 @@ bool SongBrowser::rebuildSongButtons() {
     return this->carousel->setRows(std::move(rows), std::move(rowY));
 }
 
-std::vector<f32> SongBrowser::layoutRows(const std::vector<CarouselNode> &rows) const {
+std::vector<f32> SongBrowserImpl::layoutRows(const std::vector<CarouselNode> &rows) const {
     // only the y axis is set, because the x axis is constantly animated and handled within the button classes
     // themselves
     const f32 buttonHeight = CarouselButton::getScaledBaseSize().y;
@@ -1962,13 +2356,13 @@ std::vector<f32> SongBrowser::layoutRows(const std::vector<CarouselNode> &rows) 
     return rowY;
 }
 
-void SongBrowser::updateSongButtonLayout() {
+void SongBrowserImpl::updateSongButtonLayout() {
     // this rebuilds the entire songButton layout (songButtons in relation to others)
     this->carousel->setRowPositions(this->layoutRows(this->carousel->getRows()));
 }
 
-void SongBrowser::updateLayout() {
-    ScreenBackable::updateLayout();
+void SongBrowserImpl::updateLayout() {
+    parent->ScreenBackable::updateLayout();
 
     const float dpiScale = Osu::getUIScale();
     const f32 margin = 5 * dpiScale;
@@ -2066,7 +2460,7 @@ void SongBrowser::updateLayout() {
     this->search->setSize((f32)osu->getVirtScreenWidth() / 2, 20 * dpiScale);
 }
 
-void SongBrowser::onBack() {
+void SongBrowserImpl::onBack() {
     if(BanchoState::is_in_a_multi_room()) {
         ui->setScreen(ui->getRoomScreen());
 
@@ -2090,7 +2484,7 @@ void SongBrowser::onBack() {
     }
 }
 
-void SongBrowser::updateScoreBrowserLayout() {
+void SongBrowserImpl::updateScoreBrowserLayout() {
     const float dpiScale = Osu::getUIScale();
 
     const bool shouldScoreBrowserBeVisible =
@@ -2151,8 +2545,8 @@ void SongBrowser::updateScoreBrowserLayout() {
     this->scoreBrowser->setScrollSizeToContent();
 }
 
-void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) {
-    if(!this->isVisible()) return;
+void SongBrowserImpl::onGotNewLeaderboard(const MD5Hash &lbHash) {
+    if(!parent->isVisible()) return;
     // rare scenario, but we could be called on the error path and now be logged out
     // assert(BanchoState::is_online());
 
@@ -2170,12 +2564,12 @@ void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) {
     this->rebuildScoreButtons();
 }
 
-void SongBrowser::refreshGrades() {
+void SongBrowserImpl::refreshGrades() {
     for(const u32 diff : this->diffOrder) this->updateGrade(diff);
 }
 
-void SongBrowser::rebuildScoreButtons() {
-    if(!this->isVisible()) return;
+void SongBrowserImpl::rebuildScoreButtons() {
+    if(!parent->isVisible()) return;
 
     // XXX: When online, it would be nice to scroll to the current user's highscore
 
@@ -2239,7 +2633,7 @@ void SongBrowser::rebuildScoreButtons() {
     this->buildScoreButtons();
 }
 
-void SongBrowser::buildScoreButtons() {
+void SongBrowserImpl::buildScoreButtons() {
     const auto *map = this->pendingScores->map;
     // the selection moved on while the song browser was hidden (pp is only calculated for the selected map)
     if(map != osu->getMapInterface()->getBeatmap()) return this->rebuildScoreButtons();
@@ -2271,7 +2665,7 @@ void SongBrowser::buildScoreButtons() {
     this->scoreBrowser->invalidate();
 
     if(numScores > 1) {
-        Mc::ranges::sort(scores, this->getScoreSortingMethod().comparator);
+        Mc::ranges::sort(scores, this->getScoreComparator());
     }
 
     // top up cache as necessary
@@ -2279,7 +2673,7 @@ void SongBrowser::buildScoreButtons() {
         const int numNewButtons = (int)(numScores - this->scoreButtonCache.size());
         for(size_t i = 0; std::cmp_less(i, numNewButtons); i++) {
             auto *scoreButton = new ScoreButton(this->contextMenu, 0, 0, 0, 0);
-            scoreButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onScoreClicked>(this));
+            scoreButton->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onScoreClicked>(this));
             this->scoreButtonCache.push_back(scoreButton);
         }
     }
@@ -2304,7 +2698,7 @@ void SongBrowser::buildScoreButtons() {
         this->personalBestContainer->addBaseUIElement(this->personalBestLabel);
         if(pending->lb.personal_best) {
             this->personalBestButton = new ScoreButton(this->contextMenu, 0, 0, 0, 0);
-            this->personalBestButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onScoreClicked>(this));
+            this->personalBestButton->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onScoreClicked>(this));
             this->personalBestButton->setScore(*pending->lb.personal_best, map, pending->lb.personal_best_rank);
             this->personalBestButton->resetHighlight();
             this->personalBestButton->setDrawsOnTop(true);
@@ -2321,12 +2715,12 @@ void SongBrowser::buildScoreButtons() {
     // update grade of difficulty button for current map
     // (weird place for this to be, i think the intent is to update them after you set a score)
     if(!map) return;
-    if(const auto &it = this->hashToDiffButton->find(map->getMD5()); it != this->hashToDiffButton->end()) {
+    if(const auto &it = this->hashToDiffButton.find(map->getMD5()); it != this->hashToDiffButton.end()) {
         this->updateGrade(it->second);
     }
 }
 
-void SongBrowser::updateSearchIndex(f64 budget) {
+void SongBrowserImpl::updateSearchIndex(f64 budget) {
     if(this->searchIndexedDiffs == this->data.diffMap.size()) return;
     if(this->searchIndex.use_count() > 1) {
         this->searchIndex = std::make_shared<AsyncSongButtonMatcher::SearchIndex>(*this->searchIndex);
@@ -2340,12 +2734,12 @@ void SongBrowser::updateSearchIndex(f64 budget) {
     }
 }
 
-void SongBrowser::checkHandleKillBackgroundSearchMatcher() {
+void SongBrowserImpl::checkHandleKillBackgroundSearchMatcher() {
     this->searchHandle.cancel();
     if(this->searchHandle.valid()) this->searchHandle.wait();
 }
 
-void SongBrowser::initializeGroupingButtons() {
+void SongBrowserImpl::initializeGroupingButtons() {
     const auto mkcbtn = [this](std::string name) -> u32 {
         this->data.groups.emplace_back().name = std::move(name);
         return (u32)this->data.groups.size() - 1;
@@ -2419,7 +2813,7 @@ void SongBrowser::initializeGroupingButtons() {
     }
 }
 
-void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
+void SongBrowserImpl::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     // loose .osz files dropped into maps/ were already extracted (Database::importLooseOsz) and imported
     // (Database::reconcileRoot) by the loader, so by the time we get here the database already contains them.
 
@@ -2441,7 +2835,7 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
         this->diffOrder.reserve(numDiffs);
         this->diffRank.reserve(numDiffs);
         this->data.reserve(numSets, numDiffs);
-        this->hashToDiffButton->reserve(numDiffs);
+        this->hashToDiffButton.reserve(numDiffs);
         for(const auto &mapset : db->getBeatmapSets()) {
             this->addBeatmapSet(mapset.get(), true /* initial songbrowser load flag (skip some checks) */);
         }
@@ -2533,7 +2927,7 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     });
 }
 
-void SongBrowser::onSearchUpdate() {
+void SongBrowserImpl::onSearchUpdate() {
     const std::string hardcodedFilterString{cv::songbrowser_search_hardcoded_filter.getString()};  // NOLINT
     const bool hasHardcodedSearchStringChanged = (this->sPrevHardcodedSearchString != hardcodedFilterString);
     const std::string &searchString = this->search->getSearchString();
@@ -2573,7 +2967,7 @@ void SongBrowser::onSearchUpdate() {
     this->sPrevHardcodedSearchString = cv::songbrowser_search_hardcoded_filter.getString();
 }
 
-void SongBrowser::submitSearch() {
+void SongBrowserImpl::submitSearch() {
     // stop potentially running async search
     this->checkHandleKillBackgroundSearchMatcher();
     this->updateSearchIndex(std::numeric_limits<f64>::infinity());
@@ -2596,7 +2990,7 @@ void SongBrowser::submitSearch() {
                                                   osu->getMapInterface()->getSpeedMultiplier(), std::move(previous));
 }
 
-void SongBrowser::rebuildVisibleSongButtons() {
+void SongBrowserImpl::rebuildVisibleSongButtons() {
     this->visibleGroups.clear();
     this->shownDiffs.clear();
     this->currentVisibleSearchMatches = 0;
@@ -2628,7 +3022,7 @@ void SongBrowser::rebuildVisibleSongButtons() {
     }
 }
 
-void SongBrowser::rebuildSearchResults(bool scrollToTop) {
+void SongBrowserImpl::rebuildSearchResults(bool scrollToTop) {
     this->rebuildVisibleSongButtons();
     // the same rows as before (e.g. a search that matched the same maps) stay where they are
     if(!this->rebuildSongButtons()) return;
@@ -2646,7 +3040,7 @@ void SongBrowser::rebuildSearchResults(bool scrollToTop) {
     }
 }
 
-void SongBrowser::onFilterScoresClicked(CBaseUIButton *button) {
+void SongBrowserImpl::onFilterScoresClicked(CBaseUIButton *button) {
     static const std::array filters{_("Local"), _("Global"), _("Selected mods"), _("Country"), _("Friends"), _("Team")};
 
     this->contextMenu->setPos(button->getPos());
@@ -2666,10 +3060,10 @@ void SongBrowser::onFilterScoresClicked(CBaseUIButton *button) {
         }
     }
     this->contextMenu->end(false, false);
-    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onFilterScoresChange>(this));
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onFilterScoresChange>(this));
 }
 
-void SongBrowser::onSortScoresClicked(CBaseUIButton *button) {
+void SongBrowserImpl::onSortScoresClicked(CBaseUIButton *button) {
     this->contextMenu->setPos(button->getPos());
     this->contextMenu->setRelPos(button->getRelPos());
     this->contextMenu->begin((i32)button->getSize().x);
@@ -2682,27 +3076,27 @@ void SongBrowser::onSortScoresClicked(CBaseUIButton *button) {
         }
     }
     this->contextMenu->end(false, false);
-    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortScoresChange>(this));
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onSortScoresChange>(this));
 }
 
-void SongBrowser::onFilterScoresChange(std::string_view text, int id) {
+void SongBrowserImpl::onFilterScoresChange(std::string_view text, int id) {
     std::string text_to_set{text};
     auto *type_cv = &cv::songbrowser_scores_filteringtype;
     auto *manual_type_cv = &cv::songbrowser_scores_filteringtype_manual;
 
     // abusing "id" to determine whether it was a click callback or due to login
-    if(id != LOGIN_STATE_FILTER_ID) {
+    if(id != SongBrowser::LOGIN_STATE_FILTER_ID) {
         manual_type_cv->setValue(text);
     }
 
     // always change for manual setting, otherwise allow login state to affect filtering (if it was never manually set)
-    const bool should_change = id != LOGIN_STATE_FILTER_ID || (manual_type_cv->isDefault());
+    const bool should_change = id != SongBrowser::LOGIN_STATE_FILTER_ID || (manual_type_cv->isDefault());
     if(!should_change) {
         text_to_set = std::string{manual_type_cv->getString()};
     }
     type_cv->setValue(text_to_set);  // NOTE: remember
 
-    if(id == LOGIN_STATE_FILTER_ID) this->refreshGrades();
+    if(id == SongBrowser::LOGIN_STATE_FILTER_ID) this->refreshGrades();
 
     this->filterScoresDropdown->setText(text_to_set);
     db->getOnlineLeaderboards().clear();
@@ -2710,13 +3104,13 @@ void SongBrowser::onFilterScoresChange(std::string_view text, int id) {
     this->scoreBrowser->scrollToTop();
 }
 
-const SongBrowser::SCORE_SORTING_METHOD &SongBrowser::getScoreSortingMethod() const {
+SongBrowser::ScoreComparator SongBrowserImpl::getScoreComparator() const {
     const u32 sortIndex = cv::songbrowser_scores_sortingtype.getInt();
-    return this->SCORE_SORTING_METHODS[sortIndex < this->SCORE_SORTING_METHODS.size() ? sortIndex
-                                                                                      : DEFAULT_SCORE_SORTING_INDEX];
+    const u32 index = sortIndex < this->SCORE_SORTING_METHODS.size() ? sortIndex : DEFAULT_SCORE_SORTING_INDEX;
+    return this->SCORE_SORTING_METHODS[index].comparator;
 }
 
-void SongBrowser::onSortScoresChange(std::string_view /*text*/, int id) {
+void SongBrowserImpl::onSortScoresChange(std::string_view /*text*/, int id) {
     if(id < 0 || id >= this->SCORE_SORTING_METHODS.size()) id = DEFAULT_SCORE_SORTING_INDEX;
 
     cv::songbrowser_scores_sortingtype.setValue(id);  // NOTE: remember
@@ -2726,7 +3120,7 @@ void SongBrowser::onSortScoresChange(std::string_view /*text*/, int id) {
     ui->getHUD()->updateScoringMetric();
 }
 
-void SongBrowser::onWebClicked(CBaseUIButton * /*button*/) {
+void SongBrowserImpl::onWebClicked(CBaseUIButton * /*button*/) {
     const i32 map_id = this->songInfo->getBeatmapID();
     const i32 set_id = this->songInfo->getBeatmapSetID();
     if((map_id > 0) || (set_id > 0)) {
@@ -2740,7 +3134,7 @@ void SongBrowser::onWebClicked(CBaseUIButton * /*button*/) {
     }
 }
 
-void SongBrowser::onQuickGroupClicked(CBaseUIButton *button, MouseButtonFlags buttons) {
+void SongBrowserImpl::onQuickGroupClicked(CBaseUIButton *button, MouseButtonFlags buttons) {
     if(flags::has<MouseButtonFlags::MF_RIGHT>(buttons) || button->getText().empty()) return;
     const std::string_view btntxt = button->getText();
 
@@ -2753,7 +3147,7 @@ void SongBrowser::onQuickGroupClicked(CBaseUIButton *button, MouseButtonFlags bu
     }
 }
 
-void SongBrowser::onGroupClicked(CBaseUIButton *button) {
+void SongBrowserImpl::onGroupClicked(CBaseUIButton *button) {
     this->contextMenu->setPos(button->getPos());
     this->contextMenu->setRelPos(button->getRelPos());
     this->contextMenu->begin((i32)button->getSize().x);
@@ -2765,10 +3159,10 @@ void SongBrowser::onGroupClicked(CBaseUIButton *button) {
         }
     }
     this->contextMenu->end(false, false);
-    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onGroupChange>(this));
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onGroupChange>(this));
 }
 
-void SongBrowser::onGroupChange(std::string_view /*text*/, int id) {
+void SongBrowserImpl::onGroupChange(std::string_view /*text*/, int id) {
     auto group_id = this->curGroup;
     if(id >= 0 && id < GroupType::MAX) group_id = (GroupType)id;
 
@@ -2800,7 +3194,7 @@ void SongBrowser::onGroupChange(std::string_view /*text*/, int id) {
     rebuildAfterGroupOrSortChange(group_id);
 }
 
-void SongBrowser::onSortClicked(CBaseUIButton *button) {
+void SongBrowserImpl::onSortClicked(CBaseUIButton *button) {
     this->contextMenu->setPos(button->getPos());
     this->contextMenu->setRelPos(button->getRelPos());
     this->contextMenu->begin((i32)button->getSize().x);
@@ -2823,10 +3217,10 @@ void SongBrowser::onSortClicked(CBaseUIButton *button) {
     }
 
     this->contextMenu->end(false, false);
-    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortChange>(this));
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onSortChange>(this));
 }
 
-void SongBrowser::onSortChange(std::string_view /*text*/, int id) {
+void SongBrowserImpl::onSortChange(std::string_view /*text*/, int id) {
     auto sort_id = this->curSortMethod;
     if(id >= 0 && id < SortType::MAX) sort_id = (SortType)id;
 
@@ -2844,7 +3238,7 @@ void SongBrowser::onSortChange(std::string_view /*text*/, int id) {
     }
 }
 
-void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::optional<SortType> &sortMethod) {
+void SongBrowserImpl::rebuildAfterGroupOrSortChange(GroupType group, const std::optional<SortType> &sortMethod) {
     // TODO: with "No Grouping", some sorting methods randomly fail...?
     const SortType newSortMethod = sortMethod.value_or(this->curSortMethod);
     const bool sortingChanged = this->curSortMethod != newSortMethod;
@@ -2906,7 +3300,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
 
     if(!rowsMoved) return;
 
-    if(this->bVisible && !this->bInSearch) {
+    if(parent->bVisible && !this->bInSearch) {
         this->scrollToBestButton(false);
     } else {
         // (can't call it right here because we maybe have async)
@@ -2914,7 +3308,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
     }
 }
 
-void SongBrowser::onSelectionMode() {
+void SongBrowserImpl::onSelectionMode() {
     if(cv::mod_fposu.getBool()) {
         cv::mod_fposu.setValue(false);
         ui->getNotificationOverlay()->addToast(_("Disabled FPoSu mode."), INFO_TOAST);
@@ -2924,14 +3318,14 @@ void SongBrowser::onSelectionMode() {
     }
 }
 
-void SongBrowser::onSelectionMods() {
+void SongBrowserImpl::onSelectionMods() {
     // mod selector is an overlay, so the browser stays visible (and active) beneath
     this->contextMenu->setVisible2(false);
     ui->getModSelector()->setVisible(true);
     soundEngine->play(osu->getSkin()->s_expand);
 }
 
-void SongBrowser::onSelectionRandom() {
+void SongBrowserImpl::onSelectionRandom() {
     soundEngine->play(osu->getSkin()->s_click_button);
     if(keyboard->isShiftDown())
         this->selectPreviousRandomBeatmap();
@@ -2939,7 +3333,7 @@ void SongBrowser::onSelectionRandom() {
         this->bRandomBeatmapScheduled = true;
 }
 
-void SongBrowser::onSelectionOptions() {
+void SongBrowserImpl::onSelectionOptions() {
     soundEngine->play(osu->getSkin()->s_click_button);
 
     if(const CarouselNode selected = this->selectedDiff ? this->selectedDiff : this->openGroup) {
@@ -2952,13 +3346,13 @@ void SongBrowser::onSelectionOptions() {
     }
 }
 
-void SongBrowser::onScoreClicked(ScoreButton *button) {
+void SongBrowserImpl::onScoreClicked(ScoreButton *button) {
     ui->getRankingScreen()->setScore(button->getScore());
     ui->setScreen(ui->getRankingScreen());
     soundEngine->play(osu->getSkin()->s_menu_hit);
 }
 
-void SongBrowser::onScoreContextMenu(ScoreButton *scoreButton, int id) {
+void SongBrowserImpl::onScoreContextMenu(ScoreButton *scoreButton, int id) {
     // NOTE: see ScoreButton::onContextMenu()
 
     if(id == 2) {
@@ -2969,7 +3363,7 @@ void SongBrowser::onScoreContextMenu(ScoreButton *scoreButton, int id) {
     }
 }
 
-void SongBrowser::openContextMenu(CarouselNode node, vec2 pos) {
+void SongBrowserImpl::openContextMenu(CarouselNode node, vec2 pos) {
     this->contextMenuNode = node;
     if(node.isGroup())
         this->openGroupContextMenu(pos);
@@ -2977,7 +3371,7 @@ void SongBrowser::openContextMenu(CarouselNode node, vec2 pos) {
         this->openSongContextMenu(pos);
 }
 
-void SongBrowser::openSongContextMenu(vec2 pos) {
+void SongBrowserImpl::openSongContextMenu(vec2 pos) {
     const DatabaseBeatmap *map = this->getBeatmap(this->contextMenuNode);
     auto *cmenu{this->contextMenu};
 
@@ -2987,21 +3381,21 @@ void SongBrowser::openSongContextMenu(vec2 pos) {
     {
         if(map)
             cmenu->addButtonJustified("[=] Open Beatmap Folder", TEXT_JUSTIFICATION::LEFT, 0)
-                ->setClickCallback(SA::MakeDelegate<&SongBrowser::onOpenBeatmapFolderClicked>(this));
+                ->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onOpenBeatmapFolderClicked>(this));
 
         // a childless button stands for a single difficulty. not in a room, where the song browser picks its map, and
         // not for a map outside the folders the editor opens maps from
         if(map && this->contextMenuNode.isDiff() && !BanchoState::is_in_a_multi_room() &&
            !db->locate(*map).file.empty())
             cmenu->addButtonJustified(fmt::format("[=] {}", _("Edit")), TEXT_JUSTIFICATION::LEFT, 8)
-                ->setClickCallback(SA::MakeDelegate<&SongBrowser::onEditClicked>(this));
+                ->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onEditClicked>(this));
 
         if(map && this->contextMenuNode.isDiff())
             cmenu->addButtonJustified("[+] Add to Collection", TEXT_JUSTIFICATION::LEFT, 1);
 
         cmenu->addButtonJustified("[+Set] Add to Collection", TEXT_JUSTIFICATION::LEFT, 2);
 
-        if(this->getGroupingMode() == SongBrowser::GroupType::COLLECTIONS) {
+        if(this->curGroup == GroupType::COLLECTIONS) {
             CBaseUIButton *spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
             spacer->setEnabled(false);
             spacer->setTextColor(0xff888888);
@@ -3046,12 +3440,12 @@ void SongBrowser::openSongContextMenu(vec2 pos) {
         }
     }
     cmenu->end(false, false);
-    cmenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onSongContextMenu>(this));
+    cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onSongContextMenu>(this));
     cmenu->clampToRightScreenEdge();
     cmenu->clampToBottomScreenEdge();
 }
 
-void SongBrowser::onSongContextMenu(std::string_view text, int id) {
+void SongBrowserImpl::onSongContextMenu(std::string_view text, int id) {
     auto *cmenu{this->contextMenu};
 
     if(id == 1 || id == 2) {
@@ -3107,7 +3501,7 @@ void SongBrowser::onSongContextMenu(std::string_view text, int id) {
             }
         }
         cmenu->end(false, true);
-        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onAddToCollectionConfirmed>(this));
+        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onAddToCollectionConfirmed>(this));
         cmenu->clampToRightScreenEdge();
         cmenu->clampToBottomScreenEdge();
     } else if(id == 3 || id == 4 || id == 5) {
@@ -3134,13 +3528,13 @@ void SongBrowser::onSongContextMenu(std::string_view text, int id) {
             cmenu->addButtonJustified("No", TEXT_JUSTIFICATION::LEFT);
         }
         cmenu->end(false, false);
-        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onDeleteBeatmapConfirmed>(this));
+        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onDeleteBeatmapConfirmed>(this));
         cmenu->clampToRightScreenEdge();
         cmenu->clampToBottomScreenEdge();
     }
 }
 
-void SongBrowser::onAddToCollectionConfirmed(std::string_view text, int id) {
+void SongBrowserImpl::onAddToCollectionConfirmed(std::string_view text, int id) {
     auto *cmenu{this->contextMenu};
 
     if(id == -2 || id == -4) {
@@ -3166,7 +3560,7 @@ void SongBrowser::onAddToCollectionConfirmed(std::string_view text, int id) {
             label->setTextDarkColor(0xff000000);
         }
         cmenu->end(false, false);
-        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onCreateNewCollectionConfirmed>(this));
+        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onCreateNewCollectionConfirmed>(this));
         cmenu->clampToRightScreenEdge();
         cmenu->clampToBottomScreenEdge();
     } else {
@@ -3175,35 +3569,35 @@ void SongBrowser::onAddToCollectionConfirmed(std::string_view text, int id) {
     }
 }
 
-void SongBrowser::onCreateNewCollectionConfirmed(std::string_view text, int id) {
+void SongBrowserImpl::onCreateNewCollectionConfirmed(std::string_view text, int id) {
     if(id == -2 || id == -4) {
         // just forward it
         this->onSongContextMenuAction(text, id);
     }
 }
 
-void SongBrowser::onDeleteBeatmapConfirmed(std::string_view text, int id) {
+void SongBrowserImpl::onDeleteBeatmapConfirmed(std::string_view text, int id) {
     if(id == 6 || id == 7) {
         this->onSongContextMenuAction(text, id);
     }
 }
 
-void SongBrowser::onEditClicked() {
+void SongBrowserImpl::onEditClicked() {
     this->contextMenu->setVisible2(false);
     const DatabaseBeatmap *map = this->getBeatmap(this->contextMenuNode);
     if(!map) return;
     ui->getEditorScreen()->enter(db->locate(*map));
 }
 
-void SongBrowser::onOpenBeatmapFolderClicked() {
+void SongBrowserImpl::onOpenBeatmapFolderClicked() {
     this->contextMenu->setVisible2(false);  // why is this manual setVisible not required in mcosu?
     const DatabaseBeatmap *map = this->getBeatmap(this->contextMenuNode);
     if(!map) return;
     env->openFileBrowser(map->getFolder());
 }
 
-void SongBrowser::openGroupContextMenu(vec2 pos) {
-    if(this->getGroupingMode() != GroupType::COLLECTIONS) return;
+void SongBrowserImpl::openGroupContextMenu(vec2 pos) {
+    if(this->curGroup != GroupType::COLLECTIONS) return;
 
     auto *cmenu{this->contextMenu};
 
@@ -3228,12 +3622,12 @@ void SongBrowser::openGroupContextMenu(vec2 pos) {
         cmenu->addButton("[=]         Export Collection", 5);
     }
     cmenu->end(false, false);
-    cmenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onGroupContextMenu>(this));
+    cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onGroupContextMenu>(this));
     cmenu->clampToRightScreenEdge();
     cmenu->clampToBottomScreenEdge();
 }
 
-void SongBrowser::onGroupContextMenu(std::string_view text, int id) {
+void SongBrowserImpl::onGroupContextMenu(std::string_view text, int id) {
     auto *cmenu{this->contextMenu};
     const std::string_view collectionName = this->data.groups[this->contextMenuNode.idx].name;
 
@@ -3260,7 +3654,7 @@ void SongBrowser::onGroupContextMenu(std::string_view text, int id) {
             label->setTextDarkColor(0xff000000);
         }
         cmenu->end(false, false);
-        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onRenameCollectionConfirmed>(this));
+        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onRenameCollectionConfirmed>(this));
         cmenu->clampToRightScreenEdge();
         cmenu->clampToBottomScreenEdge();
     } else if(id == 2) {
@@ -3278,7 +3672,7 @@ void SongBrowser::onGroupContextMenu(std::string_view text, int id) {
                 cmenu->addButton("No");
             }
             cmenu->end(false, false);
-            cmenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onDeleteCollectionConfirmed>(this));
+            cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onDeleteCollectionConfirmed>(this));
             cmenu->clampToRightScreenEdge();
             cmenu->clampToBottomScreenEdge();
         }
@@ -3288,21 +3682,21 @@ void SongBrowser::onGroupContextMenu(std::string_view text, int id) {
     }
 }
 
-void SongBrowser::onRenameCollectionConfirmed(std::string_view text, int /*id*/) {
+void SongBrowserImpl::onRenameCollectionConfirmed(std::string_view text, int /*id*/) {
     if(text.length() > 0) {
         // forward it
         this->onGroupContextMenuAction(text, 3);
     }
 }
 
-void SongBrowser::onDeleteCollectionConfirmed(std::string_view /*text*/, int id) {
+void SongBrowserImpl::onDeleteCollectionConfirmed(std::string_view /*text*/, int id) {
     if(id != 2) return;
 
     // just forward it
     this->onGroupContextMenuAction(std::string{this->data.groups[this->contextMenuNode.idx].name}, id);
 }
 
-void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
+void SongBrowserImpl::onSongContextMenuAction(std::string_view text, int id) {
     const CarouselNode songButton = this->contextMenuNode;
     const DatabaseBeatmap *songButtonMap = this->getBeatmap(songButton);
 
@@ -3388,7 +3782,7 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
 
         this->recreateCollectionsButtons();
         // only change carousel state if we're in collections
-        if(this->getGroupingMode() == GroupType::COLLECTIONS) {
+        if(this->curGroup == GroupType::COLLECTIONS) {
             this->bSongButtonsNeedSorting = true;
             this->onSortChange("",
                                cv::songbrowser_sortingtype.getInt());  // (because this does the rebuildSongButtons())
@@ -3401,7 +3795,7 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
     }
 }
 
-void SongBrowser::onGroupContextMenuAction(std::string_view text, int id) {
+void SongBrowserImpl::onGroupContextMenuAction(std::string_view text, int id) {
     std::string collection_name{text};
     const u32 collectionButton = this->contextMenuNode.idx;
 
@@ -3480,7 +3874,7 @@ void SongBrowser::onGroupContextMenuAction(std::string_view text, int id) {
     }
 }
 
-void SongBrowser::highlightScore(const FinishedScore &scoreToHighlight) {
+void SongBrowserImpl::highlightScore(const FinishedScore &scoreToHighlight) {
     if(auto cachedit = Mc::ranges::find(this->scoreButtonCache, scoreToHighlight, &ScoreButton::getScore);
        cachedit != this->scoreButtonCache.end()) {
         this->scoreBrowser->scrollToElement(*cachedit, 0, 10);
@@ -3488,14 +3882,14 @@ void SongBrowser::highlightScore(const FinishedScore &scoreToHighlight) {
     }
 }
 
-void SongBrowser::selectSongButton(CarouselNode songButton) {
+void SongBrowserImpl::selectSongButton(CarouselNode songButton) {
     if(songButton && !this->isSelected(songButton)) {
         this->contextMenu->setVisible2(false);
         this->select(songButton);
     }
 }
 
-bool SongBrowser::selectRandomBeatmap() {
+bool SongBrowserImpl::selectRandomBeatmap() {
     const DatabaseBeatmap *current = osu->getMapInterface()->getBeatmap();
     const auto setOf = [](const DatabaseBeatmap *map) { return map->getParentSet() ? map->getParentSet() : map; };
 
@@ -3524,7 +3918,7 @@ bool SongBrowser::selectRandomBeatmap() {
     return true;
 }
 
-bool SongBrowser::selectPreviousRandomBeatmap() {
+bool SongBrowserImpl::selectPreviousRandomBeatmap() {
     auto &history = this->previousRandomBeatmaps;
 
     // the current beatmap may also be at the top (so we don't switch to ourself)
@@ -3540,11 +3934,11 @@ bool SongBrowser::selectPreviousRandomBeatmap() {
     return true;
 }
 
-void SongBrowser::playSelectedDifficulty() {
+void SongBrowserImpl::playSelectedDifficulty() {
     if(this->carousel->findRow(this->selectedDiff) < this->carousel->getRows().size()) this->select(this->selectedDiff);
 }
 
-void SongBrowser::recreateCollectionsButtons() {
+void SongBrowserImpl::recreateCollectionsButtons() {
     std::string openCollection;
 
     // reset
@@ -3583,7 +3977,7 @@ void SongBrowser::recreateCollectionsButtons() {
         group.name = collection.get_name();
         group.isCollection = true;
         for(const auto &map_hash : coll_maps) {
-            if(auto it = this->hashToDiffButton->find(map_hash); it != this->hashToDiffButton->end()) {
+            if(auto it = this->hashToDiffButton.find(map_hash); it != this->hashToDiffButton.end()) {
                 group.diffs.push_back(it->second);
             }
         }

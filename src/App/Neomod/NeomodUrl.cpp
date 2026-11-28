@@ -140,9 +140,7 @@ void handle_neomod_url(std::string_view url) {
             ui->getNotificationOverlay()->addToast(_("This link isn't valid."), ERROR_TOAST);
             return;
         }
-        ui->getSongBrowser()->set_autodl = set_id;
-        ui->getSongBrowser()->map_autodl = map_id;
-        ui->getSongBrowser()->md5_autodl = md5.value_or(MD5Hash{});
+        ui->getSongBrowser()->selectOrDownload(set_id, map_id, md5.value_or(MD5Hash{}));
         if(ui->getMainMenu()->isVisible()) ui->setScreen(ui->getSongBrowser());
         return;
     }

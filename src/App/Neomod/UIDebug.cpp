@@ -28,6 +28,7 @@
 #include "Osu.h"
 #include "Skin.h"
 #include "SongBrowser.h"
+#include "CarouselData.h"
 #include "BeatmapInterface.h"
 #include "GameplayJudge.h"
 #include "HitObjects.h"

@@ -3,6 +3,7 @@
 
 #include "Font.h"
 #include "SongBrowser.h"
+#include "CarouselData.h"
 #include "BeatmapCarousel.h"
 
 // ---

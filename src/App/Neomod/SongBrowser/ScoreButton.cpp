@@ -392,7 +392,7 @@ bool ScoreButton::showsPP() {
     if(cv::scores_always_display_pp.getBool()) return true;
 
     // show score for score sorting, pp for pp sorting
-    const auto comparator = g_songbrowser->getScoreSortingMethod().comparator;
+    const auto comparator = g_songbrowser->getScoreComparator();
     if(comparator == Database::sortScoreByPP) return true;
     if(comparator == Database::sortScoreByScore) return false;
 

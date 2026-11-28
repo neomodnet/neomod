@@ -44,12 +44,10 @@ void ChatLink::updateInput(CBaseUIEventCtx &c) {
 
 void ChatLink::open_beatmap_link(i32 map_id, i32 set_id) {
     if(ui->getSongBrowser()->isVisible()) {
-        ui->getSongBrowser()->map_autodl = map_id;
-        ui->getSongBrowser()->set_autodl = set_id;
+        ui->getSongBrowser()->selectOrDownload(set_id, map_id, {});
     } else if(ui->getMainMenu()->isVisible()) {
         ui->setScreen(ui->getSongBrowser());
-        ui->getSongBrowser()->map_autodl = map_id;
-        ui->getSongBrowser()->set_autodl = set_id;
+        ui->getSongBrowser()->selectOrDownload(set_id, map_id, {});
     } else {
         env->openURLInDefaultBrowser(this->link);
     }

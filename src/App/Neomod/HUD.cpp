@@ -2789,7 +2789,7 @@ void HUD::updateScoringMetric() {
     } else {
         this->scoring_metric = WinCondition::SCOREV1;
 
-        const auto comparator = ui->getSongBrowser()->getScoreSortingMethod().comparator;
+        const auto comparator = ui->getSongBrowser()->getScoreComparator();
         if(comparator == Database::sortScoreByAccuracy) {
             this->scoring_metric = WinCondition::ACCURACY;
         } else if(comparator == Database::sortScoreByCombo) {
