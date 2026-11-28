@@ -74,7 +74,7 @@ void sleep_ns_precise_internal(u64 ns) noexcept;
 [[nodiscard]] i64 getUnixTimeMS() noexcept;
 
 // a unix time as UTC, written with a strftime format
-[[nodiscard]] std::string formatUTC(const char *format, i64 unixTime);
+[[nodiscard]] std::string formatUTC(const char *format, i64 unixTime) STRFTIME_FORMAT(1);
 
 static constexpr forceinline INLINE_BODY u64 ticksNSToMS(u64 ns) noexcept {
     return detail::convert_time<NS_PER_MS>(ns);

@@ -65,6 +65,7 @@ inline bool isInt(float f) { return (f == static_cast<float>(static_cast<int>(f)
 // force all functions in the function body to be inlined into it
 // different from "really_forceinline", because the function itself won't necessarily be inlined at all call sites
 #define REALLY_INLINE_BODY __attribute__((flatten))
+#define STRFTIME_FORMAT(fmt_index) __attribute__((format(strftime, fmt_index, 0)))
 
 #define CONSTINIT constinit
 
@@ -83,6 +84,7 @@ inline bool isInt(float f) { return (f == static_cast<float>(static_cast<int>(f)
 #define neverinline
 #endif
 #define REALLY_INLINE_BODY
+#define STRFTIME_FORMAT(fmt_index)
 #endif
 
 // avoid always_inline for debug builds because it 1. slows down compilation and 2. makes debugging harder
