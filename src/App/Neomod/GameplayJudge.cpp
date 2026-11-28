@@ -219,6 +219,12 @@ void GameplayJudge::simulate_to(i32 musicPos) {
         const u8 lastKeys = keylocked(prev_frame.key_flags);
         const u8 keys = keylocked(frame.key_flags);
         u8 clickKeys = keys & ~lastKeys;
+        // with keylock, K1/M1 and K2/M2 each act as one button, which only clicks when it goes down.
+        // a key taking over the hold from the other one of its pair (K1|M1 -> M1) is no new click.
+        if(keylock) {
+            if(lastKeys & (Replay::K1 | Replay::M1)) clickKeys &= ~(Replay::K1 | Replay::M1);
+            if(lastKeys & (Replay::K2 | Replay::M2)) clickKeys &= ~(Replay::K2 | Replay::M2);
+        }
         if(this->getMods().has(ModFlags::DKS)) clickKeys |= lastKeys & ~keys;
 
         // cv::auto_and_relax_block_user_input
