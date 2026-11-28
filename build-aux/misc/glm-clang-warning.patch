@@ -1,8 +1,8 @@
-diff --git a/../glm/detail/type_half.inl b/../glm/detail/type_half.inl
+diff --git a/glm/detail/type_half.inl b/glm/detail/type_half.inl
 index 5d239cf..608c58e 100644
---- a/../glm/detail/type_half.inl
-+++ b/../glm/detail/type_half.inl
-@@ -4,9 +4,19 @@ namespace detail
+--- a/glm/detail/type_half.inl
++++ b/glm/detail/type_half.inl
+@@ -4,9 +4,20 @@ namespace detail
  	GLM_FUNC_QUALIFIER float overflow()
  	{
  		volatile float f = 1e10;
@@ -10,6 +10,7 @@ index 5d239cf..608c58e 100644
 +#		if GLM_SILENT_WARNINGS == GLM_ENABLE
 +#			if GLM_COMPILER & GLM_COMPILER_CLANG
 +#				pragma clang diagnostic push
++#				pragma clang diagnostic ignored "-Wunknown-warning-option"
 +#				pragma clang diagnostic ignored "-Wunsequenced-volatile"
 +#			endif
 +#		endif
