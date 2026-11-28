@@ -2,6 +2,12 @@
 #include "SyncJthread.h"
 // jthreads (+ stop token support)
 
+#ifdef USE_NSYNC
+#include "nsync_note.h"
+
+#include <cassert>
+#endif
+
 #ifndef MCENGINE_PLATFORM_WASM
 
 #include <SDL3/SDL_thread.h>
@@ -49,3 +55,21 @@ unsigned int sdl_jthread::hardware_concurrency() noexcept { return SDL_GetNumLog
 }  // namespace Sync
 
 #endif  // MCENGINE_PLATFORM_WASM
+
+#ifdef USE_NSYNC
+namespace Sync::detail {
+
+stop_state::stop_state()
+    : m_value(ssrc_counter_inc),  // starts with 1 source
+      m_note(nsync_note_new(nullptr, nsync_time_no_deadline)) {
+    assert(m_note && "stop_state: nsync_note_new failed");
+}
+
+stop_state::~stop_state() {
+    if(m_note) nsync_note_free(m_note);
+}
+
+void stop_state::notify() noexcept { nsync_note_notify(m_note); }
+
+}  // namespace Sync::detail
+#endif

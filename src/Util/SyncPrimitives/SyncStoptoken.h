@@ -8,7 +8,6 @@
 #include "SyncMutex.h"
 
 #ifdef USE_NSYNC
-#include "nsync_note.h"
 #include "noinclude.h"
 
 #ifdef _MSC_VER
@@ -20,9 +19,13 @@ void _mm_pause(void);
 #endif
 
 #include <atomic>
-#include <thread>
 #include <type_traits>
 #include <utility>
+
+// nsync_note.h pulls in <chrono> through nsync_time.h, so only the handle is declared here
+namespace nsync {
+typedef struct nsync_note_s_* nsync_note;
+}
 #else
 #include <stop_token>
 #endif
@@ -79,25 +82,20 @@ struct stop_state {
     nsync_note m_note;
     nsync_mu m_mutex{};
     stop_cb_base* m_head = nullptr;
-    std::thread::id m_requester;
+    const void* m_requester = nullptr;
 
     static constexpr uint32_t stop_requested_bit = 1;
     static constexpr uint32_t ssrc_counter_inc = 2;
 
-    stop_state()
-        : m_value(ssrc_counter_inc),  // starts with 1 source
-          m_note(nsync_note_new(nullptr, nsync_time_no_deadline)) {
-        assert(m_note && "stop_state: nsync_note_new failed");
-    }
-
-    ~stop_state() {
-        if(m_note) nsync_note_free(m_note);
-    }
+    stop_state();
+    ~stop_state();
 
     stop_state(const stop_state&) = delete;
     stop_state(stop_state&&) = delete;
     stop_state& operator=(const stop_state&) = delete;
     stop_state& operator=(stop_state&&) = delete;
+
+    void notify() noexcept;
 
     void add_ref() noexcept { m_refcount.fetch_add(1, std::memory_order_relaxed); }
 
@@ -127,8 +125,8 @@ struct stop_state {
         } while(!m_value.compare_exchange_weak(old, old | stop_requested_bit, std::memory_order_acq_rel,
                                                std::memory_order_acquire));
 
-        nsync_note_notify(m_note);
-        m_requester = std::this_thread::get_id();
+        notify();
+        m_requester = current_thread();
 
         nsync_mu_lock(&m_mutex);
         while(m_head) {
@@ -204,7 +202,7 @@ struct stop_state {
         nsync_mu_unlock(&m_mutex);
 
         // callback not in list, must have been removed by request_stop
-        if(m_requester != std::this_thread::get_id()) {
+        if(m_requester != current_thread()) {
             // wait for callback execution to complete
             while(!cb->m_done.load(std::memory_order_acquire)) {
                 yield_pause();

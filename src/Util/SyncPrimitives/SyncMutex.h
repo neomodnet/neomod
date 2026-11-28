@@ -10,7 +10,6 @@
 #include "nsync_mu.h"
 
 #include <atomic>
-#include <thread>
 #include <cassert>
 
 #else  // USE_NSYNC
@@ -22,6 +21,12 @@
 namespace Sync {
 #ifdef USE_NSYNC
 using namespace nsync;
+
+namespace detail {
+// identifies the calling thread like std::this_thread::get_id(), without including <thread>
+inline thread_local const char thread_tag{};
+inline const void* current_thread() noexcept { return &thread_tag; }
+}  // namespace detail
 
 // ===================================================================
 // fundamental mutex wrapping nsync_mu
@@ -378,7 +383,7 @@ class nsync_recursive_mutex_t {
    private:
     nsync_mu m_mutex{};  // held for as long as a thread owns this
     // relaxed is enough: only the owner stores its own id, and clears it before releasing m_mutex
-    std::atomic<std::thread::id> m_owner;
+    std::atomic<const void*> m_owner{nullptr};
     int m_count = 0;  // only accessed by the owner
 
    public:
@@ -391,7 +396,7 @@ class nsync_recursive_mutex_t {
     nsync_recursive_mutex_t& operator=(nsync_recursive_mutex_t&&) = delete;
 
     void lock() {
-        const auto current_id = std::this_thread::get_id();
+        const auto current_id = detail::current_thread();
         if(m_owner.load(std::memory_order_relaxed) != current_id) {
             nsync_mu_lock(&m_mutex);
             m_owner.store(current_id, std::memory_order_relaxed);
@@ -400,7 +405,7 @@ class nsync_recursive_mutex_t {
     }
 
     bool try_lock() noexcept {
-        const auto current_id = std::this_thread::get_id();
+        const auto current_id = detail::current_thread();
         if(m_owner.load(std::memory_order_relaxed) != current_id) {
             if(!nsync_mu_trylock(&m_mutex)) {
                 return false;
@@ -412,11 +417,11 @@ class nsync_recursive_mutex_t {
     }
 
     void unlock() {
-        assert((m_owner.load(std::memory_order_relaxed) == std::this_thread::get_id()) &&
+        assert((m_owner.load(std::memory_order_relaxed) == detail::current_thread()) &&
                "recursive_mutex::unlock: not owner");
 
         if(--m_count == 0) {
-            m_owner.store(std::thread::id{}, std::memory_order_relaxed);
+            m_owner.store(nullptr, std::memory_order_relaxed);
             nsync_mu_unlock(&m_mutex);
         }
     }
