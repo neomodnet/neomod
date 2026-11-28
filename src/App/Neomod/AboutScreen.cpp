@@ -396,8 +396,15 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 void AboutScreen::buildChangelog() {
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v45_02;
+    v45_02.title = "45.02 (" CHANGELOG_TIMESTAMP ")";
+    v45_02.changes = {
+        R"()",
+    };
+    changelogs.push_back(std::move(v45_02));
+
     CHANGELOG v45_01;
-    v45_01.title = "45.01 (" CHANGELOG_TIMESTAMP ")";
+    v45_01.title = "45.01 (2026-11-28)";
     v45_01.changes = {
         R"(- Added timewarp: hold Shift and scroll to change speed in gameplay/replays)",
         R"(- Added a crash handler)",
