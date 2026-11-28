@@ -4,6 +4,7 @@
 #include "Graphics.h"
 #include "Osu.h"
 #include "UniString.h"
+#include "Algorithms.h"
 
 UIButtonWithIcon::UIButtonWithIcon(std::string text, char32_t icon) : CBaseUIContainer(0, 0, 0, 0, "") {
     // the container itself is the button: opt back into hit candidacy; the labels are
@@ -46,7 +47,7 @@ void UIButtonWithIcon::onResized() {
     const f32 dpiScale = Osu::getUIScale();
     const f32 inner_margin = 4.f * dpiScale;
     const f32 btn_width = this->icon->getSize().x + inner_margin + this->text->getSize().x;
-    const f32 btn_height = std::max(this->icon->getSize().y, this->text->getSize().y);
+    const f32 btn_height = Mc::max(this->icon->getSize().y, this->text->getSize().y);
 
     this->text->setRelPos(this->icon->getSize().x + inner_margin, btn_height / 2 - this->text->getSize().y / 2);
 

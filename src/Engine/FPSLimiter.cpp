@@ -3,6 +3,7 @@
 #include "Timing.h"
 #include "ConVar.h"
 #include "types.h"
+#include "Algorithms.h"
 
 #include <cassert>
 
@@ -55,7 +56,7 @@ void limit_frames(int target_fps, bool precise_sleeps) {
                 }
             } else {  // precise sleeps per-frame
                 // never sleep more than the current target fps frame time
-                const u64 sleep_time_ns = std::min(s_next_frame_time - now, frame_time_ns);
+                const u64 sleep_time_ns = Mc::min(s_next_frame_time - now, frame_time_ns);
                 if(precise_sleeps) {
                     Timing::sleepNSPrecise(sleep_time_ns);
                 } else {

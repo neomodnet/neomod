@@ -1,7 +1,7 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "InfoLabel.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 
 #include "Keyboard.h"
@@ -73,7 +73,7 @@ void InfoLabel::draw() {
     const std::string diffInfoText{this->buildDiffInfoString()};
     const std::string offsetInfoText{this->buildOffsetInfoString()};
 
-    const f32 globalScale = std::max((this->getSize().y / this->getMinimumHeight()) * 0.91f, 1.0f);
+    const f32 globalScale = Mc::max((this->getSize().y / this->getMinimumHeight()) * 0.91f, 1.0f);
 
     i32 yCounter = this->getPos().y;
 
@@ -210,7 +210,7 @@ void InfoLabel::updateInput(CBaseUIEventCtx &c) {
                 }
 
                 tooltipOverlay->addLine(fmt::format("Circles: {:d}, Sliders: {:d}, Spinners: {:d}", numCircles,
-                                                    numSliders, std::max(0, numObjects - numCircles - numSliders)));
+                                                    numSliders, Mc::max(0, numObjects - numCircles - numSliders)));
                 tooltipOverlay->addLine(fmt::format("OPM: {:d}, CPM: {:d}, SPM: {:d}", (i32)opm, (i32)cpm, (i32)spm));
                 tooltipOverlay->addLine(fmt::format("ID: {:d}, SetID: {:d}", bmDiff2->getID(), bmDiff2->getSetID()));
                 tooltipOverlay->addLine(fmt::format("MD5: {:s}", bmDiff2->getMD5()));
@@ -250,7 +250,7 @@ void InfoLabel::updateScaling() {
     // TODO: this seems wrong...
 
     const auto screen = osu->getVirtScreenSize();
-    const bool is_widescreen = ((i32)(std::max(0, (i32)((screen.x - (screen.y * 4.f / 3.f)) / 2.f))) > 0);
+    const bool is_widescreen = ((i32)(Mc::max(0, (i32)((screen.x - (screen.y * 4.f / 3.f)) / 2.f))) > 0);
 
     this->fGlobalScale = (screen.x / (is_widescreen ? 1366.f : 1024.f)) / Osu::getUIScale();
     this->fTitleScale = (1.f * this->fGlobalScale) / this->getTitleFontRatio();
@@ -381,7 +381,7 @@ f32 InfoLabel::getMinimumWidth() const {
     const f32 diffInfoWidth = this->font->getStringWidth(this->buildDiffInfoString()) * this->fDiffInfoScale;
     const f32 offsetInfoWidth = this->font->getStringWidth(this->buildOffsetInfoString()) * this->fOffsetInfoScale;
 
-    return std::max({titleWidth, subTitleWidth, songInfoWidth, diffInfoWidth, offsetInfoWidth});
+    return Mc::max({titleWidth, subTitleWidth, songInfoWidth, diffInfoWidth, offsetInfoWidth});
 }
 
 f32 InfoLabel::getMinimumHeight() const {

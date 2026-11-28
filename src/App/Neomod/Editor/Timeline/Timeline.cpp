@@ -19,8 +19,8 @@
 #include "UniString.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -125,9 +125,9 @@ void Timeline::draw() {
 
     if(this->gesture == Gesture::RANGE) {
         const f32 x0 = this->xAt(this->pressedTime);
-        const f32 x1 = std::clamp(mouse->getPos().x, pos.x, pos.x + size.x);
+        const f32 x1 = Mc::clamp(mouse->getPos().x, pos.x, pos.x + size.x);
         g->setColor(RANGE_COLOR);
-        g->fillRectf(std::min(x0, x1), pos.y, std::abs(x1 - x0), size.y);
+        g->fillRectf(Mc::min(x0, x1), pos.y, std::abs(x1 - x0), size.y);
     }
 
     this->drawObjects(left, right);
@@ -178,10 +178,10 @@ void Timeline::drawGrid(f64 left, f64 right) const {
         // a file can say any beat length
         if(!point->uninherited || !(point->beatLength > 0.0) || !std::isfinite(point->beatLength)) continue;
 
-        const auto next = std::find_if(point + 1, points.end(), [](const TimingPoint &p) { return p.uninherited; });
+        const auto next = Mc::find_if(point + 1, points.end(), [](const TimingPoint &p) { return p.uninherited; });
         const f64 end = next != points.end() ? next->time : std::numeric_limits<f64>::infinity();
-        const f64 from = std::max(point == first ? left : point->time, left);
-        const f64 to = std::min(end, right);
+        const f64 from = Mc::max(point == first ? left : point->time, left);
+        const f64 to = Mc::min(end, right);
         if(from > to) continue;
 
         // closer ticks than can be told apart: beats only, or only bar lines (a step a bar), or none
@@ -218,7 +218,7 @@ void Timeline::drawObjects(f64 left, f64 right) const {
     const Compose &compose = this->state.compose;
     const f64 margin = diameter / (size.x / (RANGE_MS / this->state.zoom));
     const f32 fade = uiStyle().px(40.f);
-    const auto edgeAlpha = [&](f32 x) { return std::clamp(std::min(x - pos.x, pos.x + size.x - x) / fade, 0.f, 1.f); };
+    const auto edgeAlpha = [&](f32 x) { return Mc::clamp(Mc::min(x - pos.x, pos.x + size.x - x) / fade, 0.f, 1.f); };
     const auto color = [&](const HitObject &obj) {
         return obj.isSpinner() ? SPINNER_COLOR
                                : skin->getComboColorForCounter(obj.getColorCounter(), obj.getColorOffset(),
@@ -297,7 +297,7 @@ void Timeline::drawObjects(f64 left, f64 right) const {
                    : selected && end  ? std::optional{argb(255, 255, 255, 255)}
                                       : std::nullopt;
         };
-        const i32 spans = obj.isSlider() ? std::max(obj.getRepeat(), 1) : 1;
+        const i32 spans = obj.isSlider() ? Mc::max(obj.getRepeat(), 1) : 1;
         if(obj.getDuration() > 0) circle(obj.getEndTime(), c, 0, false, ring(spans, true));
         if(obj.isSlider()) {
             i32 repeat = 0;
@@ -355,7 +355,7 @@ void Timeline::drawSoundLabels(f64 left, f64 right) const {
     std::optional<Waiting> waiting;
     const auto draw = [&](f32 next) {
         std::string &text = waiting->text;
-        const f32 room = std::min(waiting->room, std::abs(next - waiting->x)) - gap;
+        const f32 room = Mc::min(waiting->room, std::abs(next - waiting->x)) - gap;
         while(font->getStringWidth(text) > room && UniString::prev(text, text.size()) > 0) {
             text.resize(UniString::prev(text, text.size()));
         }
@@ -391,7 +391,7 @@ void Timeline::drawSoundLabels(f64 left, f64 right) const {
             label(obj.getClickTime(), circle->samples);
         } else if(const auto *slider = std::get_if<SLIDER>(&read[i])) {
             // the sounds on each end itself, or the slider sounds for all of them
-            const i32 spans = std::max(slider->repeat, 1);
+            const i32 spans = Mc::max(slider->repeat, 1);
             const f64 span = (f64)obj.getDuration() / spans;
             for(i32 edge = 0; edge <= spans; edge++) {
                 label(obj.getClickTime() + span * edge,
@@ -405,7 +405,7 @@ void Timeline::drawSoundLabels(f64 left, f64 right) const {
 }
 
 void Timeline::zoom(i32 steps) {
-    this->state.zoom = std::clamp(std::round((this->state.zoom + 0.1f * (f32)steps) * 10.f) / 10.f, 0.1f, 8.f);
+    this->state.zoom = Mc::clamp(std::round((this->state.zoom + 0.1f * (f32)steps) * 10.f) / 10.f, 0.1f, 8.f);
 }
 
 bool Timeline::onWheel(WheelDelta vertical, WheelDelta /*horizontal*/) {
@@ -440,8 +440,8 @@ void Timeline::onMouseDownInside(MouseButtonFlags buttons) {
     if(const std::optional<neomod::HitObject> from = this->state.objects->find(this->pivot);
        from && hit && keyboard->isShiftDown()) {
         std::vector<Document::Id> range =
-            compose.objectsBetween(std::min(from->getClickTime(), hit->object->getClickTime()),
-                                   std::max(from->getEndTime(), hit->object->getEndTime()));
+            compose.objectsBetween(Mc::min(from->getClickTime(), hit->object->getClickTime()),
+                                   Mc::max(from->getEndTime(), hit->object->getEndTime()));
         if(keyboard->isControlDown()) {
             compose.select(std::move(range), std::vector{compose.getSelection()});
             this->pivot = hit->id;
@@ -505,7 +505,7 @@ void Timeline::onCapturedMouseMove() {
     const f32 left = this->getPos().x;
     const f32 right = left + this->getSize().x;
     if((x < left || x > right) && !this->state.clock.isPlaying()) {
-        const f64 edge = this->timeAt(std::clamp(x, left, right));
+        const f64 edge = this->timeAt(Mc::clamp(x, left, right));
         const f64 by = (this->timeAt(x) - edge) / 2.0 * engine->getFrameTime() * 60.0;
         this->state.clock.seek(this->state.clock.getTime() + (i32)by);
     }
@@ -531,7 +531,7 @@ void Timeline::onCapturedMouseMove() {
             compose.dragBreak(this->timeAt(x), !keyboard->isShiftDown());
             return;
         case Gesture::RANGE:
-            compose.select(compose.objectsBetween(this->pressedTime, this->timeAt(std::clamp(x, left, right))),
+            compose.select(compose.objectsBetween(this->pressedTime, this->timeAt(Mc::clamp(x, left, right))),
                            this->kept);
             return;
         case Gesture::NONE:

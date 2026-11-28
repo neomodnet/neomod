@@ -10,8 +10,8 @@
 #include "Logging.h"
 #include "AsyncPool.h"
 #include "AsyncFuture.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 
 namespace Collections {
@@ -137,7 +137,7 @@ bool load_peppy(std::string_view peppy_collections_path) {
 
         u32 progress_bytes = db->bytes_processed + peppy_collections.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)db->total_bytes;
-        db->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+        db->loading_progress = Mc::clamp(progress_float, 0.01, 0.99);
     }
 
     debugLog("Loaded {:d} peppy collections ({:d} maps)", nb_collections, total_maps);
@@ -194,7 +194,7 @@ bool load_mcneomod(std::string_view neomod_collections_path) {
 
         u32 progress_bytes = db->bytes_processed + neomod_collections.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)db->total_bytes;
-        db->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+        db->loading_progress = Mc::clamp(progress_float, 0.01, 0.99);
     }
 
     debugLog("Loaded {:d} neomod collections ({:d} maps)", nb_collections, total_maps);

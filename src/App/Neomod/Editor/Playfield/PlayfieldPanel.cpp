@@ -25,8 +25,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <iterator>
@@ -83,7 +83,7 @@ PlayfieldPanel::~PlayfieldPanel() {
 }
 
 void PlayfieldPanel::fit() {
-    this->scale = std::max(0.01f, std::min(this->getSize().x / AREA.x, this->getSize().y / AREA.y));
+    this->scale = Mc::max(0.01f, Mc::min(this->getSize().x / AREA.x, this->getSize().y / AREA.y));
     this->offset = this->getPos() + (this->getSize() - FIELD * this->scale) / 2.f;
 }
 
@@ -131,7 +131,7 @@ void PlayfieldPanel::draw() {
                                                                                  : std::optional{SELECTED_SLIDER};
         this->shown.push_back(obj.getIndex());
     }
-    std::reverse(this->shown.begin(), this->shown.end());
+    Mc::reverse(this->shown.begin(), this->shown.end());
 
     // follow points fade out soon after the object they lead to
     HitObjectDrawing::drawFollowPoints(objects.view, objects.objects, objects.firstFrom(time - SHOWN_AFTER_MS));
@@ -357,10 +357,10 @@ void PlayfieldPanel::updateRings() {
     if(this->ringsTarget && look == this->drawnLook) {
         // more of the same, unmoved objects (a range or a box growing): only the new rings, onto the others
         if(objects.revision == this->drawnRevision && this->ringsShift == vec2{0.f} &&
-           std::includes(selection.begin(), selection.end(), this->drawnIds.begin(), this->drawnIds.end())) {
+           Mc::includes(selection.begin(), selection.end(), this->drawnIds.begin(), this->drawnIds.end())) {
             std::vector<Document::Id> added;
-            std::set_difference(selection.begin(), selection.end(), this->drawnIds.begin(), this->drawnIds.end(),
-                                std::back_inserter(added));
+            Mc::set_difference(selection.begin(), selection.end(), this->drawnIds.begin(), this->drawnIds.end(),
+                               std::back_inserter(added));
             this->drawRings(ringsOf(added), false);
             this->drawnIds = selection;
             this->drawnRings = std::move(centers);

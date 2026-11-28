@@ -69,8 +69,8 @@
 #include "Startup.h"
 
 #include "fmt/chrono.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <atomic>
 #include <utility>
 
@@ -550,8 +550,8 @@ class SkinPreviewElement final : public CBaseUIElement {
         float scoreScale = 0.5f;
 
         if(this->iMode == 0) {
-            float approachScale = std::clamp<float>(1.0f + 1.5f - fmod(engine->getTime() * 3, 3.0f), 0.0f, 2.5f);
-            float approachAlpha = std::clamp<float>(fmod(engine->getTime() * 3, 3.0f) / 1.5f, 0.0f, 1.0f);
+            float approachScale = Mc::clamp<float>(1.0f + 1.5f - fmod(engine->getTime() * 3, 3.0f), 0.0f, 2.5f);
+            float approachAlpha = Mc::clamp<float>(fmod(engine->getTime() * 3, 3.0f) / 1.5f, 0.0f, 1.0f);
             approachAlpha = -approachAlpha * (approachAlpha - 2.0f);
             approachAlpha = -approachAlpha * (approachAlpha - 2.0f);
             float approachCircleAlpha = approachAlpha;
@@ -623,8 +623,8 @@ class SliderPreviewElement final : public CBaseUIElement {
         const PlainPlayfieldView view{osu->getSkin(), this->getPos(), 1.f, this->getHitcircleDiameter()};
         const float hitcircleDiameter = view.getHitcircleDiameter();
 
-        const float approachScale = std::clamp<float>(1.0f + 1.5f - fmod(engine->getTime() * 3, 3.0f), 0.0f, 2.5f);
-        float approachAlpha = std::clamp<float>(fmod(engine->getTime() * 3, 3.0f) / 1.5f, 0.0f, 1.0f);
+        const float approachScale = Mc::clamp<float>(1.0f + 1.5f - fmod(engine->getTime() * 3, 3.0f), 0.0f, 2.5f);
+        float approachAlpha = Mc::clamp<float>(fmod(engine->getTime() * 3, 3.0f) / 1.5f, 0.0f, 1.0f);
 
         approachAlpha = -approachAlpha * (approachAlpha - 2.0f);
         approachAlpha = -approachAlpha * (approachAlpha - 2.0f);
@@ -2171,10 +2171,10 @@ void OptionsOverlayImpl::draw() {
 
     if(this->backgroundBrightnessSlider->isActive()) {
         if(!isPlayingBeatmap) {
-            const float brightness = std::clamp<float>(this->backgroundBrightnessSlider->getFloat(), 0.0f, 1.0f);
-            const short red = std::clamp<float>(brightness * cv::background_color_r.getFloat(), 0.0f, 255.0f);
-            const short green = std::clamp<float>(brightness * cv::background_color_g.getFloat(), 0.0f, 255.0f);
-            const short blue = std::clamp<float>(brightness * cv::background_color_b.getFloat(), 0.0f, 255.0f);
+            const float brightness = Mc::clamp<float>(this->backgroundBrightnessSlider->getFloat(), 0.0f, 1.0f);
+            const short red = Mc::clamp<float>(brightness * cv::background_color_r.getFloat(), 0.0f, 255.0f);
+            const short green = Mc::clamp<float>(brightness * cv::background_color_g.getFloat(), 0.0f, 255.0f);
+            const short blue = Mc::clamp<float>(brightness * cv::background_color_b.getFloat(), 0.0f, 255.0f);
             if(brightness > 0.0f) {
                 g->setColor(argb(255, red, green, blue));
                 g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
@@ -2184,7 +2184,7 @@ void OptionsOverlayImpl::draw() {
 
     if(this->backgroundDimSlider->isActive()) {
         if(!isPlayingBeatmap) {
-            const short dim = std::clamp<float>(this->backgroundDimSlider->getFloat(), 0.0f, 1.0f) * 255.0f;
+            const short dim = Mc::clamp<float>(this->backgroundDimSlider->getFloat(), 0.0f, 1.0f) * 255.0f;
             g->setColor(argb(dim, 0, 0, 0));
             g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
         }
@@ -2572,7 +2572,7 @@ void OptionsOverlayImpl::updateLayout() {
         if(const auto limits = soundEngine->getOutputBufferLimits(); limits.has_value()) {
             this->asioBufferSizeSlider->setBounds(limits->minSize, limits->maxSize);
             float keyDelta =
-                static_cast<float>(std::max(limits->minSize, 1u));  // no fixed step (min == max in practice)
+                static_cast<float>(Mc::max(limits->minSize, 1u));  // no fixed step (min == max in practice)
             if(limits->granularity > 0)
                 keyDelta = static_cast<float>(limits->granularity);
             else if(limits->granularity == -1)
@@ -2667,7 +2667,7 @@ void OptionsOverlayImpl::updateLayout() {
     const int sideMargin = 25 * 2 * dpiScale;
 
     int optionsWidth = (int)(osu->getVirtScreenWidth() * optionsScreenWidthPercent);
-    optionsWidth = std::min((int)(725.0f * (1.0f - categoriesOptionsPercent)), optionsWidth) * dpiScale;
+    optionsWidth = Mc::min((int)(725.0f * (1.0f - categoriesOptionsPercent)), optionsWidth) * dpiScale;
 
     // widen the panel so the longest option fits without horizontal scrolling (approximately)
     float baseElementWidth = (float)optionsWidth - 2 * sideMargin - 2 * dpiScale;
@@ -2679,10 +2679,10 @@ void OptionsOverlayImpl::updateLayout() {
         checkbox->setSizeY(checkbox->getRelSize().y * dpiScale);
         checkbox->onResized();  // HACKHACK: framework, setWidth*() does not update string metrics
         checkbox->setWidthToContent(0);
-        maxElementWidth = std::max(maxElementWidth, checkbox->getSize().x);
+        maxElementWidth = Mc::max(maxElementWidth, checkbox->getSize().x);
     }
     if(maxElementWidth > baseElementWidth) {
-        optionsWidth = std::min((int)(maxElementWidth + 2 * sideMargin + 2 * dpiScale + 1), osu->getVirtScreenWidth());
+        optionsWidth = Mc::min((int)(maxElementWidth + 2 * sideMargin + 2 * dpiScale + 1), osu->getVirtScreenWidth());
     }
 
     const int categoriesWidth = optionsWidth * categoriesOptionsPercent;
@@ -3067,7 +3067,7 @@ void OptionsOverlayImpl::updateLayout() {
     }
     // bottom scroll padding: always leave enough room to scroll the last (possibly filtered) option
     // clear of the back button, which is drawn over the bottom of the panel
-    this->spacer->setSizeY(std::max(240.0f * dpiScale, parent->backButton->getSize().y + 40.0f * dpiScale));
+    this->spacer->setSizeY(Mc::max(240.0f * dpiScale, parent->backButton->getSize().y + 40.0f * dpiScale));
     this->options->container.addBaseUIElement(this->spacer, 0, (float)yCounter);
 
     this->options->setScrollSizeToContent();
@@ -3175,7 +3175,7 @@ void OptionsOverlayImpl::updateNotelockSelectLabel() {
     if(this->notelockSelectLabel == nullptr) return;
 
     this->notelockSelectLabel->setText(
-        this->notelockTypes[std::clamp<int>(cv::notelock_type.getInt(), 0, this->notelockTypes.size() - 1)]);
+        this->notelockTypes[Mc::clamp<int>(cv::notelock_type.getInt(), 0, this->notelockTypes.size() - 1)]);
 }
 
 void OptionsOverlayImpl::onLanguageSelect() {

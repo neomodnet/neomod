@@ -6,8 +6,8 @@
 #include "Skin.h"
 #include "SoundEngine.h"
 #include "Sound.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -68,7 +68,7 @@ f32 getVolume(HITSAMPLE_BITS info, const HitSoundContext &ctx, u8 hitSoundType, 
         static constexpr const float ONE_OVER_E = 3.678795e-01f;
         static constexpr const float ONE_IDENT_MUL = 0.761463f;
         volume = (std::log(volume + ONE_OVER_E) + 1.f) * ONE_IDENT_MUL;
-        volume = std::clamp(volume, 0.f, 1.f);
+        volume = Mc::clamp(volume, 0.f, 1.f);
     }
 
     return volume;
@@ -184,7 +184,7 @@ static constexpr u8 hitSoundToIndex(u8 hitSound) {
 // the sample index a hitsound plays: its own, else the timing point's
 static u16 getSampleIndex(HITSAMPLE_BITS info, const HitSoundContext &ctx) {
     if(info.index != 0) return info.index;
-    return static_cast<u16>(std::clamp(ctx.timingPointSampleIndex, 0, 0xffff));
+    return static_cast<u16>(Mc::clamp(ctx.timingPointSampleIndex, 0, 0xffff));
 }
 
 std::vector<ResolvedHitSound> resolve(HITSAMPLE_BITS info, const HitSoundContext &ctx, bool is_sliderslide) {

@@ -11,8 +11,8 @@
 #include "SString.h"
 #include "SyncJthread.h"
 #include "types.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <initializer_list>
@@ -653,7 +653,7 @@ void ConVarTest::testCallbacks() {
     // clamping from inside the convar's own callback
     t_callbacks.setCallback([](float /*oldValue*/, float newValue) -> void {
         s_cbChange.calls++;
-        t_callbacks.setValue(std::clamp(newValue, 0.0f, 10.0f), false);
+        t_callbacks.setValue(Mc::clamp(newValue, 0.0f, 10.0f), false);
     });
     s_cbChange.calls = 0;
     t_callbacks.setValue(50.0f);

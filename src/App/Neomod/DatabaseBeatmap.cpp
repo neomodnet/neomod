@@ -5,6 +5,7 @@
 #include "DifficultyCalculator.h"
 
 #include "Parsing.h"
+#include "Algorithms.h"
 
 #include <array>
 #include <cassert>
@@ -29,7 +30,6 @@
 #include "SongBrowser.h"
 #include "crypto.h"
 
-#include <algorithm>
 #include <sys/stat.h>
 
 using namespace neomod;
@@ -496,9 +496,9 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
             if(cv::mod_strict_tracking.getBool() && cv::mod_strict_tracking_remove_slider_ticks.getBool())
                 s->ticks.clear();
 
-            if(cv::mod_reverse_sliders.getBool()) std::reverse(s->points.begin(), s->points.end());
+            if(cv::mod_reverse_sliders.getBool()) Mc::reverse(s->points.begin(), s->points.end());
 
-            const int repeats = std::max((s->repeat - 1), 0);
+            const int repeats = Mc::max((s->repeat - 1), 0);
             maxPossibleCombo += 2 + repeats + (repeats + 1) * s->ticks.size();  // start/end + repeat arrow + ticks
         }
 
@@ -604,7 +604,7 @@ BPMInfo getBPM(const T &timing_points, f64 lastTime, std::vector<BPMTuple> &bpm_
     f64 since = 0.0;
     const auto count = [&](f64 until) {
         if(!started) return;
-        const f64 duration = std::max(std::min(until, lastTime) - since, 0.0);
+        const f64 duration = Mc::max(Mc::min(until, lastTime) - since, 0.0);
         for(auto &tuple : bpm_buffer) {
             if(tuple.bpm == bpm) {
                 tuple.duration += duration;
@@ -623,7 +623,7 @@ BPMInfo getBPM(const T &timing_points, f64 lastTime, std::vector<BPMTuple> &bpm_
         // select display."
         since = started ? t.offset : 0.0;
         started = true;
-        bpm = (i32)std::round(std::min(60000.0 / t.msPerBeat, 9001.0));
+        bpm = (i32)std::round(Mc::min(60000.0 / t.msPerBeat, 9001.0));
         if(bpm > max) max = bpm;
         if(bpm < min) min = bpm;
     }

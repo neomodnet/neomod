@@ -7,8 +7,8 @@
 #include "Engine.h"
 #include "Logging.h"
 #include "Hashing.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -101,8 +101,8 @@ void AsyncResourceLoader::update(bool lowLatency) {
         if(readyResources.empty() && !lowLatency) {
             // decay back to default
             this->iLoadsPerUpdate =
-                static_cast<size_t>(std::max(std::floor(static_cast<double>(this->iLoadsPerUpdate) * (15. / 16.)),
-                                             static_cast<double>(this->iLoadsPerUpdateFloor)));
+                static_cast<size_t>(Mc::max(std::floor(static_cast<double>(this->iLoadsPerUpdate) * (15. / 16.)),
+                                            static_cast<double>(this->iLoadsPerUpdateFloor)));
         }
     }
 

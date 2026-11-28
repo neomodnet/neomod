@@ -5,6 +5,7 @@
 // $NoKeywords: $sdlgpui
 //===============================================================================//
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_SDLGPU
 
@@ -34,7 +35,6 @@
 
 #include "binary_embed.h"
 
-#include <algorithm>
 #include <cstring>
 #include <iterator>
 #include <limits>
@@ -139,7 +139,7 @@ bool SDLGPUInterface::init() {
     if(const auto it = Mc::ranges::find(initOrder, Mc::Startup::get().sdlgpuDriver,
                                         [](const SDLGPUBackend &backend) { return std::string_view{backend.name()}; });
        it != initOrder.end()) {
-        std::rotate(initOrder.begin(), it, std::next(it));
+        Mc::rotate(initOrder.begin(), it, std::next(it));
         if constexpr(Env::cfg(OS::MAC)) {
             if(initOrder.front().type == SDLGPUBackend::VULKAN) {
                 const char *vkLoaderLib = "/opt/homebrew/lib/libvulkan.dylib";
@@ -792,13 +792,13 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
         if(preTransform) {
             p = {mp[0] * p.x + mp[4] * p.y + mp[8] * p.z + mp[12], mp[1] * p.x + mp[5] * p.y + mp[9] * p.z + mp[13],
                  mp[2] * p.x + mp[6] * p.y + mp[10] * p.z + mp[14]};
-            bounds.min = {std::min(bounds.min.x, p.x), std::min(bounds.min.y, p.y)};
-            bounds.max = {std::max(bounds.max.x, p.x), std::max(bounds.max.y, p.y)};
+            bounds.min = {Mc::min(bounds.min.x, p.x), Mc::min(bounds.min.y, p.y)};
+            bounds.max = {Mc::max(bounds.max.x, p.x), Mc::max(bounds.max.y, p.y)};
         }
         dst->pos = p;
         dst->col =
-            hasVColors ? SDLGPUSimpleVertex::packColorMul(vcolors[std::min(vi, maxColorIdx)], colorMul) : packedConst;
-        dst->tex = hasTexcoords ? texcoords[std::min(vi, maxTexIdx)] : vec2{};
+            hasVColors ? SDLGPUSimpleVertex::packColorMul(vcolors[Mc::min(vi, maxColorIdx)], colorMul) : packedConst;
+        dst->tex = hasTexcoords ? texcoords[Mc::min(vi, maxTexIdx)] : vec2{};
         ++dst;
     };
 
@@ -806,7 +806,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
     // remaining space goes in batches (rare, and the batches repeat the shared strip/fan vertices)
     const auto unitsThatFit = [&] {
         const uSz verts = MAX_STAGING_VERTS - m_stagingCount, indices = MAX_STAGING_INDICES - m_indexCount;
-        return verts < sharedVerts ? uSz{0} : std::min((verts - sharedVerts) / vertsPerUnit, indices / indicesPerUnit);
+        return verts < sharedVerts ? uSz{0} : Mc::min((verts - sharedVerts) / vertsPerUnit, indices / indicesPerUnit);
     };
     uSz unitIdx = 0;
     while(unitIdx < numUnits) {
@@ -822,7 +822,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
                 static_cast<SDLGPUSimpleVertex *>(SDL_MapGPUTransferBuffer(m_device, m_transferBuffer, true));
             if(!m_stagingMapped) return;
         }
-        batchUnits = std::min(batchUnits, numUnits - unitIdx);
+        batchUnits = Mc::min(batchUnits, numUnits - unitIdx);
         const uSz unitEnd = unitIdx + batchUnits;
         const u32 base = m_stagingCount;
         dst = m_stagingMapped + base;
@@ -964,11 +964,11 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 first, u32 coun
     if(ndcBounds) {
         const vec2 a = m_viewport.pos + (ndcBounds->min * vec2{0.5f, -0.5f} + 0.5f) * m_viewport.size;
         const vec2 b = m_viewport.pos + (ndcBounds->max * vec2{0.5f, -0.5f} + 0.5f) * m_viewport.size;
-        bounds = {.min = {std::min(a.x, b.x), std::min(a.y, b.y)}, .max = {std::max(a.x, b.x), std::max(a.y, b.y)}};
+        bounds = {.min = {Mc::min(a.x, b.x), Mc::min(a.y, b.y)}, .max = {Mc::max(a.x, b.x), Mc::max(a.y, b.y)}};
         if(m_scissorEnabled) {
-            bounds.min = {std::max(bounds.min.x, (float)scissor.pos.x), std::max(bounds.min.y, (float)scissor.pos.y)};
-            bounds.max = {std::min(bounds.max.x, (float)(scissor.pos.x + scissor.size.x)),
-                          std::min(bounds.max.y, (float)(scissor.pos.y + scissor.size.y))};
+            bounds.min = {Mc::max(bounds.min.x, (float)scissor.pos.x), Mc::max(bounds.min.y, (float)scissor.pos.y)};
+            bounds.max = {Mc::min(bounds.max.x, (float)(scissor.pos.x + scissor.size.x)),
+                          Mc::min(bounds.max.y, (float)(scissor.pos.y + scissor.size.y))};
         }
     }
 
@@ -1610,7 +1610,7 @@ void SDLGPUInterface::popRenderTarget() {
 void SDLGPUInterface::onFramecountNumChanged(float maxFramesInFlight) {
     if(!m_device) return;
 
-    const int maxFrames = std::clamp(static_cast<int>(maxFramesInFlight), 1, 3);
+    const int maxFrames = Mc::clamp(static_cast<int>(maxFramesInFlight), 1, 3);
     if(maxFrames == m_maxFrameLatency) return;
 
     if(!SDL_SetGPUAllowedFramesInFlight(m_device, maxFrames)) {

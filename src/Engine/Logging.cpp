@@ -9,6 +9,7 @@
 #include "Environment.h"
 #include "Paths.h"
 #include "build_timestamp.h"
+#include "Algorithms.h"
 
 // for SDL_CleanupTLS
 #include <SDL3/SDL_thread.h>
@@ -23,7 +24,6 @@
 #include <unistd.h>
 #endif
 
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <charconv>
@@ -447,7 +447,7 @@ class BarrierSink final : public spdlog::sinks::base_sink<spdlog::details::null_
         {
             Sync::lock_guard lock(mtx_);
             // tickets taken by different threads at the same time can arrive out of order
-            reached_ = std::max(reached_, ticket);
+            reached_ = Mc::max(reached_, ticket);
         }
         cv_.notify_all();
     }

@@ -1,7 +1,7 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "HUD.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -49,7 +49,7 @@ using namespace neomod;
 // TODO:
 // NOLINTBEGIN(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
 
-HUD::CursorTrail::CursorTrail() : buffer(std::clamp(cv::cursor_trail_max_size.getInt() * 2, 1, 32768)) {}
+HUD::CursorTrail::CursorTrail() : buffer(Mc::clamp(cv::cursor_trail_max_size.getInt() * 2, 1, 32768)) {}
 
 size_t HUD::CursorTrail::size() const { return count; }
 bool HUD::CursorTrail::empty() const { return count == 0; }
@@ -134,7 +134,7 @@ class HUD::SeekArea final : public CBaseUIElement {
         auto *pf = osu->getMapInterface();
         const auto buttons = CBaseUIDispatch::getCaptorButtons();
         const f32 mousePosX = std::round(mouse->getPos().x);
-        const f64 percent = std::clamp<f64>(mousePosX / (f64)this->getSize().x, 0., 1.);
+        const f64 percent = Mc::clamp<f64>(mousePosX / (f64)this->getSize().x, 0., 1.);
         const u32 seek_to_ms =
             static_cast<u32>(std::round(percent * (f64)(pf->getStartTimePlayable() + pf->getLengthPlayable())));
 
@@ -257,9 +257,9 @@ void HUD::draw() {
         const double frameAimTime = 1000.0 / 60.0;
         const double frameRatio = elapsedMS / frameAimTime;
         if(this->fHealth < currentHealth) {
-            this->fHealth = std::min(1.0, this->fHealth + std::abs(currentHealth - this->fHealth) / 4.0 * frameRatio);
+            this->fHealth = Mc::min(1.0, this->fHealth + std::abs(currentHealth - this->fHealth) / 4.0 * frameRatio);
         } else if(this->fHealth > currentHealth) {
-            this->fHealth = std::max(0.0, this->fHealth - std::abs(this->fHealth - currentHealth) / 6.0 * frameRatio);
+            this->fHealth = Mc::max(0.0, this->fHealth - std::abs(this->fHealth - currentHealth) / 6.0 * frameRatio);
         }
 
         if(cv::hud_scorebar_hide_during_breaks.getBool()) {
@@ -369,10 +369,10 @@ void HUD::draw() {
         f32 true_percent = pf->getPercentFinishedPlayable();
         if(!pf->isWaiting()) {
             f32 true_length = pf->getStartTimePlayable() + pf->getLengthPlayable();
-            true_percent = std::clamp((f32)(pf->getCurMusicPosWithOffsets() / true_length), 0.f, 1.f);
+            true_percent = Mc::clamp((f32)(pf->getCurMusicPosWithOffsets() / true_length), 0.f, 1.f);
         }
 
-        this->drawScrubbingTimeline((u32)std::max(0, pf->getJudgeMusicPos()), pf->getLengthPlayable(),
+        this->drawScrubbingTimeline((u32)Mc::max(0, pf->getJudgeMusicPos()), pf->getLengthPlayable(),
                                     pf->getStartTimePlayable(), true_percent, breaks);
     }
 
@@ -655,7 +655,7 @@ void HUD::drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, 
                 CursorTrailElement &curTrl = trail[i];
                 const f32 realWidth = scaleMulX * curTrl.scale;
                 const f32 realHeight = scaleMulY * curTrl.scale;
-                curTrl.alpha = std::clamp<f32>(((curTrl.time - timeNow) / trailLength) * alphaMultiplier, 0.0f, 1.0f) *
+                curTrl.alpha = Mc::clamp<f32>(((curTrl.time - timeNow) / trailLength) * alphaMultiplier, 0.0f, 1.0f) *
                                alphaScaleOpt;
 
                 vao.addVertices(std::array<vec3, 4>{vec3{curTrl.pos.x - realWidth,  // topLeft
@@ -673,7 +673,7 @@ void HUD::drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, 
         } else {  // old style trail
             while(i >= 0) {
                 CursorTrailElement &curTrl = trail[i];
-                curTrl.alpha = std::clamp<f32>(((curTrl.time - timeNow) / trailLength) * alphaMultiplier, 0.0f, 1.0f) *
+                curTrl.alpha = Mc::clamp<f32>(((curTrl.time - timeNow) / trailLength) * alphaMultiplier, 0.0f, 1.0f) *
                                alphaScaleOpt;
 
                 if(curTrl.alpha > 0.0f) this->drawCursorTrailRaw(curTrl.alpha, curTrl.pos);
@@ -742,9 +742,9 @@ void HUD::drawCursorRipples() {
     const f32 normalizedWidth = cursorRipple->getWidth() / normalized2xScale * imageScale;
     const f32 normalizedHeight = cursorRipple->getHeight() / normalized2xScale * imageScale;
 
-    const f32 duration = std::max(cv::cursor_ripple_duration.getFloat(), 0.0001f);
-    const f32 fadeDuration = std::max(
-        cv::cursor_ripple_duration.getFloat() - cv::cursor_ripple_anim_start_fadeout_delay.getFloat(), 0.0001f);
+    const f32 duration = Mc::max(cv::cursor_ripple_duration.getFloat(), 0.0001f);
+    const f32 fadeDuration =
+        Mc::max(cv::cursor_ripple_duration.getFloat() - cv::cursor_ripple_anim_start_fadeout_delay.getFloat(), 0.0001f);
 
     const bool isAdditive = cv::cursor_ripple_additive.getBool();
     if(isAdditive) g->setBlendMode(DrawBlendMode::ADDITIVE);
@@ -752,8 +752,8 @@ void HUD::drawCursorRipples() {
     g->setColor(RGB_CV_TO_COL(cursor_ripple_tint));
     cursorRipple->bind();
     for(auto r : this->cursorRipples) {
-        const f32 animPercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / duration, 0.0f, 1.0f);
-        const f32 fadePercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
+        const f32 animPercent = 1.0f - Mc::clamp<f32>((r.time - engine->getTime()) / duration, 0.0f, 1.0f);
+        const f32 fadePercent = 1.0f - Mc::clamp<f32>((r.time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
 
         const f32 scale =
             std::lerp(cv::cursor_ripple_anim_start_scale.getFloat(), cv::cursor_ripple_anim_end_scale.getFloat(),
@@ -789,7 +789,7 @@ void HUD::drawFps() {
     static double new_worst_frametime = 0.0;
     static double current_second = 0.0;
     if(current_second + 1.0 > engine->getTime()) {
-        new_worst_frametime = std::max(new_worst_frametime, engine->getFrameTime());
+        new_worst_frametime = Mc::max(new_worst_frametime, engine->getFrameTime());
     } else {
         old_worst_frametime = new_worst_frametime;
         new_worst_frametime = 0.f;
@@ -866,7 +866,7 @@ vec2 HUD::getFpsCounterSize() {
     if(!cv::draw_fps.getBool()) return {0.f, 0.f};
     McFont *font = engine->getDefaultFont();
     const auto [margin, below] = HUD::getFpsCounterMargins();
-    const f32 width = std::max(font->getStringWidth("0000 fps"), font->getStringWidth("000.0 ms"));
+    const f32 width = Mc::max(font->getStringWidth("0000 fps"), font->getStringWidth("000.0 ms"));
     return {width + 2.f * (f32)margin, 2.f * font->getHeight() + 3.f * (f32)margin + (f32)below};
 }
 
@@ -1167,11 +1167,11 @@ void HUD::drawHPBar(double health, f32 alpha, f32 breakAnim) {
     Color healthColor{0xffffffff};
     if(useNewDefault) {
         if(health < 0.2) {
-            const f32 factor = std::max(0.0, (0.2 - health) / 0.2);
+            const f32 factor = Mc::max(0.0, (0.2 - health) / 0.2);
             const f32 value = std::lerp(0.0f, 1.0f, factor);
             healthColor = argb(1.0f, value, 0.0f, 0.0f);
         } else if(health < 0.5) {
-            const f32 factor = std::max(0.0, (0.5 - health) / 0.5);
+            const f32 factor = Mc::max(0.0, (0.5 - health) / 0.5);
             const f32 value = std::lerp(1.0f, 0.0f, factor);
             healthColor = argb(1.0f, value, value, value);
         }
@@ -1216,8 +1216,7 @@ void HUD::drawAccuracySimple(f32 accuracy, f32 scale) {
 
     // get integer & fractional parts of the number
     const i32 accuracyInt = (i32)accuracy;
-    const i32 accuracyFrac =
-        std::clamp<i32>(((i32)(std::round((accuracy - accuracyInt) * 100.0f))), 0, 99);  // round up
+    const i32 accuracyFrac = Mc::clamp<i32>(((i32)(std::round((accuracy - accuracyInt) * 100.0f))), 0, 99);  // round up
 
     // draw it
     g->pushTransform();
@@ -1368,7 +1367,7 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
                 slot.total_score = (i32)player_score.getScore();
                 slot.current_hp = pf->getHealth() * 200;
                 slot.accuracy = player_score.getAccuracy();
-                slot.pp = std::max(0.f, pf->live_pp());
+                slot.pp = Mc::max(0.f, pf->live_pp());
             }
 
             const auto *user_info = BANCHO::User::get_user_info(slot.player_id, true);
@@ -1467,7 +1466,7 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
         playerScoreEntry.currentCombo = playerScore.getCombo();
         playerScoreEntry.maxCombo = playerScore.getComboMax();
         playerScoreEntry.score = playerScore.getScore();
-        playerScoreEntry.pp = std::max(0.f, osu->getMapInterface()->live_pp());
+        playerScoreEntry.pp = Mc::max(0.f, osu->getMapInterface()->live_pp());
         playerScoreEntry.misses = playerScore.getNumMisses();
         playerScoreEntry.accuracy = playerScore.getAccuracy();
         playerScoreEntry.dead = playerScore.isDead();
@@ -1648,8 +1647,8 @@ void HUD::drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50
 
     const f32 alphaEntry = alpha * cv::hud_hiterrorbar_entry_alpha.getFloat();
     const i32 alphaCenterlineInt =
-        std::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_centerline_alpha.getFloat() * 255.0f), 0, 255);
-    const i32 alphaBarInt = std::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_bar_alpha.getFloat() * 255.0f), 0, 255);
+        Mc::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_centerline_alpha.getFloat() * 255.0f), 0, 255);
+    const i32 alphaBarInt = Mc::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_bar_alpha.getFloat() * 255.0f), 0, 255);
 
     const Color color300 = RGB_CV_TO_COL(hud_hiterrorbar_entry_300).setA(alphaBarInt);
     const Color color100 = RGB_CV_TO_COL(hud_hiterrorbar_entry_100).setA(alphaBarInt);
@@ -1711,8 +1710,8 @@ void HUD::drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50
         const f32 hitFadeDuration = cv::hud_hiterrorbar_entry_hit_fade_time.getFloat();
         const f32 missFadeDuration = cv::hud_hiterrorbar_entry_miss_fade_time.getFloat();
         for(i32 i = this->hiterrors.size() - 1; i >= 0; i--) {
-            const f32 percent = std::clamp<f32>((f32)this->hiterrors[i].delta / (f32)totalHitWindowLength, -5.0f, 5.0f);
-            f32 fade = std::clamp<f32>(
+            const f32 percent = Mc::clamp<f32>((f32)this->hiterrors[i].delta / (f32)totalHitWindowLength, -5.0f, 5.0f);
+            f32 fade = Mc::clamp<f32>(
                 (this->hiterrors[i].time - engine->getTime()) /
                     (this->hiterrors[i].miss || this->hiterrors[i].misaim ? missFadeDuration : hitFadeDuration),
                 0.0f, 1.0f);
@@ -1925,12 +1924,12 @@ void HUD::drawStatistics(const HUDStats &s) {
 
         if(cv::draw_statistics_pp.getBool())
             addStatistic(
-                tformat("{:.{}f}pp", s.pp, std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
+                tformat("{:.{}f}pp", s.pp, Mc::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
                 cv::hud_statistics_pp_offset_x.getInt(), cv::hud_statistics_pp_offset_y.getInt());
 
         if(cv::draw_statistics_perfectpp.getBool())
             addStatistic(
-                tformat("SS: {:.{}f}pp", s.ppfc, std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
+                tformat("SS: {:.{}f}pp", s.ppfc, Mc::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
                 cv::hud_statistics_perfectpp_offset_x.getInt(), cv::hud_statistics_perfectpp_offset_y.getInt());
 
         if(cv::draw_statistics_misses.getBool())
@@ -2051,7 +2050,7 @@ void HUD::drawTargetHeatmap(f32 hitcircleDiameter) {
         else
             color = colorMiss;
 
-        g->setColor(Color(color).setA(std::clamp<f32>((target.time - engine->getTime()) / 3.5f, 0.0f, 1.0f)));
+        g->setColor(Color(color).setA(Mc::clamp<f32>((target.time - engine->getTime()) / 3.5f, 0.0f, 1.0f)));
 
         const f32 theta = vec::radians(target.angle);
         const f32 cs = std::cos(theta);
@@ -2094,7 +2093,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
             new_cursor_move_time -
             (this->fLastCursorMoveTime + cv::hud_scrubbing_timeline_replay_fadeout_time.getDouble());
         // decay faster instead of taking 1 second to fully fade out
-        galpha = std::pow(std::max(0., std::min(1. - time_since_last_move, 1.)), 2.);
+        galpha = std::pow(Mc::max(0., Mc::min(1. - time_since_last_move, 1.)), 2.);
     }
 
     const f32 dpiScale = Osu::getUIScale();
@@ -2132,14 +2131,14 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
 
     for(auto i : breaks) {
         const i32 width =
-            std::max((i32)(osu->getVirtScreenWidth() * std::clamp<f32>(i.endPercent - i.startPercent, 0.0f, 1.0f)), 2);
+            Mc::max((i32)(osu->getVirtScreenWidth() * Mc::clamp<f32>(i.endPercent - i.startPercent, 0.0f, 1.0f)), 2);
         g->fillRect(osu->getVirtScreenWidth() * i.startPercent, cursorPos.y + 1, width, breakHeight);
     }
 
     // non-300 hit results, misses drawn last so they stay visible in dense sections
     {
         const f32 hitHeight = 20 * dpiScale;
-        const f32 hitWidth = std::max(2.f, std::round(2 * dpiScale));
+        const f32 hitWidth = Mc::max(2.f, std::round(2 * dpiScale));
         const auto &hitresults = osu->getMapInterface()->getTimelineHitresults();
         for(const auto &[type, color] : {
                 std::pair{LiveHitResult::HIT_100, RGB_CV_TO_COL(hud_hiterrorbar_entry_100)},
@@ -2149,7 +2148,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
             g->setColor(Color(color).setA(galpha));
             for(const auto &hit : hitresults) {
                 if(hit.result != type) continue;
-                const f32 x = std::clamp<f32>((f32)hit.timeMS / (f32)endTimeMS, 0.f, 1.f) * osu->getVirtScreenWidth();
+                const f32 x = Mc::clamp<f32>((f32)hit.timeMS / (f32)endTimeMS, 0.f, 1.f) * osu->getVirtScreenWidth();
                 g->fillRect(x - hitWidth / 2.f, cursorPos.y, hitWidth, hitHeight);
             }
         }
@@ -2182,10 +2181,10 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
     std::string currentTimeText = fmt::format("{}:{:02d}", (beatmapTime / 1000) / 60, (beatmapTime / 1000) % 60);
     g->pushTransform();
     {
-        g->translate(std::clamp<f32>(triangleTip.x - timeFont->getStringWidth(currentTimeText) / 2.0f,
-                                     currentTimeLeftRightTextOffset,
-                                     osu->getVirtScreenWidth() - timeFont->getStringWidth(currentTimeText) -
-                                         currentTimeLeftRightTextOffset) +
+        g->translate(Mc::clamp<f32>(triangleTip.x - timeFont->getStringWidth(currentTimeText) / 2.0f,
+                                    currentTimeLeftRightTextOffset,
+                                    osu->getVirtScreenWidth() - timeFont->getStringWidth(currentTimeText) -
+                                        currentTimeLeftRightTextOffset) +
                          1,
                      triangleTip.y - osu->getSkin()->i_seek_triangle.getHeight() - currentTimeTopTextOffset + 1);
         g->setColor(Color(0xff000000).setA(galpha));
@@ -2234,7 +2233,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
 
     // quicksave time triangle & text
     if(osu->getQuickSaveTimeMS() != 0) {
-        const f32 quickSavePercent = std::clamp<f32>(osu->getQuickSaveTimeMS() / (f32)endTimeMS, 0.f, 1.f);
+        const f32 quickSavePercent = Mc::clamp<f32>(osu->getQuickSaveTimeMS() / (f32)endTimeMS, 0.f, 1.f);
         triangleTip = vec2(osu->getVirtScreenWidth() * quickSavePercent, cursorPos.y);
         g->pushTransform();
         {
@@ -2256,14 +2255,14 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
             fmt::format("{}:{:02d}", (quickSaveTimeMS / 1000) / 60, (quickSaveTimeMS / 1000) % 60);
         g->pushTransform();
         {
-            g->translate((i32)(std::clamp<f32>(triangleTip.x - timeFont->getStringWidth(currentTimeText) / 2.0f,
-                                               currentTimeLeftRightTextOffset,
-                                               osu->getVirtScreenWidth() - timeFont->getStringWidth(currentTimeText) -
-                                                   currentTimeLeftRightTextOffset) +
+            g->translate((i32)(Mc::clamp<f32>(triangleTip.x - timeFont->getStringWidth(currentTimeText) / 2.0f,
+                                              currentTimeLeftRightTextOffset,
+                                              osu->getVirtScreenWidth() - timeFont->getStringWidth(currentTimeText) -
+                                                  currentTimeLeftRightTextOffset) +
                                1),
                          (i32)(triangleTip.y + startAndEndTimeTextOffset + timeFont->getHeight() * 2.2f + 1 +
                                currentTimeTopTextOffset *
-                                   std::max(1.0f, HUD::getCursorScaleFactor() * cv::cursor_scale.getFloat()) *
+                                   Mc::max(1.0f, HUD::getCursorScaleFactor() * cv::cursor_scale.getFloat()) *
                                    cv::hud_scrubbing_timeline_hover_tooltip_offset_multiplier.getFloat()));
             g->setColor(Color(0xff000000).setA(galpha));
 
@@ -2277,19 +2276,19 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
     }
 
     // current time hover text
-    const u32 hoverTimeMS = std::clamp<f32>((cursorPos.x / (f32)osu->getVirtScreenWidth()), 0.0f, 1.0f) * endTimeMS;
+    const u32 hoverTimeMS = Mc::clamp<f32>((cursorPos.x / (f32)osu->getVirtScreenWidth()), 0.0f, 1.0f) * endTimeMS;
     std::string hoverTimeText = fmt::format("{}:{:02d}", (hoverTimeMS / 1000) / 60, (hoverTimeMS / 1000) % 60);
     triangleTip = vec2(cursorPos.x, cursorPos.y);
     g->pushTransform();
     {
         g->translate(
-            (i32)std::clamp<f32>(triangleTip.x - timeFont->getStringWidth(currentTimeText) / 2.0f,
-                                 currentTimeLeftRightTextOffset,
-                                 osu->getVirtScreenWidth() - timeFont->getStringWidth(currentTimeText) -
-                                     currentTimeLeftRightTextOffset) +
+            (i32)Mc::clamp<f32>(triangleTip.x - timeFont->getStringWidth(currentTimeText) / 2.0f,
+                                currentTimeLeftRightTextOffset,
+                                osu->getVirtScreenWidth() - timeFont->getStringWidth(currentTimeText) -
+                                    currentTimeLeftRightTextOffset) +
                 1,
             (i32)(triangleTip.y - osu->getSkin()->i_seek_triangle.getHeight() - timeFont->getHeight() * 1.2f -
-                  currentTimeTopTextOffset * std::max(1.0f, HUD::getCursorScaleFactor() * cv::cursor_scale.getFloat()) *
+                  currentTimeTopTextOffset * Mc::max(1.0f, HUD::getCursorScaleFactor() * cv::cursor_scale.getFloat()) *
                       cv::hud_scrubbing_timeline_hover_tooltip_offset_multiplier.getFloat() * 2.0f -
                   1));
         g->setColor(Color(0xff000000).setA(galpha));
@@ -2372,12 +2371,12 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
 
     const f32 unit = oScale * scale;
     // normalize scrolling to real time, so rate mods don't change apparent speed or block widths
-    const f32 speedMult = dummy ? 1.0f : std::max(0.05f, pf->getSpeedMultiplier());
-    const f32 pxPerMs = (std::max(1.0f, cv::hud_inputoverlay_trail_speed.getFloat()) * unit) / (1000.0f * speedMult);
-    const f32 fadeEndPx = std::max(1.0f, cv::hud_inputoverlay_trail_length.getFloat()) * unit;
-    const f32 fadeStartPx = fadeEndPx * std::clamp(cv::hud_inputoverlay_trail_fade_start.getFloat(), 0.0f, 1.0f);
-    const f32 fadeRangePx = std::max(1.0f, fadeEndPx - fadeStartPx);
-    const f32 height = std::max(1.0f, cv::hud_inputoverlay_trail_height.getFloat()) * unit;
+    const f32 speedMult = dummy ? 1.0f : Mc::max(0.05f, pf->getSpeedMultiplier());
+    const f32 pxPerMs = (Mc::max(1.0f, cv::hud_inputoverlay_trail_speed.getFloat()) * unit) / (1000.0f * speedMult);
+    const f32 fadeEndPx = Mc::max(1.0f, cv::hud_inputoverlay_trail_length.getFloat()) * unit;
+    const f32 fadeStartPx = fadeEndPx * Mc::clamp(cv::hud_inputoverlay_trail_fade_start.getFloat(), 0.0f, 1.0f);
+    const f32 fadeRangePx = Mc::max(1.0f, fadeEndPx - fadeStartPx);
+    const f32 height = Mc::max(1.0f, cv::hud_inputoverlay_trail_height.getFloat()) * unit;
     constexpr f32 minWidth = 1.0f;  // keep very fast taps visible (a true-width block would be sub-pixel)
 
     static constexpr std::array<GameplayKeys, 4> rowFlags{GameplayKeys::K1, GameplayKeys::K2, GameplayKeys::M1,
@@ -2394,13 +2393,13 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
         // evict blocks whose newest edge has scrolled past the fade end (blocks are ordered by time,
         // so everything remaining after this is at least partially visible)
         auto it = blocks.begin();
-        while(it != blocks.end() && (f32)(now - std::min<f64>(it->endTime, now)) * pxPerMs > fadeEndPx) ++it;
+        while(it != blocks.end() && (f32)(now - Mc::min<f64>(it->endTime, now)) * pxPerMs > fadeEndPx) ++it;
         blocks.erase(blocks.begin(), it);
 
         totalBlocks += blocks.size();
     }
 
-    const f32 baseAlpha = std::clamp(cv::hud_inputoverlay_trail_alpha.getFloat(), 0.0f, 1.0f);
+    const f32 baseAlpha = Mc::clamp(cv::hud_inputoverlay_trail_alpha.getFloat(), 0.0f, 1.0f);
     if(totalBlocks == 0 || baseAlpha <= 0.0f) return;
 
     const f32 rot = cv::hud_inputoverlay_trail_rotation.getFloat() * (PI_F / 180.0f);
@@ -2421,7 +2420,7 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
 
     const f32 halfH = height * 0.5f;
     const auto colorAt = [&](f32 d) {
-        return Color(baseColor).setA(baseAlpha * (1.0f - std::clamp((d - fadeStartPx) / fadeRangePx, 0.0f, 1.0f)));
+        return Color(baseColor).setA(baseAlpha * (1.0f - Mc::clamp((d - fadeStartPx) / fadeRangePx, 0.0f, 1.0f)));
     };
 
     for(i32 i = 0; i < 4; i++) {
@@ -2431,13 +2430,13 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
         for(const auto &block : this->inputOverlayTrails[i]) {
             // dNear stays glued to the anchor while the key is held (so the block grows with hold
             // duration); dFar is capped at the fade end so the visible length never runs past it
-            const f32 dNear = (f32)(now - std::min<f64>(block.endTime, now)) * pxPerMs;
+            const f32 dNear = (f32)(now - Mc::min<f64>(block.endTime, now)) * pxPerMs;
             if(dNear >= fadeEndPx) continue;
-            const f32 dFar = std::min(std::max((f32)(now - block.startTime) * pxPerMs, dNear + minWidth), fadeEndPx);
+            const f32 dFar = Mc::min(Mc::max((f32)(now - block.startTime) * pxPerMs, dNear + minWidth), fadeEndPx);
 
             // plain rectangles, so the width is an exact readout of the hold duration; split at the
             // fade-start kink so alpha stays flat up to it and ramps linearly after
-            const std::array<f32, 3> cols{dNear, std::clamp(fadeStartPx, dNear, dFar), dFar};
+            const std::array<f32, 3> cols{dNear, Mc::clamp(fadeStartPx, dNear, dFar), dFar};
             f32 prevD = cols[0];
             for(i32 k = 1; k < 3; k++) {
                 const f32 d = cols[k];
@@ -2636,11 +2635,11 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i3
                     // (mods, toggling mid-hold); treat as no-op
                     if(blocks.empty() || blocks.back().endTime != TRAIL_BLOCK_OPEN) {
                         blocks.push_back({.startTime = t, .endTime = TRAIL_BLOCK_OPEN});
-                        while(blocks.size() > (uSz)std::max(0, cv::hud_inputoverlay_trail_max_blocks.getInt()))
+                        while(blocks.size() > (uSz)Mc::max(0, cv::hud_inputoverlay_trail_max_blocks.getInt()))
                             blocks.erase(blocks.begin());
                     }
                 } else if(!blocks.empty() && blocks.back().endTime == TRAIL_BLOCK_OPEN) {
-                    blocks.back().endTime = std::max(t, blocks.back().startTime);
+                    blocks.back().endTime = Mc::max(t, blocks.back().startTime);
                 }
             }
         }
@@ -2662,7 +2661,7 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i3
             iokey.scale.append(
                 1.0f,
                 cv::hud_inputoverlay_anim_scale_duration.getFloat() -
-                    std::min(remainingDuration * 1.4f, cv::hud_inputoverlay_anim_scale_duration.getFloat()),
+                    Mc::min(remainingDuration * 1.4f, cv::hud_inputoverlay_anim_scale_duration.getFloat()),
                 anim::QuadOut, remainingDuration);
 
             // color
@@ -2734,8 +2733,8 @@ void HUD::addCursorTrailPosition(CursorTrail &trail, vec2 pos) const {
                 const vec2 step = vec::normalize(delta) * (trailWidth / cv::cursor_trail_smooth_div.getFloat());
                 const f32 timeStep = (nextTime - prevTime) / (f32)(numMidPoints);
                 const f32 scaleStep = (scaleAnim - prevScale) / (f32)(numMidPoints);
-                for(i32 i = std::clamp<i32>(numMidPoints - cv::cursor_trail_max_size.getInt() / 2, 0,
-                                            cv::cursor_trail_max_size.getInt());
+                for(i32 i = Mc::clamp<i32>(numMidPoints - cv::cursor_trail_max_size.getInt() / 2, 0,
+                                           cv::cursor_trail_max_size.getInt());
                     i < numMidPoints; i++)  // limit to half the maximum new mid points per frame
                 {
                     CursorTrailElement &mid = trail.next();

@@ -10,8 +10,8 @@
 #include "Logging.h"
 
 #include "Graphics_private.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -121,7 +121,7 @@ Color Graphics::getColor() const { return m_data->color; }
 
 void Graphics::drawRectf(const RectOptions &opts) {
     // the edges are filled bands rather than lines to avoid different rasterization behavior across backends
-    const float t = std::max(opts.lineThickness, 1.f);  // a thinner band can miss every pixel center of an edge
+    const float t = Mc::max(opts.lineThickness, 1.f);  // a thinner band can miss every pixel center of an edge
     const float ht = t / 2.f;
     const float x = opts.x, y = opts.y, w = opts.width, h = opts.height;
 

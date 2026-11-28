@@ -3,8 +3,8 @@
 
 #include "ContainerRanges.h"
 #include "GameRules.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <numbers>
@@ -22,7 +22,7 @@ i32 clampGridSize(i32 size) {
 f32 clampSpacing(f32 spacing) {
     // NaN too
     if(!(spacing >= 0.1f)) return 0.1f;
-    return std::round(std::min(spacing, 6.f) * 100.f) / 100.f;
+    return std::round(Mc::min(spacing, 6.f) * 100.f) / 100.f;
 }
 
 std::optional<vec2> distance(const Reference &reference, vec2 toward, i32 timeMS, f64 velocity, f32 spacing) {

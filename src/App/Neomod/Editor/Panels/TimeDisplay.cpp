@@ -13,8 +13,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iterator>
@@ -129,12 +129,12 @@ vec2 TimeDisplay::getNaturalSize() {
     const McFont *font = style.font();
     // a time as long as the song, every digit the widest one, after a '-'
     float digit = 0.f;
-    for(char32_t d = U'0'; d <= U'9'; d++) digit = std::max(digit, font->getGlyphWidth(d));
+    for(char32_t d = U'0'; d <= U'9'; d++) digit = Mc::max(digit, font->getGlyphWidth(d));
     const uSz digits = format((i32)this->state.clock.getLength()).size() - 2;
     float width = font->getStringWidth("-::") + digit * (float)digits;
     const std::array<Mc::cstr_view, 3> part{"100.0%", _("intro"), _("outro")};
     for(const Mc::cstr_view where : part) {
-        width = std::max(width, font->getStringWidth(tformat("{} kiai", where)));
+        width = Mc::max(width, font->getStringWidth(tformat("{} kiai", where)));
     }
 
     vec2 natural = CBaseUIBox::getNaturalSize();

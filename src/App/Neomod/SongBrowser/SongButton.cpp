@@ -19,6 +19,7 @@
 #include "score.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
 using namespace neomod::sbr;
 
@@ -43,7 +44,7 @@ void SongButton::draw() {
 
     const DatabaseBeatmap *map = this->getDatabaseBeatmap();
     if(map &&  // delay requesting the image itself a bit
-       this->fVisibleFor >= ((std::clamp<f32>(cv::songbrowser_thumbnail_delay.getFloat(), 0.f, 2.f)) / 4.f)) {
+       this->fVisibleFor >= ((Mc::clamp<f32>(cv::songbrowser_thumbnail_delay.getFloat(), 0.f, 2.f)) / 4.f)) {
         // draw background image
         this->drawBeatmapBackgroundThumbnail(osu->getBackgroundImageHandler()->getLoadBackgroundImage(map));
     }
@@ -75,7 +76,7 @@ void SongButton::drawBeatmapBackgroundThumbnail(const Image *image) {
         if(image == nullptr || !image->isReady())
             this->fThumbnailFadeInTime = (f32)now;
         else if(this->fThumbnailFadeInTime > 0.0f && now > this->fThumbnailFadeInTime) {
-            alpha = std::clamp<float>((f32)(now - this->fThumbnailFadeInTime) / fadein_time, 0.0f, 1.0f);
+            alpha = Mc::clamp<float>((f32)(now - this->fThumbnailFadeInTime) / fadein_time, 0.0f, 1.0f);
             alpha = 1.0f - (1.0f - alpha) * (1.0f - alpha);
         }
     }

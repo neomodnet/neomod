@@ -9,8 +9,8 @@
 #include "KeyboardEvent.h"
 #include "Mouse.h"
 #include "UIStyle.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -52,13 +52,13 @@ McRect CBaseUIList::getRowsRect() const {
     const UIStyle &style = uiStyle();
     const McRect &rect = this->getRect();
     const float header = style.px(style.metrics.rowHeight);
-    return {rect.getX(), rect.getY() + header, std::max(0.f, rect.getWidth() - style.px(TRACK_WIDTH)),
-            std::max(0.f, rect.getHeight() - header)};
+    return {rect.getX(), rect.getY() + header, Mc::max(0.f, rect.getWidth() - style.px(TRACK_WIDTH)),
+            Mc::max(0.f, rect.getHeight() - header)};
 }
 
 float CBaseUIList::getMaxScroll() const {
     const UIStyle &style = uiStyle();
-    return std::max(
+    return Mc::max(
         0.f, (float)this->model.getRowCount() * style.px(style.metrics.rowHeight) - this->getRowsRect().getHeight());
 }
 
@@ -66,17 +66,17 @@ std::optional<std::pair<float, float>> CBaseUIList::getThumb() const {
     const float max = this->getMaxScroll();
     const float track = this->getRowsRect().getHeight();
     if(max <= 0.f || track <= 0.f) return std::nullopt;
-    const float height = std::min(track, std::max(uiStyle().px(MIN_THUMB), track * track / (track + max)));
-    return std::pair{(track - height) * std::clamp(this->scroll, 0.f, max) / max, height};
+    const float height = Mc::min(track, Mc::max(uiStyle().px(MIN_THUMB), track * track / (track + max)));
+    return std::pair{(track - height) * Mc::clamp(this->scroll, 0.f, max) / max, height};
 }
 
 std::pair<uSz, uSz> CBaseUIList::getRowsInView() const {
     const UIStyle &style = uiStyle();
     const float rowHeight = style.px(style.metrics.rowHeight);
     const uSz count = this->model.getRowCount();
-    const float top = std::clamp(this->scroll, 0.f, this->getMaxScroll());
-    const uSz first = std::min(count, (uSz)(top / rowHeight));
-    const uSz last = std::min(count, (uSz)std::ceil((top + this->getRowsRect().getHeight()) / rowHeight));
+    const float top = Mc::clamp(this->scroll, 0.f, this->getMaxScroll());
+    const uSz first = Mc::min(count, (uSz)(top / rowHeight));
+    const uSz last = Mc::min(count, (uSz)std::ceil((top + this->getRowsRect().getHeight()) / rowHeight));
     return {first, last};
 }
 
@@ -84,7 +84,7 @@ std::optional<uSz> CBaseUIList::rowAt(float y) const {
     const UIStyle &style = uiStyle();
     const McRect rows = this->getRowsRect();
     if(y < rows.getY() || y >= rows.getY() + rows.getHeight()) return std::nullopt;
-    const uSz row = (uSz)((y - rows.getY() + std::clamp(this->scroll, 0.f, this->getMaxScroll())) /
+    const uSz row = (uSz)((y - rows.getY() + Mc::clamp(this->scroll, 0.f, this->getMaxScroll())) /
                           style.px(style.metrics.rowHeight));
     return row < this->model.getRowCount() ? std::optional{row} : std::nullopt;
 }
@@ -96,7 +96,7 @@ std::optional<uSz> CBaseUIList::rowOf(u64 key) const {
     return std::nullopt;
 }
 
-void CBaseUIList::scrollBy(float px) { this->scroll = std::clamp(this->scroll + px, 0.f, this->getMaxScroll()); }
+void CBaseUIList::scrollBy(float px) { this->scroll = Mc::clamp(this->scroll + px, 0.f, this->getMaxScroll()); }
 
 void CBaseUIList::scrollTo(uSz row) {
     const UIStyle &style = uiStyle();
@@ -109,7 +109,7 @@ void CBaseUIList::scrollTo(uSz row) {
     } else if(top + rowHeight > this->scroll + view) {
         this->scroll = top + rowHeight - view;
     }
-    this->scroll = std::clamp(this->scroll, 0.f, this->getMaxScroll());
+    this->scroll = Mc::clamp(this->scroll, 0.f, this->getMaxScroll());
 }
 
 void CBaseUIList::selectionChanged() {
@@ -121,7 +121,7 @@ void CBaseUIList::pick(uSz row, bool extend) {
     const std::optional<uSz> from = extend && this->anchor ? this->rowOf(*this->anchor) : std::nullopt;
     this->selection.clear();
     if(from) {
-        for(uSz i = std::min(*from, row); i <= std::max(*from, row); i++) {
+        for(uSz i = Mc::min(*from, row); i <= Mc::max(*from, row); i++) {
             this->selection.insert(this->model.getRowKey(i));
         }
     } else {
@@ -152,12 +152,12 @@ void CBaseUIList::draw() {
         fixed += style.px(column.width);
         flexible += column.width <= 0.f;
     }
-    const float share = flexible > 0 ? std::max(0.f, rows.getWidth() - fixed) / (float)flexible : 0.f;
+    const float share = flexible > 0 ? Mc::max(0.f, rows.getWidth() - fixed) / (float)flexible : 0.f;
     const auto cells = [&](float y, bool header, uSz row) {
         float x = rows.getX() + gutter;
         for(uSz column = 0; column < this->columns.size(); column++) {
             const float width = this->columns[column].width > 0.f ? style.px(this->columns[column].width) : share;
-            const McRect cell{x + padding, y, std::max(0.f, width - padding), rowHeight};
+            const McRect cell{x + padding, y, Mc::max(0.f, width - padding), rowHeight};
             if(header) {
                 style.drawText(cell, this->columns[column].title, TEXT_JUSTIFICATION::LEFT, NORMAL, true);
             } else {
@@ -169,7 +169,7 @@ void CBaseUIList::draw() {
     cells(rect.getY(), true, 0);
     style.drawSeparator({rect.getX(), rows.getY() - 1.f, rect.getWidth(), 2.f});
 
-    this->scroll = std::clamp(this->scroll, 0.f, this->getMaxScroll());
+    this->scroll = Mc::clamp(this->scroll, 0.f, this->getMaxScroll());
     const std::optional<uSz> hovered =
         this->bMouseInside && !this->grabbed && mouse->getPos().x < rows.getX() + rows.getWidth()
             ? this->rowAt(mouse->getPos().y)
@@ -225,7 +225,7 @@ void CBaseUIList::onKeyDown(KeyboardEvent &e) {
     }
 
     const UIStyle &style = uiStyle();
-    const sSz page = std::max<sSz>(1, (sSz)(this->getRowsRect().getHeight() / style.px(style.metrics.rowHeight)) - 1);
+    const sSz page = Mc::max<sSz>(1, (sSz)(this->getRowsRect().getHeight() / style.px(style.metrics.rowHeight)) - 1);
     sSz to{0};
     switch(e.getScanCode()) {
         case KEY_UP:
@@ -250,7 +250,7 @@ void CBaseUIList::onKeyDown(KeyboardEvent &e) {
             return;
     }
     e.consume();
-    this->pick((uSz)std::clamp<sSz>(to, 0, (sSz)count - 1), held & KEYMOD_SHIFT);
+    this->pick((uSz)Mc::clamp<sSz>(to, 0, (sSz)count - 1), held & KEYMOD_SHIFT);
 }
 
 vec2 CBaseUIList::getNaturalSize() {
@@ -312,7 +312,7 @@ void CBaseUIList::onCapturedMouseMove() {
     const McRect rows = this->getRowsRect();
     const float free = rows.getHeight() - thumb->second;
     if(free <= 0.f) return;
-    const float top = std::clamp(mouse->getPos().y - rows.getY() - *this->grabbed, 0.f, free);
+    const float top = Mc::clamp(mouse->getPos().y - rows.getY() - *this->grabbed, 0.f, free);
     this->scroll = this->getMaxScroll() * top / free;
 }
 

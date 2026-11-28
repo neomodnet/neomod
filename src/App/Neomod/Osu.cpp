@@ -2,6 +2,7 @@
 #include "Osu.h"
 
 #include "Accounts.h"
+#include "ContainerRanges.h"
 #include "BeatmapInstaller.h"
 #include "Migrations.h"
 #include "MusicTrack.h"
@@ -94,8 +95,8 @@
 
 #include "score.h"
 #include "NeomodEnvInterop.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <limits>
@@ -992,10 +993,10 @@ void Osu::onKeyDown(KeyboardEvent &key) {
             score.mods = this->score->mods;
 
             score.playerName = BanchoState::get_username();
-            score.player_id = std::max(0, BanchoState::get_uid());
+            score.player_id = Mc::max(0, BanchoState::get_uid());
 
             f64 pos_seconds = this->map_iface->getJudgeMusicPos() / 1000.0 - cv::instant_replay_duration.getFloat();
-            u32 pos_ms = (u32)std::round(std::max(0.0, pos_seconds) * 1000.0);
+            u32 pos_ms = (u32)std::round(Mc::max(0.0, pos_seconds) * 1000.0);
             this->map_iface->cancelFailing();
             this->map_iface->watch(score, pos_ms);
             return;
@@ -1069,7 +1070,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
             if(!BanchoState::is_playing_a_multi_map()) {
                 // quick save/load
                 if(key == binds::QUICK_SAVE) {
-                    this->iQuickSaveMS = (u32)std::max(0, this->map_iface->getJudgeMusicPos());
+                    this->iQuickSaveMS = (u32)Mc::max(0, this->map_iface->getJudgeMusicPos());
                 } else if(key == binds::QUICK_LOAD) {
                     // special case: allow cancelling the failing animation here
                     if(this->map_iface->hasFailed()) this->map_iface->cancelFailing();
@@ -1083,7 +1084,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
                             // special case: allow cancelling the failing animation here
                             if(this->map_iface->hasFailed()) this->map_iface->cancelFailing();
 
-                            const i32 destMS = std::max(this->map_iface->getJudgeMusicPos() + diffMS, 0);
+                            const i32 destMS = Mc::max(this->map_iface->getJudgeMusicPos() + diffMS, 0);
                             this->map_iface->seekMS(destMS);
                         }
                     }
@@ -1421,11 +1422,11 @@ void Osu::saveScreenshot(bool upload) {
                     }
 
                     const i32 startX =
-                        std::clamp<i32>(static_cast<i32>((outerWidth - innerWidth) * (1 + offsetXpct) / 2), 0,
-                                        static_cast<i32>(outerWidth - innerWidth));
+                        Mc::clamp<i32>(static_cast<i32>((outerWidth - innerWidth) * (1 + offsetXpct) / 2), 0,
+                                       static_cast<i32>(outerWidth - innerWidth));
                     const i32 startY =
-                        std::clamp<i32>(static_cast<i32>((outerHeight - innerHeight) * (1 + offsetYpct) / 2), 0,
-                                        static_cast<i32>(outerHeight - innerHeight));
+                        Mc::clamp<i32>(static_cast<i32>((outerHeight - innerHeight) * (1 + offsetYpct) / 2), 0,
+                                       static_cast<i32>(outerHeight - innerHeight));
 
                     finalWidth = static_cast<i32>(innerWidth);
                     finalHeight = static_cast<i32>(innerHeight);
@@ -1436,7 +1437,7 @@ void Osu::saveScreenshot(bool upload) {
                                            ((startY + y) * static_cast<sSz>(outerWidth) + startX) * screenshotChannels;
                         auto destRowStart =
                             croppedPixels.begin() + (y * static_cast<sSz>(finalWidth)) * screenshotChannels;
-                        std::copy_n(srcRowStart, static_cast<sSz>(finalWidth) * screenshotChannels, destRowStart);
+                        Mc::copy_n(srcRowStart, static_cast<sSz>(finalWidth) * screenshotChannels, destRowStart);
                     }
 
                     finalPixels = croppedPixels.data();
@@ -1622,7 +1623,7 @@ float Osu::getScoreMultiplier() const { return this->score->getScoreMultiplier()
 float Osu::getAnimationSpeedMultiplier() const {
     float animationSpeedMultiplier = this->map_iface->getSpeedMultiplier();
 
-    if(cv::animation_speed_override.getFloat() >= 0.0f) return std::max(cv::animation_speed_override.getFloat(), 0.05f);
+    if(cv::animation_speed_override.getFloat() >= 0.0f) return Mc::max(cv::animation_speed_override.getFloat(), 0.05f);
 
     return animationSpeedMultiplier;
 }
@@ -1797,7 +1798,7 @@ void Osu::loadCJKFont() {
     }
 
     // the bundled fonts only cover the language names, so these probe for a font with the rest of CJK
-    if(std::ranges::all_of(std::array{U'あ', U'가', U'们'}, McFont::fallbacksHaveGlyph)) return;
+    if(Mc::ranges::all_of(std::array{U'あ', U'가', U'们'}, McFont::fallbacksHaveGlyph)) return;
 
     static constexpr std::string_view FONT_NAME = "NotoSansCJKjp-Regular.woff2";
     const std::string path = fmt::format("{}/{}", Mc::Paths::cache(), FONT_NAME);
@@ -2332,7 +2333,7 @@ float Osu::getRectScale(vec2 size, float osuSize) {
 
     f32 x = screen.x / Osu::osuBaseResolution.x / size.x;
     f32 y = screen.y / Osu::osuBaseResolution.y / size.y;
-    return osuSize * std::max(x, y);
+    return osuSize * Mc::max(x, y);
 }
 
 float Osu::getImageScale(const Image *img, float osuSize) {

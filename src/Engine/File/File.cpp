@@ -15,8 +15,8 @@
 #include "SyncOnce.h"
 #include "Timing.h"
 #include "UniString.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cerrno>
 #include <chrono>
@@ -110,7 +110,7 @@ class DirectoryCache final {
 
     // evict least recently used entries when cache is full
     void evictOldEntries() {
-        const uSz entriesToRemove = std::min(DIR_CACHE_EVICT_COUNT, this->cache.size());
+        const uSz entriesToRemove = Mc::min(DIR_CACHE_EVICT_COUNT, this->cache.size());
 
         if(entriesToRemove == this->cache.size()) {
             this->cache.clear();

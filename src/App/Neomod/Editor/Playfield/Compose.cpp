@@ -16,8 +16,8 @@
 
 #include "fmt/format.h"
 #include "fmt/ranges.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -89,8 +89,8 @@ std::vector<i32> edgeTimes(const HitObject &object) {
 
 // whether pos is within `radius` from the slider body (along its first span, as finely as a few points per radius)
 bool onBody(const HitObject &slider, vec2 pos, f32 radius) {
-    const f32 span = (f32)slider.getDuration() / (f32)std::max(slider.getRepeat(), 1);
-    const i32 samples = std::clamp((i32)(slider.getPixelLength() / std::max(radius / 2.f, 1.f)), 2, 1000);
+    const f32 span = (f32)slider.getDuration() / (f32)Mc::max(slider.getRepeat(), 1);
+    const i32 samples = Mc::clamp((i32)(slider.getPixelLength() / Mc::max(radius / 2.f, 1.f)), 2, 1000);
     for(i32 i = 0; i <= samples; i++) {
         const i32 at = slider.getClickTime() + (i32)(span * (f32)i / (f32)samples);
         if(vec::distance(slider.getRawPosAt(at), pos) <= radius) return true;
@@ -192,12 +192,12 @@ void Compose::reset() {
 }
 
 bool Compose::isSelected(Document::Id id) const {
-    return std::binary_search(this->selection.begin(), this->selection.end(), id);
+    return Mc::binary_search(this->selection.begin(), this->selection.end(), id);
 }
 
 void Compose::select(std::vector<Document::Id> ids) {
     Mc::ranges::sort(ids);
-    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    ids.erase(Mc::unique(ids.begin(), ids.end()), ids.end());
     if(ids == this->selection) return;
     this->selection = std::move(ids);
     this->selectionChanged();
@@ -259,7 +259,7 @@ std::optional<Compose::Part> Compose::getPicked() const {
     const std::optional<HitObject> object = this->state.objects->find(this->selection.front());
     if(!object || !object->isSlider()) return std::nullopt;
     // an edge the slider doesn't have any more is none
-    if(this->picked->edge && *this->picked->edge > std::max(object->getRepeat(), 1)) {
+    if(this->picked->edge && *this->picked->edge > Mc::max(object->getRepeat(), 1)) {
         return std::nullopt;
     }
     return this->picked;
@@ -397,8 +397,8 @@ std::pair<uSz, uSz> Compose::shownRange() const {
     const MapObjects &objects = *this->state.objects;
     const i32 time = this->state.clock.getTime();
     // the longest any object shows before its start and after its end
-    const i32 before = std::max((i32)objects.view.approachTimeMS + GameRules::getFadeInTime(), SPINNER_SHOWN_BEFORE_MS);
-    const i32 after = std::max(GameRules::EDITOR_TRAIL_TIME_MS, (i32)(GameRules::getFadeOutTime() * 1000.f));
+    const i32 before = Mc::max((i32)objects.view.approachTimeMS + GameRules::getFadeInTime(), SPINNER_SHOWN_BEFORE_MS);
+    const i32 after = Mc::max(GameRules::EDITOR_TRAIL_TIME_MS, (i32)(GameRules::getFadeOutTime() * 1000.f));
     return {objects.firstFrom(time - after - objects.longestObjectMS), objects.firstFrom(time + before + 1)};
 }
 
@@ -509,8 +509,8 @@ std::vector<Document::Id> Compose::objectsIn(const McRect &area) const {
 std::vector<Document::Id> Compose::objectsBetween(f64 fromMS, f64 toMS) const {
     std::vector<Document::Id> ids;
     if(!this->state.objects) return ids;
-    const f64 from = std::min(fromMS, toMS);
-    const f64 to = std::max(fromMS, toMS);
+    const f64 from = Mc::min(fromMS, toMS);
+    const f64 to = Mc::max(fromMS, toMS);
     const MapObjects &objects = *this->state.objects;
     for(uSz i = objects.firstFrom((i32)std::floor(from) - objects.longestObjectMS); i < objects.objects.size(); i++) {
         const HitObject &object = objects.objects[i];
@@ -801,7 +801,7 @@ void Compose::restateSlider() {
         // as many spans as end nearest to where the playhead was taken, the earlier of two as near
         if(const f64 velocity = this->velocityAt(placement.start); placement.reach && velocity > 0.0) {
             const f64 spans = std::ceil((*placement.reach - placement.start) * velocity / length - 0.5);
-            SliderPath::setSpans(*slider, (i32)std::clamp(spans, 1.0, (f64)DatabaseBeatmap::limits().sliderMaxRepeats));
+            SliderPath::setSpans(*slider, (i32)Mc::clamp(spans, 1.0, (f64)DatabaseBeatmap::limits().sliderMaxRepeats));
         }
     }
     if(slider == placement.placed) return;
@@ -1067,7 +1067,7 @@ void Compose::startSpinner() {
     SpinnerPlacement placement;
     this->beginDrag(placement, Action::ADD_SPINNER);
     placement.start = start;
-    placement.beat = std::max((i32)this->state.document->getBeatSnap().beatLengthAt(start), 1);
+    placement.beat = Mc::max((i32)this->state.document->getBeatSnap().beatLengthAt(start), 1);
     placement.replaced = this->objectStartingAt(start);
     this->spinner = placement;
     this->updateSpinner(start + placement.beat);
@@ -1094,7 +1094,7 @@ void Compose::updateSpinner(i32 end) {
 
 void Compose::finishSpinner() {
     if(!this->spinner) return;
-    const i32 end = std::max(this->snappedNow(), this->spinner->start);
+    const i32 end = Mc::max(this->snappedNow(), this->spinner->start);
     if(end <= this->spinner->start) {
         this->cancelSpinner();
         return;
@@ -1283,7 +1283,7 @@ Compose::Placed Compose::clone() {
         if(const auto record = this->state.document->getObject(objects.ids[i])) {
             lines.push_back(BeatmapFile::format(*record));
         }
-        latest = std::max(latest, objects.objects[i].getEndTime());
+        latest = Mc::max(latest, objects.objects[i].getEndTime());
     }
     // a beat after (the beat there), snapped
     const BeatSnap &snap = this->state.document->getBeatSnap();
@@ -1321,7 +1321,7 @@ std::optional<std::vector<Document::Id>> Compose::replacedBy(std::span<const HO>
         times.push_back(record.time);
     }
     Mc::ranges::sort(times);
-    times.erase(std::unique(times.begin(), times.end()), times.end());
+    times.erase(Mc::unique(times.begin(), times.end()), times.end());
     const MapObjects &objects = *this->state.objects;
     std::vector<Document::Id> replaced;
     if(!this->previewing) {
@@ -1486,8 +1486,8 @@ void Compose::startTimeMove(Document::Id grabbed) {
     i32 last = std::numeric_limits<i32>::min();
     for(const Document::Id id : this->selection) {
         if(const std::optional<HitObject> object = objects.find(id)) {
-            first = std::min(first, object->getClickTime());
-            last = std::max(last, object->getClickTime());
+            first = Mc::min(first, object->getClickTime());
+            last = Mc::max(last, object->getClickTime());
         }
     }
     // starts stay within the song
@@ -1495,15 +1495,15 @@ void Compose::startTimeMove(Document::Id grabbed) {
     TimeMove move;
     this->beginDrag(move, Action::MOVE);
     move.grabbedTime = objects.find(grabbed)->getClickTime();
-    move.min = std::min(-first, 0);
-    move.max = length > 0 ? std::max(length - 1 - last, 0) : std::numeric_limits<i32>::max() / 2;
+    move.min = Mc::min(-first, 0);
+    move.max = length > 0 ? Mc::max(length - 1 - last, 0) : std::numeric_limits<i32>::max() / 2;
     this->timeMoving = move;
 }
 
 void Compose::moveInTime(i32 timeMS) {
     if(!this->timeMoving) return;
     TimeMove &move = *this->timeMoving;
-    const i32 by = std::clamp(timeMS - move.grabbedTime, move.min, move.max);
+    const i32 by = Mc::clamp(timeMS - move.grabbedTime, move.min, move.max);
     if(by == move.applied) return;
     move.applied = by;
     Document &document = *this->state.document;
@@ -1523,7 +1523,7 @@ bool Compose::startEndDrag(const Hit &hit) {
     this->endDrag.reset();
     const HitObject &object = *hit.object;
     if(object.isCircle() || object.getDuration() <= 0 || !hit.node) return false;
-    const i32 spans = object.isSlider() ? std::max(object.getRepeat(), 1) : 1;
+    const i32 spans = object.isSlider() ? Mc::max(object.getRepeat(), 1) : 1;
     if(*hit.node != spans || (this->isSelected(hit.id) && this->selection.size() > 1)) return false;
     const auto record = this->state.document->getObject(hit.id);
     if(!record) return false;
@@ -1546,7 +1546,7 @@ void Compose::dragEnd(f64 timeMS, bool snap) {
     if(object.kind == HO::Kind::SLIDER) {
         // the span end nearest to the time, the earlier of two as near; no more than the game plays
         const f64 spans = std::ceil((timeMS - object.time) / drag.span - 0.5);
-        SliderPath::setSpans(object, (i32)std::clamp(spans, 1.0, (f64)DatabaseBeatmap::limits().sliderMaxRepeats));
+        SliderPath::setSpans(object, (i32)Mc::clamp(spans, 1.0, (f64)DatabaseBeatmap::limits().sliderMaxRepeats));
     } else {
         const i32 end =
             snap ? this->state.document->getBeatSnap().snap(timeMS, this->state.divisor, timeMS) : (i32)timeMS;
@@ -1619,8 +1619,8 @@ void Compose::reverse() {
         auto record = this->state.document->getObject(objects.ids[i]);
         if(!record || record->kind == HO::Kind::NONE) continue;
         const HitObject &object = objects.objects[i];
-        first = std::min(first, object.getClickTime());
-        last = std::max(last, object.getEndTime());
+        first = Mc::min(first, object.getClickTime());
+        last = Mc::max(last, object.getEndTime());
         ends.push_back(object.getEndTime());
         selected.push_back({.id = objects.ids[i], .record = *record, .reversed = std::move(*record)});
     }
@@ -1790,7 +1790,7 @@ std::vector<HO> Compose::stream(const HO &slider, i32 divisor, f64 spacing, i32 
     // a file can say any length
     if(!(length > 0.0) || !std::isfinite(length)) return {};
     // as far as it moves in a tick at this divisor
-    const f64 apart = count > 0 ? length / std::max(1, count - 1)
+    const f64 apart = count > 0 ? length / Mc::max(1, count - 1)
                                 : spacing * this->tickLengthAt(slider.time) * this->state.divisor / divisor;
     if(!(apart > 0.0)) return {};
     const f64 n = count > 0 ? count : std::floor((length + 1.0) / apart) + 1.0;
@@ -1802,7 +1802,7 @@ std::vector<HO> Compose::stream(const HO &slider, i32 divisor, f64 spacing, i32 
     for(i32 i = 0; i < n; i++) {
         // nothing is placed after the song, however long the slider says it is
         if(songLength > 0 && time >= songLength) return {};
-        const vec2 pos = vec::round(curve.pointAt((f32)std::min(1.0, i * apart / length)));
+        const vec2 pos = vec::round(curve.pointAt((f32)Mc::min(1.0, i * apart / length)));
         HO circle;
         circle.kind = HO::Kind::CIRCLE;
         circle.x = pos.x;
@@ -1832,8 +1832,8 @@ f32 Compose::maxScale(vec2 center, bool x, bool y) const {
     f32 limit = std::numeric_limits<f32>::infinity();
     // how far from the center a coordinate can be scaled before it leaves [0, size]
     const auto room = [&](f32 p, f32 c, f32 size) {
-        if(p > c) limit = std::min(limit, (size - c) / (p - c));
-        if(p < c) limit = std::min(limit, c / (c - p));
+        if(p > c) limit = Mc::min(limit, (size - c) / (p - c));
+        if(p < c) limit = Mc::min(limit, c / (c - p));
     };
     // the outermost ones leave first
     if(const auto bounds = this->selectionBounds()) {
@@ -1842,7 +1842,7 @@ f32 Compose::maxScale(vec2 center, bool x, bool y) const {
             if(y) room(p.y, center.y, FIELD.y);
         }
     }
-    return std::isinf(limit) ? 5.f : std::max(limit, 1.f);
+    return std::isinf(limit) ? 5.f : Mc::max(limit, 1.f);
 }
 
 void Compose::toggleNewCombo() {
@@ -1906,7 +1906,7 @@ void Compose::setSampleSet(bool additions, i32 set) {
             if(object->kind == HO::Kind::SLIDER) {
                 // every edge too: a slider without edge sets gets them, with its hitsounds on every edge (other editors
                 // keep slider sets only per edge)
-                const uSz edges = (uSz)std::max(object->slides, 1) + 1;
+                const uSz edges = (uSz)Mc::max(object->slides, 1) + 1;
                 if(object->edgeSets.empty()) {
                     if(object->edgeSounds.empty()) object->edgeSounds.assign(edges, (u8)object->hitSounds);
                     object->edgeSets.assign(
@@ -2075,7 +2075,7 @@ std::optional<Compose::ColourSkips> Compose::getColourSkips() const {
     // after another combo, skipping all but one colour would come back to the colour that combo has
     const uSz count = objects.view.comboColors.empty() ? skin->c_combo_colors.size() : objects.view.comboColors.size();
     const bool first = objects.objects[0] == object;
-    const i32 skips = std::min((i32)count - (first ? 0 : 1), 8);
+    const i32 skips = Mc::min((i32)count - (first ? 0 : 1), 8);
     if(skips < 2) return std::nullopt;
     const i32 current = s.colourSkip;
     ColourSkips choices{.colours = {}, .count = (uSz)skips, .current = current};

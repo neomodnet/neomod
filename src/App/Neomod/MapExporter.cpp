@@ -17,8 +17,8 @@
 #include "NotificationOverlay.h"
 #include "UI.h"
 #include "fmt/chrono.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <ctime>
 
 namespace MapExporter {
@@ -113,7 +113,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
 
                 // a collection lists a set folder once per difficulty
                 Mc::ranges::sort(real_mapfolders);
-                real_mapfolders.erase(std::unique(real_mapfolders.begin(), real_mapfolders.end()),
+                real_mapfolders.erase(Mc::unique(real_mapfolders.begin(), real_mapfolders.end()),
                                       real_mapfolders.end());
 
                 size_t total_chunk = real_mapfolders.size();
@@ -129,7 +129,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                     if(single_archive) {
                         progress_chunk /= 2.f;
                     }
-                    float progress = std::clamp(progress_chunk / (float)queue_runs, 0.01f, 0.99f);
+                    float progress = Mc::clamp(progress_chunk / (float)queue_runs, 0.01f, 0.99f);
                     progress_callback(progress, Environment::getFileNameFromFilePath(processing));
                 };
 
@@ -172,7 +172,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                         ++current_processing;
                         // leave 25% for final archive creation
                         progress_chunk = 0.50f + ((float)current_processing / (float)total_chunk) * 0.25f;
-                        float progress = std::clamp(progress_chunk / (float)queue_runs, 0.01f, 0.99f);
+                        float progress = Mc::clamp(progress_chunk / (float)queue_runs, 0.01f, 0.99f);
                         progress_callback(progress, Environment::getFileNameFromFilePath(processing));
                     };
 
@@ -212,7 +212,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                               .bundled = 0});
                 }
 
-                float progress = std::clamp(1.f / (float)queue_runs, 0.01f, 1.f);
+                float progress = Mc::clamp(1.f / (float)queue_runs, 0.01f, 1.f);
                 progress_callback(progress, "");
             }
         },

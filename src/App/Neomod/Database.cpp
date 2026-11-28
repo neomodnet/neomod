@@ -35,8 +35,8 @@
 #include "i18n.h"
 
 #include "fmt/chrono.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cstring>
 #include <span>
 #include <string_view>
@@ -93,8 +93,8 @@ bool Database::sortScoreByAccuracy(const FinishedScore &a, const FinishedScore &
 }
 
 bool Database::sortScoreByPP(const FinishedScore &a, const FinishedScore &b) {
-    auto a_pp = std::max(a.get_pp() * 1000.0, 0.0);
-    auto b_pp = std::max(b.get_pp() * 1000.0, 0.0);
+    auto a_pp = Mc::max(a.get_pp() * 1000.0, 0.0);
+    auto b_pp = Mc::max(b.get_pp() * 1000.0, 0.0);
     if(a_pp != b_pp) return a_pp > b_pp;
     if(a.score != b.score) return a.score > b.score;
     if(a.unix_timestamp != b.unix_timestamp) return a.unix_timestamp > b.unix_timestamp;
@@ -497,7 +497,7 @@ void Database::importLooseOsz(const Sync::stop_token &tok) {
     // up extracted folders on disk faster than this loop deletes the source .osz files.
     // (this loader is itself a pool task; waiting on the window from a pool thread runs queued tasks, its own
     // sub-tasks included, so it can't wedge the pool.)
-    const uSz window_size = std::min<uSz>(std::clamp<uSz>(Async::get_thread_count(), 4, 16), oszs.size());
+    const uSz window_size = Mc::min<uSz>(Mc::clamp<uSz>(Async::get_thread_count(), 4, 16), oszs.size());
 
     auto submit_extract = [](const std::string &osz_name) {
         return Async::submit(
@@ -823,7 +823,7 @@ Database::PlayerStats Database::calculatePlayerStats(std::string_view playerName
 float Database::getWeightForIndex(uSz i) { return std::pow(0.95f, (f32)i); }
 
 float Database::getBonusPPForNumScores(size_t numScores) {
-    return (417.0f - 1.0f / 3.0f) * (f32)(1.0 - pow(0.995, std::min(1000.0, (f64)numScores)));
+    return (417.0f - 1.0f / 3.0f) * (f32)(1.0 - pow(0.995, Mc::min(1000.0, (f64)numScores)));
 }
 
 u64 Database::getRequiredScoreForLevel(int level) {
@@ -1134,7 +1134,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                 u32 progress_bytes = this->bytes_processed + neomod_maps.get_total_pos();
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-                this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
+                this->loading_progress = (f32)Mc::clamp(progress_float, 0.01, 0.99);
 
                 std::string rel_folder;
                 i64 folder_mtime = 0;
@@ -1548,7 +1548,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 // update progress (another thread checks if progress >= 1.f to know when we're done)
                 u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-                this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
+                this->loading_progress = (f32)Mc::clamp(progress_float, 0.01, 0.99);
 
                 // NOTE: This is documented wrongly in many places.
                 //       This int was added in 20160408 and removed in 20191106
@@ -2269,7 +2269,7 @@ void Database::loadScores(std::string_view dbPath) {
 
         u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-        this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
+        this->loading_progress = (f32)Mc::clamp(progress_float, 0.01, 0.99);
     }
 
     if(nb_neomod_scores != nb_scores) {
@@ -2337,7 +2337,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
         for(u32 b = 0; b < nb_beatmaps; b++) {
             u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
             f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-            this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
+            this->loading_progress = (f32)Mc::clamp(progress_float, 0.01, 0.99);
             MD5Hash md5hash;
             (void)dbr.read_hash_chars(md5hash);  // TODO: validate
             u32 nb_scores = dbr.read<u32>();
@@ -2401,7 +2401,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
         for(int b = 0; b < numBeatmaps; b++) {
             u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
             f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-            this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
+            this->loading_progress = (f32)Mc::clamp(progress_float, 0.01, 0.99);
 
             const std::string md5hash_str = dbr.read_string();
             if(md5hash_str.length() < 32) {
@@ -2629,7 +2629,7 @@ void Database::loadPeppyScores(std::string_view dbPath) {
 
         u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-        this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
+        this->loading_progress = (f32)Mc::clamp(progress_float, 0.01, 0.99);
     }
 
     debugLog("Loaded {:d} osu!stable scores", nb_imported);
@@ -2968,7 +2968,7 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
             if(!res.dedup_owner) res.dedup_owner = owner->getParentSet();
             logIfCV(debug_db, "reconcile {}: {} duplicates {}", rel_folder, name(), owner->getFilePath());
             slot.parsed.reset();
-        } else if(std::any_of(slots.begin(), slots.begin() + static_cast<sSz>(i), [&slot](const Slot &s) {
+        } else if(Mc::any_of(slots.begin(), slots.begin() + static_cast<sSz>(i), [&slot](const Slot &s) {
                       return s.parsed && s.parsed->getMD5() == slot.parsed->getMD5();
                   })) {
             logIfCV(debug_db, "reconcile {}: {} duplicates another new file in the folder", rel_folder, name());
@@ -3253,7 +3253,7 @@ u32 Database::reconcileRoot(MapRoot root, const Sync::stop_token &tok, bool per_
         if(!known_set.contains(e.name)) unknown.push_back(&e);
     }
     if(!unknown.empty()) {
-        const uSz window_size = std::min<uSz>(std::clamp<uSz>(Async::get_thread_count(), 4, 16), unknown.size());
+        const uSz window_size = Mc::min<uSz>(Mc::clamp<uSz>(Async::get_thread_count(), 4, 16), unknown.size());
         auto submit_parse = [&root_path, root](const File::DirEntry &e) {
             return Async::submit(
                 [path = root_path + e.name + "/", root] { return parseFolderDiffs(path, root == MapRoot::Peppy); },

@@ -7,8 +7,8 @@
 #include "Osu.h"
 #include "Skin.h"
 #include "SoundEngine.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <iterator>
 
@@ -32,7 +32,7 @@ std::optional<Beat> beatAt(std::span<const TimingPoint> points, f64 time) {
     const TimingPoint *section = sectionAt(points, time);
     if(!section) return std::nullopt;
     const f64 beats = (time - section->time) / section->beatLength;
-    const i32 meter = std::max(section->meter, 1);
+    const i32 meter = Mc::max(section->meter, 1);
     const i64 whole = (i64)std::floor(beats);
     return Beat{.inBar = (i32)(((whole % meter) + meter) % meter), .meter = meter, .phase = beats - (f64)whole};
 }
@@ -44,7 +44,7 @@ Tick crossed(std::span<const TimingPoint> points, i32 from, i32 to) {
     const f64 before = std::floor((from - section->time) / section->beatLength);
     const f64 now = std::floor((to - section->time) / section->beatLength);
     if(now <= before) return Tick::NONE;
-    const i64 meter = std::max(section->meter, 1);
+    const i64 meter = Mc::max(section->meter, 1);
     return (((i64)now % meter) + meter) % meter == 0 ? Tick::BAR : Tick::BEAT;
 }
 

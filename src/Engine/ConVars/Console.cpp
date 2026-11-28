@@ -12,8 +12,8 @@
 #include "SyncMutex.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
 #include <deque>
 #include <span>
@@ -323,7 +323,7 @@ void log(std::string_view text, Color color) {
         lines = split;
     }
 
-    const auto maxLines = static_cast<size_t>(std::max(1, cv::console_scrollback_lines.getInt()));
+    const auto maxLines = static_cast<size_t>(Mc::max(1, cv::console_scrollback_lines.getInt()));
 
     Sync::scoped_lock lock(s_pendingLogMutex);
     for(const auto line : lines) s_pendingLog.emplace_back(std::string{line}, color);
@@ -342,7 +342,7 @@ void updateLog() {
     s_logNext += s_incomingLog.size();
     s_incomingLog.clear();
 
-    const auto maxLines = static_cast<size_t>(std::max(1, cv::console_scrollback_lines.getInt()));
+    const auto maxLines = static_cast<size_t>(Mc::max(1, cv::console_scrollback_lines.getInt()));
     while(s_logEntries.size() > maxLines) {
         s_logEntries.pop_front();
         ++s_logFirst;

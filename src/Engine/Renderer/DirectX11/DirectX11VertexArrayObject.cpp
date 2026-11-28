@@ -5,6 +5,7 @@
 // $NoKeywords: $dxvao
 //===============================================================================//
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_DIRECTX11
 
@@ -16,7 +17,6 @@
 #include "DirectX11Interface.h"
 #include "ModernGraphicsShared.h"
 
-#include <algorithm>
 #include <span>
 #include <vector>
 
@@ -116,7 +116,7 @@ void DirectX11VertexArrayObject::init() {
             this->convertedVertices[i].pos = finalVertices[i];
 
             if(hasColors) {
-                const Color clr = finalColors[std::min(i, maxColorIndex)];
+                const Color clr = finalColors[Mc::min(i, maxColorIndex)];
                 this->convertedVertices[i].col = vec4(clr.Rf(), clr.Gf(), clr.Bf(), clr.Af());
             } else {
                 this->convertedVertices[i].col = vec4(1.0f, 1.0f, 1.0f, 1.0f);

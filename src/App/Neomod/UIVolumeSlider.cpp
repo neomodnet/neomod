@@ -1,5 +1,6 @@
 // Copyright (c) 2018, PG, All rights reserved.
 #include "UIVolumeSlider.h"
+#include "Algorithms.h"
 
 #include <utility>
 
@@ -61,7 +62,7 @@ void UIVolumeSlider::drawBlock() {
         McFont* iconFont = osu->getFontIcons();
         const std::string glyph = UniString::to_utf8(std::u32string_view{&Icons::TACHOMETER, 1});
         const float glyphHeight = iconFont->getGlyphHeight(Icons::TACHOMETER);
-        const float scale = glyphHeight > 0.f ? std::min(1.f, this->vBlockSize.y * 0.75f / glyphHeight) : 0.f;
+        const float scale = glyphHeight > 0.f ? Mc::min(1.f, this->vBlockSize.y * 0.75f / glyphHeight) : 0.f;
 
         g->pushTransform();
         {

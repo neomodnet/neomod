@@ -3,8 +3,8 @@
 
 #include "Hashing.h"
 #include "UIStyle.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -77,11 +77,11 @@ vec2 CBaseUIBox::getNaturalSize() {
         const BoxItem &item = child->getBoxItem();
         const vec2 natural = child->getNaturalSize();
         length += item.size == BoxItem::Size::FIXED ? style.px(item.value) : along(natural, this->axis);
-        thickness = std::max(thickness, across(natural, this->axis));
+        thickness = Mc::max(thickness, across(natural, this->axis));
         count++;
     }
     const float pad = 2.f * style.px(this->padding);
-    return make(length + style.px(this->gap) * static_cast<float>(std::max(count - 1, 0)) + pad, thickness + pad,
+    return make(length + style.px(this->gap) * static_cast<float>(Mc::max(count - 1, 0)) + pad, thickness + pad,
                 this->axis);
 }
 
@@ -89,8 +89,8 @@ void CBaseUIBox::layout() {
     const UIStyle &style = uiStyle();
     const float pad = style.px(this->padding);
     const float gap = style.px(this->gap);
-    const float innerLength = std::max(along(this->getSize(), this->axis) - 2.f * pad, 0.f);
-    const float innerThickness = std::max(across(this->getSize(), this->axis) - 2.f * pad, 0.f);
+    const float innerLength = Mc::max(along(this->getSize(), this->axis) - 2.f * pad, 0.f);
+    const float innerThickness = Mc::max(across(this->getSize(), this->axis) - 2.f * pad, 0.f);
 
     // what the fixed and natural lengths take, and how the rest is shared
     float taken = 0.f, weights = 0.f;
@@ -105,7 +105,7 @@ void CBaseUIBox::layout() {
         if(item.size == BoxItem::Size::FLEX) weights += item.value;
         count++;
     }
-    const float left = std::max(innerLength - taken - gap * static_cast<float>(std::max(count - 1, 0)), 0.f);
+    const float left = Mc::max(innerLength - taken - gap * static_cast<float>(Mc::max(count - 1, 0)), 0.f);
 
     // (edges are rounded, not lengths, so that neighbours meet without gaps or overlaps)
     float cursor = pad;
@@ -129,7 +129,7 @@ void CBaseUIBox::layout() {
 
         float thickness = innerThickness, offset = 0.f;
         if(item.align != BoxItem::Align::FILL) {
-            thickness = std::min(across(natural, this->axis), innerThickness);
+            thickness = Mc::min(across(natural, this->axis), innerThickness);
             if(item.align == BoxItem::Align::CENTER) offset = (innerThickness - thickness) / 2.f;
             if(item.align == BoxItem::Align::END) offset = innerThickness - thickness;
         }

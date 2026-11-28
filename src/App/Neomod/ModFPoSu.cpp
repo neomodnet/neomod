@@ -9,6 +9,7 @@
 #include "OsuConVars.h"
 #include "Engine.h"
 #include "Environment.h"
+#include "File.h"
 #include "OsuKeyBinds.h"
 #include "Keyboard.h"
 #include "ModFPoSu3DModels.h"
@@ -17,6 +18,7 @@
 #include "Osu.h"
 #include "ResourceManager.h"
 #include "Skin.h"
+#include "SString.h"
 #include "UI.h"
 #include "Logging.h"
 #include "MakeDelegateWrapper.h"
@@ -26,6 +28,7 @@
 #include "UniString.h"
 #include "VertexArrayObject.h"
 #include "RenderTarget.h"
+#include "Algorithms.h"
 
 #include <cmath>
 #include <sstream>
@@ -227,9 +230,9 @@ void ModFPoSu::draw() {
                     if(const BasicSkinImage &cube = skin->request(skin->i_background_cube); cube->isGPUReady()) {
                         cube.bind();
                         {
-                            g->setColor(rgb(std::clamp<int>(cv::fposu_cube_tint_r.getInt(), 0, 255),
-                                            std::clamp<int>(cv::fposu_cube_tint_g.getInt(), 0, 255),
-                                            std::clamp<int>(cv::fposu_cube_tint_b.getInt(), 0, 255)));
+                            g->setColor(rgb(Mc::clamp<int>(cv::fposu_cube_tint_r.getInt(), 0, 255),
+                                            Mc::clamp<int>(cv::fposu_cube_tint_g.getInt(), 0, 255),
+                                            Mc::clamp<int>(cv::fposu_cube_tint_b.getInt(), 0, 255)));
                             g->drawVAO(m_impl->vaoCube);
                         }
                         cube.unbind();
@@ -598,8 +601,8 @@ vec2 ModFPoSu::FPoSuImpl::intersectRayMesh(vec3 pos, vec3 dir) {
 
 vec3 ModFPoSu::FPoSuImpl::calculateUnProjectedVector(vec2 pos) {
     // calculate 3d position of 2d cursor on screen mesh
-    const float cursorXPercent = std::clamp<float>(pos.x / (float)osu->getVirtScreenWidth(), 0.0f, 1.0f);
-    const float cursorYPercent = std::clamp<float>(pos.y / (float)osu->getVirtScreenHeight(), 0.0f, 1.0f);
+    const float cursorXPercent = Mc::clamp<float>(pos.x / (float)osu->getVirtScreenWidth(), 0.0f, 1.0f);
+    const float cursorYPercent = Mc::clamp<float>(pos.y / (float)osu->getVirtScreenHeight(), 0.0f, 1.0f);
 
     auto begin = this->meshList.begin();
     auto next = ++this->meshList.begin();

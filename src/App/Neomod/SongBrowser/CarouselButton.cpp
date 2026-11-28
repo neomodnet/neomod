@@ -1,5 +1,6 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "CarouselButton.h"
+#include "Algorithms.h"
 
 #include <utility>
 
@@ -123,10 +124,10 @@ void CarouselButton::updateLayoutEx() {
     if(this->bVisible) {  // lag prevention (animationHandler overflow)
         const float centerOffsetAnimationTarget =
             ((cv::songbrowser_button_anim_y_curve.getBool() && !this->carousel.isScrollingFast())
-                 ? 1.0f - std::clamp<float>(std::abs((this->getPos().y + (CarouselButton::scaledBaseSize.y / 2) -
-                                                      this->carousel.getPos().y - this->carousel.getSize().y / 2) /
-                                                     (this->carousel.getSize().y / 2)),
-                                            0.0f, 1.0f)
+                 ? 1.0f - Mc::clamp<float>(std::abs((this->getPos().y + (CarouselButton::scaledBaseSize.y / 2) -
+                                                     this->carousel.getPos().y - this->carousel.getSize().y / 2) /
+                                                    (this->carousel.getSize().y / 2)),
+                                           0.0f, 1.0f)
                  : 1.f) +
             (this->isSelected() && !cv::songbrowser_button_anim_y_curve.getBool() ? 0.5f : 0.0f);
 
@@ -135,7 +136,7 @@ void CarouselButton::updateLayoutEx() {
         }
 
         float centerOffsetVelocityAnimationTarget =
-            std::clamp<float>((std::abs(this->carousel.getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
+            Mc::clamp<float>((std::abs(this->carousel.getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
 
         if(this->carousel.isScrollingFast() || !cv::songbrowser_button_anim_x_push.getBool())
             centerOffsetVelocityAnimationTarget = 0.0f;
@@ -159,7 +160,7 @@ void CarouselButton::updateLayoutEx() {
     // to the right than would be necessary, to make animations work better on lower resolutions (would otherwise
     // hit the left edge too early)
     // NOTE @spec: this 0.91 and 0.09 relationship is extremely important for the actual offset amount somehow
-    const float buttonWidthCompensation = std::max(this->carousel.getSize().x - this->getActualWidth() * 0.91f, 0.0f);
+    const float buttonWidthCompensation = Mc::max(this->carousel.getSize().x - this->getActualWidth() * 0.91f, 0.0f);
     minOffset += buttonWidthCompensation;
 
     float offsetX =
@@ -168,7 +169,7 @@ void CarouselButton::updateLayoutEx() {
                              (1.0f - this->fCenterOffsetVelocityAnimation) +
                          percentHoverOffsetAnimation * this->fHoverOffsetAnimation -
                          percentVelocityOffsetAnimation * this->fCenterOffsetVelocityAnimation + this->fOffsetPercent);
-    offsetX = std::clamp<float>(
+    offsetX = Mc::clamp<float>(
         offsetX, 0.0f,
         this->carousel.getSize().x -
             this->getActualWidth() * 0.09f);  // WARNING: hardcoded to match 0.91f above for buttonWidthCompensation
@@ -192,7 +193,7 @@ CarouselButton *CarouselButton::setVisible(bool visible) {
         this->fHoverOffsetAnimation = 0.0f;
 
         float centerOffsetVelocityAnimationTarget =
-            std::clamp<float>((std::abs(this->carousel.getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
+            Mc::clamp<float>((std::abs(this->carousel.getVelocity().y)) / 3500.0f, 0.0f, 1.0f);
 
         if(this->carousel.isScrollingFast() || !cv::songbrowser_button_anim_x_push.getBool())
             centerOffsetVelocityAnimationTarget = 0.0f;

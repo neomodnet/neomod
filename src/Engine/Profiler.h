@@ -33,9 +33,9 @@
 // #define DETAILED_PROFILING
 
 #ifdef DETAILED_PROFILING
-#include <ranges>
 #include <numeric>
-#include <algorithm>
+
+#include "ContainerRanges.h"
 
 #include "fmt/ranges.h"
 #include "Timing.h"
@@ -54,7 +54,7 @@
         lasttms__[lti__ % (uint32_t)amt__] = after__ - before__;             \
         if(!(++lti__ % (uint32_t)amt__)) {                                   \
             lti__ = 0;                                                       \
-            auto current_max__ = std::ranges::max(lasttms__);                \
+            auto current_max__ = *Mc::ranges::max_element(lasttms__);        \
             if(current_max__ > overall_max__) overall_max__ = current_max__; \
             logRaw("\n\tTIME FOR: " #__VA_ARGS__);                           \
             logRaw("\tmax overall: {:.8f}" \
@@ -62,7 +62,7 @@
                  "\n\tpast " MC_STRINGIZE(__amt__) " times:" \
                                                    "\n\t[ {:.4f} ]", \
                             overall_max__, std::reduce(lasttms__.begin(), lasttms__.end(), 0.0) / ((uint32_t)amt__),  \
-                            std::ranges::min(lasttms__), current_max__, fmt::join(lasttms__, ", "));                                 \
+                            *Mc::ranges::min_element(lasttms__), current_max__, fmt::join(lasttms__, ", "));                                 \
         }                                                                    \
     } while(false);
 

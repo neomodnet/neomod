@@ -6,8 +6,8 @@
 #include "KeyBindings.h"
 #include "KeyboardEvent.h"
 #include "UIStyle.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 
 // one item: highlighted while the mouse is over it, chosen when clicked
@@ -118,7 +118,7 @@ vec2 CBaseUIMenu::getNaturalSize() {
         if(item.separator) continue;
         const float shortcut =
             item.shortcut.empty() ? 0.f : style.px(3.f * style.metrics.gap) + font->getStringWidth(item.shortcut);
-        width = std::max(width, 2.f * style.px(style.metrics.markWidth) + font->getStringWidth(item.label) + shortcut);
+        width = Mc::max(width, 2.f * style.px(style.metrics.markWidth) + font->getStringWidth(item.label) + shortcut);
     }
     const float pad = style.px(style.metrics.popupPadding);
     return {std::round(width + 2.f * pad), std::round(height + 2.f * pad)};

@@ -1,5 +1,6 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "AudioTester.h"
+#include "Algorithms.h"
 
 #if (defined(MCENGINE_FEATURE_SOLOUD) && defined(MCENGINE_FEATURE_BASS))
 
@@ -21,7 +22,6 @@
 
 #include "soloud.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -211,7 +211,7 @@ bool AudioTesterImpl::generateTestWav(const std::string &path) {
     const double chirpRate = (f1 - f0) / wavDurationS;
 
     for(unsigned int offset = 0; offset < totalSamples; offset += batchSize) {
-        unsigned int count = std::min(batchSize, totalSamples - offset);
+        unsigned int count = Mc::min(batchSize, totalSamples - offset);
         for(unsigned int i = 0; i < count; i++) {
             const double t = static_cast<double>(offset + i) / wavSampleRate;
             const double phase = 2.0 * PI * (f0 * t + 0.5 * chirpRate * t * t);

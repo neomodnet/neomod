@@ -26,8 +26,8 @@
 #include "SongBrowser/SongBrowser.h"
 #include "SString.h"
 #include "UI.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <filesystem>
 #include <optional>
 #include <utility>
@@ -670,7 +670,7 @@ void BeatmapInstaller::update() {
 
     // extraction is bounded: a bulk drop (or a burst of downloads) would otherwise fill the pool's bg queue
     // ahead of everything else submitted to it
-    const size_t max_extracting = std::clamp<size_t>(Async::get_thread_count(), 2, 16);
+    const size_t max_extracting = Mc::clamp<size_t>(Async::get_thread_count(), 2, 16);
     size_t extracting = 0;
     for(const Entry& e : m->entries) extracting += e.stage == MapInstallStage::Extracting;
 

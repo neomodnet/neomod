@@ -27,8 +27,8 @@
 #include "Shader.h"
 #include "Thread.h"
 #include "UniString.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <filesystem>
 #include <numeric>
@@ -500,7 +500,7 @@ void McFontImpl::initAsync() {
         m_fHeight = 0.0f;
         for(int i = 32; i < 128; i++) {
             const int curHeight = getGlyphMetrics(static_cast<char32_t>(i)).top;
-            m_fHeight = std::max(m_fHeight, static_cast<float>(curHeight));
+            m_fHeight = Mc::max(m_fHeight, static_cast<float>(curHeight));
         }
     }
 
@@ -610,12 +610,12 @@ void McFontImpl::drawString(std::string_view text, std::optional<TextFX> effects
     // without this, the shader's 8-tap outline samples at the expanded quad edge overshoot the
     // padding and read neighboring glyph data, producing colored fringe artifacts.
     // the extra 1px margin accounts for bilinear filtering interpolating across the padding boundary
-    const float maxOutlineExpand = std::max(0.f, static_cast<float>(TextureAtlas::ATLAS_PADDING) - outlinePx - 1.f);
-    const float clampedOutlineExpand = std::min(outlinePx, maxOutlineExpand);
+    const float maxOutlineExpand = Mc::max(0.f, static_cast<float>(TextureAtlas::ATLAS_PADDING) - outlinePx - 1.f);
+    const float clampedOutlineExpand = Mc::min(outlinePx, maxOutlineExpand);
     const float expLeft = clampedOutlineExpand;
-    const float expRight = std::max(shadowPx, clampedOutlineExpand);
+    const float expRight = Mc::max(shadowPx, clampedOutlineExpand);
     const float expUp = clampedOutlineExpand;
-    const float expDown = std::max(shadowPx, clampedOutlineExpand);
+    const float expDown = Mc::max(shadowPx, clampedOutlineExpand);
 
     buildStringGeometry(text, expLeft, expRight, expUp, expDown);
 
@@ -675,7 +675,7 @@ float McFontImpl::getStringHeight(std::string_view text) const {
 
     float height = 0.0f;
     for(char32_t cp : UniString::codepoints(text)) {
-        height = std::max(height, static_cast<float>(getGlyphMetrics(cp).top));
+        height = Mc::max(height, static_cast<float>(getGlyphMetrics(cp).top));
     }
     return height;
 }
@@ -944,7 +944,7 @@ void McFontImpl::addDynamicSlots(int oldWidth, int oldHeight) {
     // the dynamic region is a grid of slots, starting below the static region
     const int slotSize = getDynSlotSize();
     const auto numColumns = [slotSize](int width) { return width / slotSize; };
-    const auto numRows = [this, slotSize](int height) { return std::max(0, height - m_dynamicRegionY) / slotSize; };
+    const auto numRows = [this, slotSize](int height) { return Mc::max(0, height - m_dynamicRegionY) / slotSize; };
 
     const int oldColumns = numColumns(oldWidth);
     const int oldRows = numRows(oldHeight);
@@ -970,8 +970,8 @@ void McFontImpl::addDynamicSlots(int oldWidth, int oldHeight) {
 bool McFontImpl::growAtlas() {
     const int width = m_textureAtlas->getWidth();
     const int height = m_textureAtlas->getHeight();
-    const int newHeight = std::min(height * 2, static_cast<int>(MAX_ATLAS_SIZE));
-    const int newWidth = newHeight > height ? width : std::min(width * 2, static_cast<int>(MAX_ATLAS_SIZE));
+    const int newHeight = Mc::min(height * 2, static_cast<int>(MAX_ATLAS_SIZE));
+    const int newWidth = newHeight > height ? width : Mc::min(width * 2, static_cast<int>(MAX_ATLAS_SIZE));
     if((newWidth == width && newHeight == height) || !m_textureAtlas->resize(newWidth, newHeight)) return false;
 
     addDynamicSlots(width, height);
@@ -1022,16 +1022,16 @@ void McFontImpl::renderBitmapToAtlas(char32_t ch, int x, int y, const FT_Bitmap 
         const float scaleY = static_cast<float>(srcH) / static_cast<float>(outH);
         for(sSz dy = 0; dy < outH; dy++) {
             const float sy0 = static_cast<float>(dy) * scaleY;
-            const float sy1 = std::min(static_cast<float>(dy + 1) * scaleY, static_cast<float>(srcH));
+            const float sy1 = Mc::min(static_cast<float>(dy + 1) * scaleY, static_cast<float>(srcH));
             for(sSz dx = 0; dx < outW; dx++) {
                 const float sx0 = static_cast<float>(dx) * scaleX;
-                const float sx1 = std::min(static_cast<float>(dx + 1) * scaleX, static_cast<float>(srcW));
+                const float sx1 = Mc::min(static_cast<float>(dx + 1) * scaleX, static_cast<float>(srcW));
 
                 float rAcc = 0, gAcc = 0, bAcc = 0, aAcc = 0, area = 0;
                 for(sSz sy = static_cast<sSz>(sy0); sy < static_cast<sSz>(sy1 + 0.999f) && sy < srcH; sy++) {
-                    float wy = std::min(static_cast<float>(sy + 1), sy1) - std::max(static_cast<float>(sy), sy0);
+                    float wy = Mc::min(static_cast<float>(sy + 1), sy1) - Mc::max(static_cast<float>(sy), sy0);
                     for(sSz sx = static_cast<sSz>(sx0); sx < static_cast<sSz>(sx1 + 0.999f) && sx < srcW; sx++) {
-                        float wx = std::min(static_cast<float>(sx + 1), sx1) - std::max(static_cast<float>(sx), sx0);
+                        float wx = Mc::min(static_cast<float>(sx + 1), sx1) - Mc::max(static_cast<float>(sx), sx0);
                         float w = wx * wy;
                         const u8 *p = bitmap.buffer + sy * bitmap.pitch + sx * 4;
                         rAcc += static_cast<float>(p[2]) * w;  // B->R
@@ -1043,10 +1043,10 @@ void McFontImpl::renderBitmapToAtlas(char32_t ch, int x, int y, const FT_Bitmap 
                 }
                 const size_t di = (static_cast<size_t>(dy) * outW + dx) * 4;
                 const float inv = area > 0 ? 1.0f / area : 0;
-                expandedData[di + 0] = static_cast<u8>(std::min(rAcc * inv, 255.0f));
-                expandedData[di + 1] = static_cast<u8>(std::min(gAcc * inv, 255.0f));
-                expandedData[di + 2] = static_cast<u8>(std::min(bAcc * inv, 255.0f));
-                expandedData[di + 3] = static_cast<u8>(std::min(aAcc * inv, 255.0f));
+                expandedData[di + 0] = static_cast<u8>(Mc::min(rAcc * inv, 255.0f));
+                expandedData[di + 1] = static_cast<u8>(Mc::min(gAcc * inv, 255.0f));
+                expandedData[di + 2] = static_cast<u8>(Mc::min(bAcc * inv, 255.0f));
+                expandedData[di + 3] = static_cast<u8>(Mc::min(aAcc * inv, 255.0f));
             }
         }
     } else if(bitmap.pixel_mode == FT_PIXEL_MODE_BGRA) {
@@ -1080,23 +1080,23 @@ void McFontImpl::renderBitmapToAtlas(char32_t ch, int x, int y, const FT_Bitmap 
         }
     }
 
-    int renderWidth = std::min(static_cast<int>(outW), atlasWidth - x);
-    int renderHeight = std::min(static_cast<int>(outH), atlasHeight - y);
+    int renderWidth = Mc::min(static_cast<int>(outW), atlasWidth - x);
+    int renderHeight = Mc::min(static_cast<int>(outH), atlasHeight - y);
 
     if(isDynamicSlot) {
         const int maxSlotContent = getDynSlotSize() - TextureAtlas::ATLAS_PADDING;
-        renderWidth = std::min(renderWidth, maxSlotContent);
-        renderHeight = std::min(renderHeight, maxSlotContent);
+        renderWidth = Mc::min(renderWidth, maxSlotContent);
+        renderHeight = Mc::min(renderHeight, maxSlotContent);
     }
 
     // clear the full padding area around the glyph to prevent stale data
     // from appearing when glyph quads are expanded for shadow/outline effects
     if(isDynamicSlot) {
         const int pad = TextureAtlas::ATLAS_PADDING;
-        const int clearX = std::max(0, x - pad);
-        const int clearY = std::max(0, y - pad);
-        const int clearW = std::min(renderWidth + 2 * pad, atlasWidth - clearX);
-        const int clearH = std::min(renderHeight + 2 * pad, atlasHeight - clearY);
+        const int clearX = Mc::max(0, x - pad);
+        const int clearY = Mc::max(0, y - pad);
+        const int clearW = Mc::min(renderWidth + 2 * pad, atlasWidth - clearX);
+        const int clearH = Mc::min(renderHeight + 2 * pad, atlasHeight - clearY);
         m_textureAtlas->clearRegion(clearX, clearY, clearW, clearH);
     }
 
@@ -1175,13 +1175,13 @@ bool McFontImpl::initializeAtlas() {
     // find the height used by static glyphs
     m_staticRegionHeight = 0;
     for(const auto &rect : packRects) {
-        m_staticRegionHeight = std::max(m_staticRegionHeight, rect.y + rect.height + TextureAtlas::ATLAS_PADDING);
+        m_staticRegionHeight = Mc::max(m_staticRegionHeight, rect.y + rect.height + TextureAtlas::ATLAS_PADDING);
     }
     m_dynamicRegionY = m_staticRegionHeight + TextureAtlas::ATLAS_PADDING;
 
     // room for one row of dynamic slots, if this font ever loads glyphs dynamically
     const int atlasHeight =
-        std::min(m_dynamicRegionY + (m_bTryFindFallbacks ? getDynSlotSize() : 0), static_cast<int>(MAX_ATLAS_SIZE));
+        Mc::min(m_dynamicRegionY + (m_bTryFindFallbacks ? getDynSlotSize() : 0), static_cast<int>(MAX_ATLAS_SIZE));
 
     resourceManager->requestNextLoadUnmanaged();
     m_textureAtlas.reset(resourceManager->createTextureAtlas(atlasWidth, atlasHeight, m_bAntialiasing));
@@ -1299,9 +1299,9 @@ FT_BitmapGlyph McFontImpl::loadBitmapGlyph(char32_t ch, FT_Face face, bool store
             metrics.advance_x = static_cast<float>(face->glyph->advance.x >> 6) * scale;
             // sizePixels stores the scaled (display) size for atlas UV calculations
             metrics.sizePixelsX =
-                std::max(1u, static_cast<unsigned int>(static_cast<float>(bitmapGlyph->bitmap.width) * scale));
+                Mc::max(1u, static_cast<unsigned int>(static_cast<float>(bitmapGlyph->bitmap.width) * scale));
             metrics.sizePixelsY =
-                std::max(1u, static_cast<unsigned int>(static_cast<float>(bitmapGlyph->bitmap.rows) * scale));
+                Mc::max(1u, static_cast<unsigned int>(static_cast<float>(bitmapGlyph->bitmap.rows) * scale));
         } else {
             metrics.left = bitmapGlyph->left;
             metrics.top = bitmapGlyph->top;
@@ -1410,7 +1410,7 @@ std::unique_ptr<Channel[]> McFontImpl::unpackMonoBitmap(const FT_Bitmap &bitmap)
             const u32 rowstart = y * bitmap.width + byteIdx * 8;
 
             // why do these have to be 32bit ints exactly... ill look into it later
-            const int bits = std::min(8, static_cast<int>(bitmap.width - numBitsDone));
+            const int bits = Mc::min(8, static_cast<int>(bitmap.width - numBitsDone));
             for(int bitIdx = 0; bitIdx < bits; bitIdx++) {
                 result[rowstart + bitIdx] = (byteValue & (1 << (7 - bitIdx))) ? 1 : 0;
             }

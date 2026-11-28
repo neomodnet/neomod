@@ -5,8 +5,8 @@
 #include "Parsing.h"
 #include "SString.h"
 #include "Vectors.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cmath>
@@ -74,7 +74,7 @@ struct formatting::formatter<StableDouble> {
                 std::to_chars(buf.data(), buf.data() + buf.size(), d.value, std::chars_format::general, precision).ptr;
             if(f64 back; Parsing::from_chars(buf.data(), end, back).ec == std::errc() && back == d.value) break;
         }
-        std::replace(buf.data(), end, 'e', 'E');
+        Mc::replace(buf.data(), end, 'e', 'E');
         return formatting::format_to(ctx.out(), "{}"_cf, std::string_view{buf.data(), end});
     }
 };
@@ -94,7 +94,7 @@ struct formatting::formatter<Coordinate> {
             end = std::to_chars(buf.data(), buf.data() + buf.size(), static_cast<i64>(c.value)).ptr;
         } else {
             end = std::to_chars(buf.data(), buf.data() + buf.size(), c.value, std::chars_format::general).ptr;
-            std::replace(buf.data(), end, 'e', 'E');
+            Mc::replace(buf.data(), end, 'e', 'E');
         }
         return formatting::format_to(ctx.out(), "{}"_cf, std::string_view{buf.data(), end});
     }
@@ -165,7 +165,7 @@ void parseHitSample(std::string_view field, BeatmapFile::HitSample &out) {
     if(count >= 4) out.volume = Parsing::strto<i32>(parts[3]);
     if(count >= 5) out.filename = parts[4];
     // (an empty filename after the last ':' counts as written)
-    out.parts = static_cast<u8>(std::min<uSz>(Mc::ranges::count(field, ':') + 1, 5));
+    out.parts = static_cast<u8>(Mc::min<uSz>(Mc::ranges::count(field, ':') + 1, 5));
 }
 
 void appendHitSample(Text &out, const BeatmapFile::HitSample &sample) {
@@ -525,7 +525,7 @@ bool BeatmapFile::parse(std::string_view line, Event &out) {
         ev.rest = file.substr(closingQuote + 1);
         file = file.substr(1, closingQuote - 1);
     } else {
-        const uSz comma = std::min(file.find(','), file.size());
+        const uSz comma = Mc::min(file.find(','), file.size());
         ev.rest = file.substr(comma);
         file = SString::trimmed(file.substr(0, comma));
     }

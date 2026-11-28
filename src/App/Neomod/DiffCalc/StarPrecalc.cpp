@@ -4,7 +4,6 @@
 #include "ContainerRanges.h"
 #include "ModFlags.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdio>
 

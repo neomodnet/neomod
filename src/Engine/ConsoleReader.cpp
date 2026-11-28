@@ -6,8 +6,8 @@
 #include "Thread.h"
 #include "Engine.h"
 #include "Timing.h"
+#include "Algorithms.h"
 
-#include <algorithm>  // std::clamp
 #include <array>
 #include <cstdio>
 
@@ -160,10 +160,10 @@ void ConsoleReader::processStdin(double current_time) {
 
         if(cmd.starts_with("@wait_secs")) {
             this->stdinWaitDeadline =
-                current_time + std::max(0., Parsing::strto<double>(cmd.substr("@wait_secs"sv.size())));
+                current_time + Mc::max(0., Parsing::strto<double>(cmd.substr("@wait_secs"sv.size())));
             break;
         } else if(cmd.starts_with("@wait")) {
-            this->stdinWaitFrames = std::max(1, Parsing::strto<int>(cmd.substr("@wait"sv.size())));
+            this->stdinWaitFrames = Mc::max(1, Parsing::strto<int>(cmd.substr("@wait"sv.size())));
             break;  // can't sleep in the main thread in WASM
         }
 
@@ -180,13 +180,13 @@ void ConsoleReader::processStdin(double current_time) {
 
             if(cmd.starts_with("@wait_secs")) {
                 this->stdinWaitDeadline =
-                    current_time + std::max(0., Parsing::strto<double>(cmd.substr("@wait_secs"sv.size())));
+                    current_time + Mc::max(0., Parsing::strto<double>(cmd.substr("@wait_secs"sv.size())));
                 break;
             } else if(cmd.starts_with("@wait")) {
-                this->stdinWaitFrames = std::max(1, Parsing::strto<int>(cmd.substr("@wait"sv.size())));
+                this->stdinWaitFrames = Mc::max(1, Parsing::strto<int>(cmd.substr("@wait"sv.size())));
                 break;
             } else if(cmd.starts_with("@sleep")) {
-                sleepMillis = std::clamp(Parsing::strto<int>(cmd.substr("@sleep"sv.size())), 0, 60000);
+                sleepMillis = Mc::clamp(Parsing::strto<int>(cmd.substr("@sleep"sv.size())), 0, 60000);
                 break;
             }
             Console::processCommand(cmd);

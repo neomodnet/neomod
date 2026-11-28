@@ -1,5 +1,6 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "UIContextMenu.h"
+#include "Algorithms.h"
 
 #include <utility>
 
@@ -572,7 +573,7 @@ void UIContextMenu::updateSearch() {
     const int searchHeight = buttonHeight + 2 * margin;
     const int maxListHeight = osu->getVirtScreenHeight() / 2 - searchHeight;
     this->searchList->setVerticalScrolling(listHeight > maxListHeight);
-    this->searchList->setSize(this->iWidthCounter, std::min(listHeight, maxListHeight));
+    this->searchList->setSize(this->iWidthCounter, Mc::min(listHeight, maxListHeight));
     this->searchList->setScrollSizeToContent(margin);
 
     this->searchTextbox->setSizeX(this->iWidthCounter);
@@ -654,7 +655,7 @@ void UIContextMenu::onRemove(UIContextMenuButton *button) {
     this->container.update_pos();
 
     this->iYCounter -= buttonHeight;
-    this->setSizeY(std::min(this->getSize().y, (float)(this->iYCounter + 2 * margin)));
+    this->setSizeY(Mc::min(this->getSize().y, (float)(this->iYCounter + 2 * margin)));
     this->setScrollSizeToContent();
     if(this->container.getElements().empty()) {
         this->setVisible2(false);

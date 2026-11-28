@@ -1,5 +1,6 @@
 // Copyright (c) 2014, PG, All rights reserved.
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_BASS
 
@@ -461,7 +462,7 @@ bool BassSoundEngine::play(Sound *snd, f32 pan, f32 pitch, f32 playVolume, bool 
     }
 
     // NOTE: BASS documentation says setting FREQ/PAN/VOL won't work on DECODE streams, but it works just fine...
-    pan = std::clamp<float>(pan, -1.0f, 1.0f);
+    pan = Mc::clamp<float>(pan, -1.0f, 1.0f);
     BASS_ChannelSetAttribute(handle, BASS_ATTRIB_VOL, bassSound->getBaseVolume() * playVolume);
     BASS_ChannelSetAttribute(handle, BASS_ATTRIB_PAN, pan);
     BASS_ChannelSetAttribute(handle, BASS_ATTRIB_NORAMP, bassSound->isStream() ? 0 : 1);
@@ -648,7 +649,7 @@ void BassSoundEngine::setOutputDevice(const SoundEngine::OUTPUT_DEVICE &device) 
 void BassSoundEngine::setMasterVolume(float volume) {
     if(!this->isReady()) return;
 
-    this->fMasterVolume = std::clamp<float>(volume, 0.0f, 1.0f);
+    this->fMasterVolume = Mc::clamp<float>(volume, 0.0f, 1.0f);
     if(this->currentOutputDevice.driver == OutputDriver::BASS_ASIO) {
 #ifdef _WIN32
         BASS_ASIO_ChannelSetVolume(false, 0, this->fMasterVolume);

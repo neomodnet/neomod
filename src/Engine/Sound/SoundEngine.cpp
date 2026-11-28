@@ -13,7 +13,6 @@
 #include "Startup.h"
 #include "Thread.h"
 
-#include <algorithm>
 #include <cassert>
 
 SoundEngine::~SoundEngine() {

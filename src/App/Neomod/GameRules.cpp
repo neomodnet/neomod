@@ -3,6 +3,7 @@
 #include "GameRules.h"
 
 #include "Matrices.h"
+#include "Algorithms.h"
 
 #ifndef BUILD_TOOLS_ONLY
 #include "Osu.h"
@@ -69,7 +70,7 @@ namespace GameRules {
 float getFadeOutTime(float animationSpeedMultiplier) {
     const float fade_out_time = HITOBJECT_FADE_OUT_TIME;
     const float multiplier_min = HITOBJECT_FADE_OUT_TIME_SPEED_MULTIPLIER_MIN;
-    return fade_out_time * (1.0f / std::max(animationSpeedMultiplier, multiplier_min));
+    return fade_out_time * (1.0f / Mc::max(animationSpeedMultiplier, multiplier_min));
 }
 
 i32 getFadeInTime() { return (i32)HITOBJECT_FADE_IN_TIME; }

@@ -2,6 +2,7 @@
 #include "EditorTests.h"
 
 #include "Logging.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_TESTS
 #include "BeatSnap.h"
@@ -49,7 +50,6 @@
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -3136,7 +3136,7 @@ class EditorTests {
             timedStep("a resnap", [&] { state.edit(Action::RESNAP, [&](Change &c) { Retiming::resnap(c, big, 4); }); });
             state.undo();
             // every combo after it counted again
-            state.compose.select({state.objects->ids[std::min<uSz>(1, state.objects->ids.size() - 1)]});
+            state.compose.select({state.objects->ids[Mc::min<uSz>(1, state.objects->ids.size() - 1)]});
             timedStep("a new combo near the start", [&] { state.compose.toggleNewCombo(); });
             timedStep("its undo", [&] { state.undo(); });
             state.compose.clearSelection();
@@ -3236,7 +3236,7 @@ class EditorTests {
             const neomod::SliderCurve b{other.type, other.points, (f32)length};
             f32 most = 0.f;
             for(i32 i = 0; i <= 64; i++) {
-                most = std::max(most, vec::distance(a.pointAt(1.f - (f32)i / 64.f), b.pointAt((f32)i / 64.f)));
+                most = Mc::max(most, vec::distance(a.pointAt(1.f - (f32)i / 64.f), b.pointAt((f32)i / 64.f)));
             }
             return most;
         };
@@ -3703,12 +3703,12 @@ class EditorTests {
                     if(!objects->update(*doc)) objects = std::make_unique<MapObjects>(*doc);
                 };
                 const uSz count = objects->objects.size();
-                for(uSz i = 1; i < count; i += std::max<uSz>(count / 3, 1)) {
+                for(uSz i = 1; i < count; i += Mc::max<uSz>(count / 3, 1)) {
                     const Document::Id id = objects->ids[i];
                     const neomod::HitObject &previous = objects->objects[i - 1];
                     const vec2 before = previous.getOriginalRawPosAt(previous.getClickTime());
                     const i32 earlier = objects->objects[i >= 3 ? i - 3 : 0].getClickTime() - 1;
-                    const i32 later = objects->objects[std::min(i + 5, count - 1)].getClickTime() + 1;
+                    const i32 later = objects->objects[Mc::min(i + 5, count - 1)].getClickTime() + 1;
                     for(i32 step = 0; step < 3; step++) {
                         auto object = doc->getObject(id);
                         if(!object) break;
@@ -3760,7 +3760,7 @@ class EditorTests {
                     if(state.objects->objects[i].isSlider()) sliders.push_back(state.objects->ids[i]);
                 }
                 bool first = true;
-                for(uSz i = 0; i < sliders.size(); i += std::max<uSz>(sliders.size() / 3, 1)) {
+                for(uSz i = 0; i < sliders.size(); i += Mc::max<uSz>(sliders.size() / 3, 1)) {
                     compose.select({sliders[i]});
                     const auto shown = compose.controlPoints();
                     if(!shown || shown->points.size() < 2) continue;
@@ -3780,7 +3780,7 @@ class EditorTests {
                         if(const std::optional<neomod::HitObject> object = state.objects->find(sliders[i]);
                            object && object->isSlider() && object->getDuration() > 0) {
                             const i32 spans = object->getRepeat();
-                            const f64 end = object->getEndTime() + (f64)object->getDuration() / std::max(spans, 1);
+                            const f64 end = object->getEndTime() + (f64)object->getDuration() / Mc::max(spans, 1);
                             if(compose.startEndDrag({.object = object, .id = sliders[i], .node = spans})) {
                                 compose.dragEnd(end, true);
                                 compose.endGesture();
@@ -3840,8 +3840,8 @@ class EditorTests {
                 f32 backwards = 0.f, forwards = 0.f;
                 for(i32 i = 0; i <= 64; i++) {
                     const f32 t = (f32)i / 64.f;
-                    backwards = std::max(backwards, vec::distance(curve.pointAt(1.f - t), back.pointAt(t)));
-                    forwards = std::max(forwards, vec::distance(curve.pointAt(t), again.pointAt(t)));
+                    backwards = Mc::max(backwards, vec::distance(curve.pointAt(1.f - t), back.pointAt(t)));
+                    forwards = Mc::max(forwards, vec::distance(curve.pointAt(t), again.pointAt(t)));
                 }
                 using enum neomod::SLIDERCURVETYPE;
                 Reversals &r = reversals[type == CATMULL                             ? 0

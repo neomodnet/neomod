@@ -9,8 +9,8 @@
 #include "build_timestamp.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <charconv>
@@ -250,7 +250,7 @@ void ConVar::setDefaultString(std::string_view newDefault) {
 }
 
 ConVar::Value ConVar::makeValue(double dbl) const {
-    dbl = std::clamp(dbl, this->range.min, this->range.max);
+    dbl = Mc::clamp(dbl, this->range.min, this->range.max);
     return {.d = dbl, .s = fmt::format("{:g}", dbl)};
 }
 

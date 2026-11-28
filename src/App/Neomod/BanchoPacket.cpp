@@ -3,8 +3,8 @@
 #include "BanchoPacket.h"
 #include "UniString.h"
 #include "Logging.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <string>
 
 void Packet::write_uleb128(u32 num) {
@@ -73,7 +73,7 @@ MD5String PacketReader::read_hash_chars() {
     if(bytes.size() != hash.length()) {
         debugLog("expected a {}-char hash, got {} bytes!", hash.length(), bytes.size());
     }
-    std::copy_n(bytes.begin(), std::min(bytes.size(), hash.length()), hash.begin());
+    Mc::copy_n(bytes.begin(), Mc::min(bytes.size(), hash.length()), hash.begin());
     return hash;
 }
 
@@ -85,7 +85,7 @@ MD5Hash PacketReader::read_hash_digest() {
     if(bytes.size() != hash.length()) {
         debugLog("expected a {}-byte hash, got {} bytes!", hash.length(), bytes.size());
     }
-    std::copy_n(bytes.begin(), std::min(bytes.size(), hash.length()), hash.begin());
+    Mc::copy_n(bytes.begin(), Mc::min(bytes.size(), hash.length()), hash.begin());
     return hash;
 }
 

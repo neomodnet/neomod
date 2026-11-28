@@ -1,9 +1,9 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "OpenGLImage.h"
+#include "Algorithms.h"
 
 #if defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32)
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <utility>
@@ -82,12 +82,12 @@ void OpenGLImage::init() {
 
         // cap mipmap levels at 32px minimum dimension to avoid excessive generation cost
         // we're not going to care about huge images looking good when downscaled to webpage icon size
-        const int maxDim = std::max(this->rawImage.getX(), this->rawImage.getY());
-        const int maxLevel = this->bMipmapped ? std::max(0, (int)std::floor(std::log2(maxDim)) - 5) : 0;
+        const int maxDim = Mc::max(this->rawImage.getX(), this->rawImage.getY());
+        const int maxLevel = this->bMipmapped ? Mc::max(0, (int)std::floor(std::log2(maxDim)) - 5) : 0;
         if(newStorage) {
             for(int level = 1; level <= maxLevel; level++) {
-                glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, std::max(1, this->rawImage.getX() >> level),
-                             std::max(1, this->rawImage.getY() >> level), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, Mc::max(1, this->rawImage.getX() >> level),
+                             Mc::max(1, this->rawImage.getY() >> level), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
             }
         }
 

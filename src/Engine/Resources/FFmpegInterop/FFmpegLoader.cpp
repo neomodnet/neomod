@@ -13,6 +13,7 @@
 
 #include "ConVar.h"
 
+#include <array>
 #include <atomic>
 
 namespace Mc::FFmpeg {

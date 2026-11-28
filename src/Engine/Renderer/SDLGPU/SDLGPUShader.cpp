@@ -6,6 +6,7 @@
 //===============================================================================//
 
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_SDLGPU
 
@@ -24,7 +25,6 @@
 
 #include "ctre.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <charconv>
 #include <cstring>
@@ -86,7 +86,7 @@ void SDLGPUShader::init() {
         for([[maybe_unused]] auto _ : ctre::search_all<samplerPat>(fshGlsl)) fragmentNumSamplers++;
     }
     assert(fragmentNumSamplers <= Graphics::MAX_TEXTURE_UNITS);
-    m_numFragmentSamplers = std::min(fragmentNumSamplers, Graphics::MAX_TEXTURE_UNITS);
+    m_numFragmentSamplers = Mc::min(fragmentNumSamplers, Graphics::MAX_TEXTURE_UNITS);
 
     // count uniform buffers from blocks
     for(auto &block : m_uniformBlocks) {
@@ -213,7 +213,7 @@ void SDLGPUShader::writeUniform(std::string_view name, [[maybe_unused]] UniformT
         }
     }
 
-    const u32 size = std::min(dataSize, varSize);
+    const u32 size = Mc::min(dataSize, varSize);
     if(std::memcmp(uniformVarDataPtr, data, size) == 0) return;
     std::memcpy(uniformVarDataPtr, data, size);
     m_uniformGeneration++;

@@ -16,8 +16,8 @@
 #include "Vectors.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -225,7 +225,7 @@ void bench(const std::vector<std::pair<std::string, std::string>> &files, int ro
         for(int r = 0; r < rounds; r++) {
             const f64 start = Timing::getTimeReal();
             fn();
-            fastest = std::min(fastest, Timing::getTimeReal() - start);
+            fastest = Mc::min(fastest, Timing::getTimeReal() - start);
         }
         return fastest;
     };
@@ -768,7 +768,7 @@ void BeatmapFileTest::runCorpus(const std::string &dir) {
     TEST_ASSERT(!files.empty(), "the corpus has .osu files");
 
     if(const auto rounds = getTestArg("bench")) {
-        bench(files, std::max(1, Parsing::strto<i32>(*rounds)));
+        bench(files, Mc::max(1, Parsing::strto<i32>(*rounds)));
         return;
     }
 
@@ -778,7 +778,7 @@ void BeatmapFileTest::runCorpus(const std::string &dir) {
     {
         std::atomic<uSz> next{0};
         std::vector<Sync::jthread> workers;
-        const unsigned count = std::max(1u, std::thread::hardware_concurrency());
+        const unsigned count = Mc::max(1u, Sync::jthread::hardware_concurrency());
         for(unsigned i = 0; i < count; i++) {
             workers.emplace_back([&] {
                 for(uSz f; (f = next.fetch_add(1)) < files.size();) {

@@ -8,6 +8,7 @@
 // TODO: prime full cache on load anyway
 // TODO: individually remember m_bConstantBuffersUpToDate per constant buffer
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_DIRECTX11
 
@@ -20,7 +21,6 @@
 
 #include "DirectX11Interface.h"
 
-#include <algorithm>
 #include <cstring>
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -270,7 +270,7 @@ void DirectX11Shader::writeUniform(std::string_view name, [[maybe_unused]] Unifo
 
     // raw copy: spirv-cross emits row_major matrices + mul(vec, mat), matching the GLSL/SPIR-V convention
     // (same as engine)
-    const unsigned int n = std::min(numBytes, cacheEntry.sizeBytes);
+    const unsigned int n = Mc::min(numBytes, cacheEntry.sizeBytes);
     float *dst = &cb.cpuData[cacheEntry.offsetBytes / sizeof(float)];
     if(memcmp(dst, src, n) != 0)  // NOTE: ignore redundant updates
     {

@@ -6,8 +6,8 @@
 #include "Graphics.h"
 #include "Mouse.h"
 #include "UIStyle.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 
@@ -74,10 +74,10 @@ void Overview::remake() {
     // a map can have times before the song and after it: nothing is drawn beside the bar
     const f32 right = pos.x + size.x;
     const auto band = [&](f64 from, f64 to, f32 top, f32 bottom, Color color) {
-        const f32 x0 = std::clamp(this->xAt(from), pos.x, right);
-        const f32 x1 = std::clamp(this->xAt(to), pos.x, right);
+        const f32 x0 = Mc::clamp(this->xAt(from), pos.x, right);
+        const f32 x1 = Mc::clamp(this->xAt(to), pos.x, right);
         if(x0 >= right || x1 <= pos.x) return;
-        rect(x0, pos.y + size.y * top, std::max(x1 - x0, 1.f), size.y * (bottom - top), color);
+        rect(x0, pos.y + size.y * top, Mc::max(x1 - x0, 1.f), size.y * (bottom - top), color);
     };
     const auto line = [&](f64 at, f32 top, f32 bottom, Color color) {
         const f32 x = std::round(this->xAt(at));
@@ -120,7 +120,7 @@ void Overview::onCapturedMouseMove() {
 std::optional<i32> Overview::cursorTime() const {
     const u32 length = this->state.clock.getLength();
     if(length == 0) return std::nullopt;
-    const f32 at = std::clamp((mouse->getPos().x - this->getPos().x) / this->getSize().x, 0.f, 1.f);
+    const f32 at = Mc::clamp((mouse->getPos().x - this->getPos().x) / this->getSize().x, 0.f, 1.f);
     return (i32)(length * at);
 }
 

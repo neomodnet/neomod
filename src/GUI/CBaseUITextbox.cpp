@@ -2,8 +2,8 @@
 // TODO: make scrolling anims fps independent
 
 #include "CBaseUITextbox.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <string>
 #include <string_view>
@@ -135,7 +135,7 @@ std::string CBaseUITextbox::getVisibleText() {
         const uSz len = UniString::num_codepoints(this->text);
         std::string stars;
         stars.resize(len);
-        std::fill_n(stars.begin(), len, '*');
+        Mc::fill_n(stars.begin(), len, '*');
         return stars;
     } else {
         return this->text;
@@ -217,7 +217,7 @@ void CBaseUITextbox::drawText() {
             return x + (int)this->font->getStringWidth(std::string_view{drawn.text}.substr(0, pos));
         };
         const float dpiScale = (float)this->font->getDPI() / 96.0f;
-        const int thickness = std::max(1, (int)std::round(dpiScale));
+        const int thickness = Mc::max(1, (int)std::round(dpiScale));
         const int lineY = y + (int)std::round(2 * dpiScale);
         g->fillRect(at(drawn.compositionStart), lineY, at(drawn.compositionEnd) - at(drawn.compositionStart),
                     thickness);
@@ -228,7 +228,7 @@ void CBaseUITextbox::drawText() {
 
 CBaseUITextbox::DrawnText CBaseUITextbox::getDrawnText() {
     std::string drawn = this->getVisibleText();
-    const int caret = std::clamp(this->caretPosition, 0, (int)drawn.size());
+    const int caret = Mc::clamp(this->caretPosition, 0, (int)drawn.size());
     const TextComposition *composition = keyboard->getComposition(this);
     if(composition == nullptr) return {std::move(drawn), caret, caret, caret, caret, caret};
 
@@ -311,8 +311,8 @@ void CBaseUITextbox::onCapturedMouseMove() {
 
                 // TODO: animations which don't suck for usability
                 this->fTextScrollAddX =
-                    std::clamp<int>(this->fTextScrollAddX + scrollspeed, 0,
-                                    this->fTextWidth - this->getSize().x + this->getTextOffsetX() * 2);
+                    Mc::clamp<int>(this->fTextScrollAddX + scrollspeed, 0,
+                                   this->fTextWidth - this->getSize().x + this->getTextOffsetX() * 2);
                 /// animation->moveSmoothEnd(&m_fTextScrollAddX, clampi(this->fTextScrollAddX+scrollspeed, 0,
                 /// m_fTextWidth-m_vSize.x+cv::ui_textbox_text_offset_x.getInt()*2), 1);
             }
@@ -322,8 +322,8 @@ void CBaseUITextbox::onCapturedMouseMove() {
 
                 // TODO: animations which don't suck for usability
                 this->fTextScrollAddX =
-                    std::clamp<int>(this->fTextScrollAddX - scrollspeed, 0,
-                                    this->fTextWidth - this->getSize().x + this->getTextOffsetX() * 2);
+                    Mc::clamp<int>(this->fTextScrollAddX - scrollspeed, 0,
+                                   this->fTextWidth - this->getSize().x + this->getTextOffsetX() * 2);
                 /// animation->moveSmoothEnd(&m_fTextScrollAddX, clampi(this->fTextScrollAddX-scrollspeed, 0,
                 /// m_fTextWidth-m_vSize.x+cv::ui_textbox_text_offset_x.getInt()*2), 1);
             }
@@ -338,8 +338,8 @@ void CBaseUITextbox::onCapturedMouseMove() {
             const auto [start, end] = this->hitTestWord(visible_text, mouseX);
             const int size = static_cast<int>(visible_text.size());
             const bool back = start < this->iWordStart;
-            this->iSelectStart = std::min(back ? this->iWordEnd : this->iWordStart, size);
-            this->iSelectEnd = back ? start : std::min(std::max(end, this->iWordEnd), size);
+            this->iSelectStart = Mc::min(back ? this->iWordEnd : this->iWordStart, size);
+            this->iSelectEnd = back ? start : Mc::min(Mc::max(end, this->iWordEnd), size);
             this->iSelectX = this->font->getStringWidth(visible_text.substr(0, this->iSelectStart));
         }
         this->caretPosition = this->iSelectEnd;
@@ -423,7 +423,7 @@ void CBaseUITextbox::onKeyDown(KeyboardEvent &e) {
             if(control)
                 this->moveCaret(this->is_password ? 0 : wordJump(this->text, this->caretPosition, false), shift);
             else if(!shift && this->hasSelectedText())
-                this->moveCaret(std::clamp(std::min(this->iSelectStart, this->iSelectEnd), 0, length), false);
+                this->moveCaret(Mc::clamp(Mc::min(this->iSelectStart, this->iSelectEnd), 0, length), false);
             else
                 this->moveCaret((int)UniString::prev(this->text, this->caretPosition), shift);
             break;
@@ -432,7 +432,7 @@ void CBaseUITextbox::onKeyDown(KeyboardEvent &e) {
             if(control)
                 this->moveCaret(this->is_password ? length : wordJump(this->text, this->caretPosition, true), shift);
             else if(!shift && this->hasSelectedText())
-                this->moveCaret(std::clamp(std::max(this->iSelectStart, this->iSelectEnd), 0, length), false);
+                this->moveCaret(Mc::clamp(Mc::max(this->iSelectStart, this->iSelectEnd), 0, length), false);
             else
                 this->moveCaret((int)UniString::next(this->text, this->caretPosition), shift);
             break;
@@ -497,14 +497,14 @@ TextInputArea CBaseUITextbox::getTextInputArea() {
     const float left = this->getPos().x;
     const float right = left + this->getSize().x;
     const float textX = left + (float)this->iTextAddX + this->fTextScrollAddX;
-    const float caret = std::clamp(textX + (float)this->iCaretX, left, right);
+    const float caret = Mc::clamp(textX + (float)this->iCaretX, left, right);
 
     // from where the composition starts, where the candidates go below on every platform
     float start = caret;
     if(keyboard->getComposition(this) != nullptr) {
         const DrawnText drawn = this->getDrawnText();
         const float width = this->font->getStringWidth(std::string_view{drawn.text}.substr(0, drawn.compositionStart));
-        start = std::clamp(textX + width, left, right);
+        start = Mc::clamp(textX + width, left, right);
     }
     return {.rect = McRect{start, this->getPos().y, right - start, this->getSize().y}, .caretX = caret};
 }
@@ -603,7 +603,7 @@ CBaseUITextbox *CBaseUITextbox::setFont(McFont *font) {
 
 CBaseUITextbox *CBaseUITextbox::setText(std::string text) {
     this->text = std::move(text);
-    this->caretPosition = std::clamp<int>(this->caretPosition, 0, this->text.length());
+    this->caretPosition = Mc::clamp<int>(this->caretPosition, 0, this->text.length());
 
     // handle text justification
     this->fTextWidth = this->font->getStringWidth(this->getDrawnText().text);
@@ -748,7 +748,7 @@ void CBaseUITextbox::onMouseDownInside(MouseButtonFlags buttons) {
         if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) {
             // begin a fresh selection: at the click point, the word under it on a double click, everything on a triple
             // click (a password has no words to show); captured moves extend it
-            const int clicks = std::min<int>(CBaseUIDispatch::getClicks(), 3);
+            const int clicks = Mc::min<int>(CBaseUIDispatch::getClicks(), 3);
             this->iSelectClicks = this->is_password && clicks == 2 ? 3 : clicks;
             if(this->iSelectClicks == 3) {
                 this->selectAll();

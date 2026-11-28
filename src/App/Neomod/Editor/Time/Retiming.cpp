@@ -8,8 +8,8 @@
 #include "Parsing.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -51,7 +51,7 @@ std::optional<f64> tappedBpm(std::span<const i32> taps) {
 
     // the beat for each tap, then the slope of the times over the beats (least squares)
     std::vector<f64> beats{0.0};
-    for(const f64 gap : gaps) beats.push_back(beats.back() + std::max(1.0, std::round(gap / usual)));
+    for(const f64 gap : gaps) beats.push_back(beats.back() + Mc::max(1.0, std::round(gap / usual)));
     f64 meanBeat{0.0};
     f64 meanTime{0.0};
     for(uSz i = 0; i < taps.size(); i++) {
@@ -66,7 +66,7 @@ std::optional<f64> tappedBpm(std::span<const i32> taps) {
     }
     const f64 beatLength = covariance / variance;
     if(!(beatLength > 0.0)) return std::nullopt;
-    return std::clamp(std::round(60000.0 / beatLength), 1.0, 10000.0);
+    return Mc::clamp(std::round(60000.0 / beatLength), 1.0, 10000.0);
 }
 
 void apply(Document::Change &c, const Document &document, std::span<const Edit> edits, bool carry) {
@@ -146,9 +146,9 @@ void apply(Document::Change &c, const Document &document, std::span<const Edit> 
         // it was at or after
         if(const auto next = Mc::ranges::upper_bound(sections, inherited.point.time, {}, &Section::time);
            next != sections.end()) {
-            point.time = std::min(point.time, std::ceil(next->newTime) - 1.0);
+            point.time = Mc::min(point.time, std::ceil(next->newTime) - 1.0);
         }
-        if(inherited.point.time >= section.time) point.time = std::max(point.time, section.newTime);
+        if(inherited.point.time >= section.time) point.time = Mc::max(point.time, section.newTime);
         if(point.time != inherited.point.time) c.setTimingPoint(inherited.id, point);
     }
     const auto objectTime = [&](const Section &section, i32 time) {
@@ -161,7 +161,7 @@ void apply(Document::Change &c, const Document &document, std::span<const Edit> 
         const i32 start = objectTime(section, object.time);
         i32 end = object.endTime;
         if(object.kind == BeatmapFile::HitObject::Kind::SPINNER) {
-            end = std::max(objectTime(section, object.endTime), start);
+            end = Mc::max(objectTime(section, object.endTime), start);
         }
         if(start == object.time && end == object.endTime) return false;
         object.time = start;
@@ -184,12 +184,12 @@ void resnap(Document::Change &c, const Document &document, i32 divisor) {
             inSection = true;
             continue;
         }
-        for(next = std::max(next, i); next < points.size() && !points[next].uninherited;) next++;
+        for(next = Mc::max(next, i); next < points.size() && !points[next].uninherited;) next++;
         TimingPoint point = points[i];
         point.time = grid.snap(point.time, divisor, point.time);
         // an inherited point at the time of the next one would follow it
-        if(next < points.size()) point.time = std::min(point.time, std::ceil(points[next].time) - 1.0);
-        if(inSection) point.time = std::max(point.time, section);
+        if(next < points.size()) point.time = Mc::min(point.time, std::ceil(points[next].time) - 1.0);
+        if(inSection) point.time = Mc::max(point.time, section);
         if(point.time != points[i].time) c.setTimingPoint(ids[i], point);
     }
     editObjects(c, document, [&](BeatmapFile::HitObject &object) {

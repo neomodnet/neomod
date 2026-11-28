@@ -6,8 +6,8 @@
 #include "ByteBufferedFile.h"  // for file hashing functions
 #include "BaseEnvironment.h"
 #include "MD5Hash.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -79,7 +79,7 @@ void get_bytes(std::span<u8> out) {
 #elif defined(__EMSCRIPTEN__)
     // emscripten provides getentropy (max 256 bytes per call)
     while(!out.empty()) {
-        const size_t chunk = std::min(out.size(), size_t{256});
+        const size_t chunk = Mc::min(out.size(), size_t{256});
         if(getentropy(out.data(), chunk) != 0) {
             fubar_abort();
         }
@@ -116,7 +116,7 @@ struct MD5Vendored {
         // the vendored implementation takes 32-bit lengths
         while(!data.empty()) {
             const auto chunk =
-                static_cast<MD5::size_type>(std::min<size_t>(data.size(), std::numeric_limits<MD5::size_type>::max()));
+                static_cast<MD5::size_type>(Mc::min<size_t>(data.size(), std::numeric_limits<MD5::size_type>::max()));
             hasher.update(data.data(), chunk);
             data = data.subspan(chunk);
         }

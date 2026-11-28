@@ -11,11 +11,11 @@
 #include "SyncStoptoken.h"
 #include "StrainComputeState.h"
 #include "BeatmapPrimitives.h"
+#include "Algorithms.h"
 
 #include <vector>
 #include <array>
 #include <memory>
-#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -85,7 +85,7 @@ class DifficultyHitObject {
     [[nodiscard]] inline i32 getDuration() const {
         // Sanity clamp because of that one Aspire map
         // (MSVC std::clamp doesn't like when MAX < MIN)
-        return std::max(0, endTime - time);
+        return Mc::max(0, endTime - time);
     }
 
    public:

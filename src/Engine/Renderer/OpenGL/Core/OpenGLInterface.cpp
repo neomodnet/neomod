@@ -1,5 +1,6 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_OPENGL
 #include "OpenGLInterface.h"
@@ -187,7 +188,7 @@ void emitArcVertices(float cx, float cy, float radius, float startAngle, float e
 
 // emit outer/inner vertex pairs for a triangle strip outline
 inline void emitArcStripVertices(float cx, float cy, float rInner, float rOuter, float startAngle, float endAngle) {
-    const int numSteps = std::max(1, (int)((endAngle - startAngle) / 0.05f));
+    const int numSteps = Mc::max(1, (int)((endAngle - startAngle) / 0.05f));
     const float step = (endAngle - startAngle) / (float)numSteps;
 
     // rotate (c,s) by step each iteration
@@ -503,13 +504,13 @@ void OpenGLInterface::drawVAO(VertexArrayObject *vao) {
 
     // only texture unit 0 handled atm (all that's actually used anyways)
     if(hasTexcoords0) {
-        drawCount = std::min(drawCount, texcoords.size());
+        drawCount = Mc::min(drawCount, texcoords.size());
     }
     if(hasNormals) {
-        drawCount = std::min(drawCount, normals.size());
+        drawCount = Mc::min(drawCount, normals.size());
     }
     if(hasColors) {
-        drawCount = std::min(drawCount, colors.size());
+        drawCount = Mc::min(drawCount, colors.size());
     }
 
     if(drawCount == 0) {

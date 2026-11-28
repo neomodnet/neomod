@@ -1,6 +1,7 @@
 // Copyright (c) 2025, WH, All rights reserved.
 
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_SOLOUD
 #include "SoLoudSound.h"
@@ -18,7 +19,6 @@
 #include "soloud_wav.h"
 #include "soloud_wavstream.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -136,7 +136,7 @@ SOUNDHANDLE SoLoudSound::getHandle() { return this->handle; }
 void SoLoudSound::applyVoiceRate() {
     if(!this->bStream || !this->audioSource || !this->handle) return;
 
-    const float tempo = this->bPreservePitch ? std::min(this->fSpeed, MAX_TEMPO) : 1.f;
+    const float tempo = this->bPreservePitch ? Mc::min(this->fSpeed, MAX_TEMPO) : 1.f;
     // Sound's pitch is on BASS_FX's scale (1.0 = unchanged, 1/60 per semitone), the stage takes a frequency factor
     const float pitchShift = this->bPreservePitch ? std::exp2((this->fPitch - 1.f) * 60.f / 12.f) : 1.f;
 
@@ -202,7 +202,7 @@ void SoLoudSound::setSpeed(float speed, bool preservePitch) {
         return;
     }
 
-    speed = std::clamp<float>(speed, 0.05f, 50.0f);
+    speed = Mc::clamp<float>(speed, 0.05f, 50.0f);
 
     const float previousSpeed = std::exchange(this->fSpeed, speed);
     this->bPreservePitch = preservePitch;
@@ -226,7 +226,7 @@ void SoLoudSound::setPitch(float pitch) {
         return;
     }
 
-    pitch = std::clamp<float>(pitch, 0.0f, 2.0f);
+    pitch = Mc::clamp<float>(pitch, 0.0f, 2.0f);
 
     const float previousPitch = std::exchange(this->fPitch, pitch);
     this->applyVoiceRate();
@@ -241,7 +241,7 @@ void SoLoudSound::setFrequency(float frequency) {
     const float previousFreq = this->fFrequency;
     // 0 means reset to default
     this->fFrequency =
-        (frequency > 99.0f ? std::clamp<float>(frequency, 100.0f, 100000.0f) : this->audioSource->mBaseSamplerate);
+        (frequency > 99.0f ? Mc::clamp<float>(frequency, 100.0f, 100000.0f) : this->audioSource->mBaseSamplerate);
 
     logIfCV(debug_snd, "SoLoudSound: Freq change {:s}: {:f}->{:f} (base: {} speed: {})", this->sFilePath, previousFreq,
             this->fFrequency, this->audioSource->mBaseSamplerate, this->fSpeed);
@@ -255,7 +255,7 @@ void SoLoudSound::setFrequency(float frequency) {
 void SoLoudSound::setPan(float pan) {
     if(!this->isReady() || !this->handle) return;
 
-    pan = std::clamp<float>(pan, -1.0f, 1.0f);
+    pan = Mc::clamp<float>(pan, -1.0f, 1.0f);
 
     this->fPan = pan;
 
@@ -332,7 +332,7 @@ bool SoLoudSound::isHandleValid(SOUNDHANDLE queryHandle) const {
 void SoLoudSound::setHandleVolume(SOUNDHANDLE handle, f32 volume) {
     if(handle != 0 && this->isReady() && soloud) {
         // soloud does not support amplified (>1.0f) volume
-        const f32 clamped = std::clamp<f32>(volume, 0.f, 1.f);
+        const f32 clamped = Mc::clamp<f32>(volume, 0.f, 1.f);
         if(this->isStream()) {
             // ramp in streams
             // (hardcoded 10ms since it's annoying to adjust fadein on BASS, and there are too many backend-specific convars already)

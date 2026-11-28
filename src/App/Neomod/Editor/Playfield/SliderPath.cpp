@@ -3,8 +3,8 @@
 
 #include "ContainerRanges.h"
 #include "Parsing.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cmath>
@@ -30,24 +30,24 @@ vec2 arcBox(const CircularArc &arc) {
     // its ends, and where it's furthest out along the axes
     const vec2 a = arcPoint(arc, arc.startAngle);
     const vec2 c = arcPoint(arc, arc.endAngle);
-    f64 minX = std::min(a.x, c.x), maxX = std::max(a.x, c.x);
-    f64 minY = std::min(a.y, c.y), maxY = std::max(a.y, c.y);
+    f64 minX = Mc::min(a.x, c.x), maxX = Mc::max(a.x, c.x);
+    f64 minY = Mc::min(a.y, c.y), maxY = Mc::max(a.y, c.y);
     for(i32 k = -8; k <= 8; k++) {
         const f64 angle = k * std::numbers::pi / 2.0;
         const f64 along = (angle - arc.startAngle) / ((f64)arc.endAngle - arc.startAngle);
         if(along <= 0.0 || along >= 1.0) continue;
         const vec2 p = arcPoint(arc, angle);
-        minX = std::min(minX, (f64)p.x);
-        maxX = std::max(maxX, (f64)p.x);
-        minY = std::min(minY, (f64)p.y);
-        maxY = std::max(maxY, (f64)p.y);
+        minX = Mc::min(minX, (f64)p.x);
+        maxX = Mc::max(maxX, (f64)p.x);
+        minY = Mc::min(minY, (f64)p.y);
+        maxY = Mc::max(maxY, (f64)p.y);
     }
     return {(f32)(maxX - minX), (f32)(maxY - minY)};
 }
 
 // an arc in cubic bezier pieces of at most a quarter circle each, joined at red anchors, in whole osu!px
 std::vector<vec2> arcBeziers(const CircularArc &arc, f64 from, f64 sweep) {
-    const i32 pieces = std::max((i32)std::ceil(std::abs(sweep) / (std::numbers::pi / 2.0) - 1e-9), 1);
+    const i32 pieces = Mc::max((i32)std::ceil(std::abs(sweep) / (std::numbers::pi / 2.0) - 1e-9), 1);
     const f64 step = sweep / pieces;
     // how far along their tangents the inner points are from the ends
     const f64 reach = 4.0 / 3.0 * std::tan(step / 4.0) * arc.radius;
@@ -97,7 +97,7 @@ std::optional<f32> arcOffBackwards(const SliderCurve &curve, vec2 a, vec2 b, vec
                            ? arcPoint(*arc, arc->startAngle + way * along / arc->radius)
                            : arcPoint(*arc, end) + vec2{(f32)(-std::sin(end) * way * (along - arcLength)),
                                                         (f32)(std::cos(end) * way * (along - arcLength))};
-        most = std::max(most, vec::distance(curve.pointAt(1.f - (f32)i / 8.f), p));
+        most = Mc::max(most, vec::distance(curve.pointAt(1.f - (f32)i / 8.f), p));
     }
     return most;
 }
@@ -123,7 +123,7 @@ std::vector<vec2> bezierTo(std::span<const vec2> points, f32 t) {
 // where the length a bezier has from its start is `fraction` of all of it, as a parameter (its length measured in
 // chords of a few osu!px, enough to be within a hundredth of one)
 f32 bezierParameterAt(std::span<const vec2> points, f64 fraction, f64 length) {
-    const i32 chords = std::clamp((i32)(length / 2.0), 16, 4096);
+    const i32 chords = Mc::clamp((i32)(length / 2.0), 16, 4096);
     std::vector<f64> lengths{0.0};
     lengths.reserve((uSz)chords + 1);
     std::vector<vec2> level;
@@ -256,7 +256,7 @@ uSz insertionIndex(std::span<const vec2> points, vec2 p) {
         const vec2 edge = points[i] - from;
         const f32 lengthSq = vec::dot(edge, edge);
         if(!(lengthSq > 0.f)) continue;
-        const f32 along = std::clamp(vec::dot(p - from, edge) / lengthSq, 0.f, 1.f);
+        const f32 along = Mc::clamp(vec::dot(p - from, edge) / lengthSq, 0.f, 1.f);
         if(const f32 d = vec::distance(p, from + edge * along); d < nearest) {
             best = i;
             nearest = d;
@@ -268,12 +268,12 @@ uSz insertionIndex(std::span<const vec2> points, vec2 p) {
 std::vector<Edge> edgesOf(const HO &slider) {
     // listed as many as the longer list has, from the body where the other one stops; one listed is for both the head
     // and the tail, and a repeat past the listed ones plays the last one before the tail
-    std::vector<Edge> listed(std::max({slider.edgeSounds.size(), slider.edgeSets.size(), uSz{1}}), bodyEdge(slider));
+    std::vector<Edge> listed(Mc::max({slider.edgeSounds.size(), slider.edgeSets.size(), uSz{1}}), bodyEdge(slider));
     for(uSz i = 0; i < slider.edgeSounds.size(); i++) listed[i].sounds = slider.edgeSounds[i];
     for(uSz i = 0; i < slider.edgeSets.size(); i++) listed[i].sets = slider.edgeSets[i];
     if(listed.size() == 1) listed.push_back(listed.front());
 
-    const uSz spans = (uSz)std::max(slider.slides, 1);
+    const uSz spans = (uSz)Mc::max(slider.slides, 1);
     std::vector<Edge> edges;
     edges.reserve(spans + 1);
     for(uSz i = 0; i <= spans; i++) {

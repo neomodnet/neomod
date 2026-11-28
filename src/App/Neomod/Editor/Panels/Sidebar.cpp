@@ -23,8 +23,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -141,7 +141,7 @@ Sidebar::Sidebar(EditorState &state, CBaseUIPopupLayer &popups, std::function<vo
         [this](i32 by) {
             const auto &sizes = Snapping::GRID_SIZES;
             const auto at = Mc::ranges::find(sizes, this->state.gridSize) - sizes.begin();
-            this->state.gridSize = sizes[std::clamp<i64>(at + by, 0, (i64)sizes.size() - 1)];
+            this->state.gridSize = sizes[Mc::clamp<i64>(at + by, 0, (i64)sizes.size() - 1)];
         },
         [this] { return fmt::format("{}", this->state.gridSize); });
     this->distanceSnap = new CBaseUIStyledButton(_("Distance Snap"), "editor_distance_snap");

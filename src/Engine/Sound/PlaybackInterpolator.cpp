@@ -1,6 +1,6 @@
 // Copyright (c) 2025, WH, All rights reserved.
 #include "PlaybackInterpolator.h"
-#include <algorithm>
+#include "Algorithms.h"
 #include <cmath>
 
 // Playback interpolator used by McOsu
@@ -99,8 +99,8 @@ f64 TachyonInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playback
     // seeking backwards should only be allowed if the source is explicitly doing that.
     bool elapsedInOpposingDirection = (realTimeDelta != 0) && ((realTimeDelta > 0) != (playbackSpeed > 0));
     if(!elapsedInOpposingDirection) {
-        this->fInterpolatedMusicPos = (playbackSpeed >= 0) ? std::max(lastTime, this->fInterpolatedMusicPos)
-                                                           : std::min(lastTime, this->fInterpolatedMusicPos);
+        this->fInterpolatedMusicPos = (playbackSpeed >= 0) ? Mc::max(lastTime, this->fInterpolatedMusicPos)
+                                                           : Mc::min(lastTime, this->fInterpolatedMusicPos);
     }
 
     return this->fInterpolatedMusicPos;
@@ -116,7 +116,7 @@ void TachyonInterpolator::reset(f64 rawPositionMS, f64 currentTime) {
 f64 TachyonInterpolator::Lerp(f64 start, f64 final, f64 amount) { return start + (final - start) * amount; }
 
 f64 TachyonInterpolator::Damp(f64 start, f64 final, f64 base, f64 exponent) {
-    return Lerp(start, final, 1 - std::pow(std::clamp(base, 0.0, 1.0), exponent));
+    return Lerp(start, final, 1 - std::pow(Mc::clamp(base, 0.0, 1.0), exponent));
 }
 
 f64 TachyonInterpolator::DampContinuously(f64 current, f64 target, f64 halfTime, f64 elapsedTime) {

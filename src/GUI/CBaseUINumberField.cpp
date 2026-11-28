@@ -11,8 +11,8 @@
 #include "UIStyle.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <utility>
@@ -164,7 +164,7 @@ void CBaseUINumberField::onCapturedMouseMove() {
     // the steps the cursor made since the last update count as fine ones with Shift; back where it was pressed, with
     // none left, the value is the one it had
     const f64 inRange = (this->max - this->min) / this->step;
-    const float width = style.px((float)std::clamp<f64>(RANGE_WIDTH / inRange, STEP_WIDTH, MAX_STEP_WIDTH));
+    const float width = style.px((float)Mc::clamp<f64>(RANGE_WIDTH / inRange, STEP_WIDTH, MAX_STEP_WIDTH));
     const i32 now = (i32)(moved / width);
     (keyboard->isShiftDown() ? this->fineSteps : this->steps) += now - this->seenSteps;
     this->seenSteps = now;
@@ -223,7 +223,7 @@ std::string CBaseUINumberField::format(bool typing) const {
 
 f64 CBaseUINumberField::fit(f64 v) const {
     const f64 scale = std::pow(10.0, this->decimals);
-    return std::round(std::clamp(v, this->min, this->max) * scale) / scale;
+    return std::round(Mc::clamp(v, this->min, this->max) * scale) / scale;
 }
 
 void CBaseUINumberField::show(f64 v) {

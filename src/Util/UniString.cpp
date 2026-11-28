@@ -3,8 +3,8 @@
 #include "noinclude.h"
 
 #include "simdutf.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <string>
 #include <cstring>
 #include <bit>
@@ -249,7 +249,7 @@ uSz sequence_start(std::string_view sv, uSz pos) noexcept {
 }  // namespace
 
 uSz prev(std::string_view sv, uSz pos) noexcept {
-    pos = std::min(pos, sv.size());
+    pos = Mc::min(pos, sv.size());
     return pos == 0 ? 0 : sequence_start(sv, pos - 1);
 }
 

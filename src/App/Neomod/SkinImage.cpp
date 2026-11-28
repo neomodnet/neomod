@@ -12,6 +12,7 @@
 #include "Graphics.h"
 #include "Logging.h"
 #include "FixedSizeArray.h"
+#include "Algorithms.h"
 
 #include <string>
 #include <utility>
@@ -354,7 +355,7 @@ void SkinImage::update(float speedMultiplier, bool useEngineTimeForAnimations, i
 
         // freeze animation on frame 0 on negative offsets
         m_impl->iFrameCounter =
-            std::max((i32)((curMusicPos - m_impl->iBeatmapAnimationTimeStartOffset) / frame_duration_ms), 0);
+            Mc::max((i32)((curMusicPos - m_impl->iBeatmapAnimationTimeStartOffset) / frame_duration_ms), 0);
         m_impl->iFrameCounterUnclamped = m_impl->iFrameCounter;
         m_impl->iFrameCounter = m_impl->iFrameCounter % m_impl->images.size();
     }

@@ -9,8 +9,8 @@
 #include "Parsing.h"
 #include "Replay.h"
 #include "SString.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cmath>
@@ -148,7 +148,7 @@ bool valuesEqual(std::string_view a, std::string_view b, double relTol) {
     auto ra = Parsing::from_chars(a.data(), a.data() + a.size(), da);
     auto rb = Parsing::from_chars(b.data(), b.data() + b.size(), db);
     if(ra.ec != std::errc() || rb.ec != std::errc()) return false;
-    return std::fabs(da - db) <= std::max(relTol * std::max(std::fabs(da), std::fabs(db)), 1e-12);
+    return std::fabs(da - db) <= Mc::max(relTol * Mc::max(std::fabs(da), std::fabs(db)), 1e-12);
 }
 
 struct LineDiff {
@@ -396,7 +396,7 @@ int runSuiteTest(const std::vector<std::string> &argv) {
         if(!it->is_regular_file(ec) || ec) continue;
         const std::string name = it->path().filename().string();
         if(!name.ends_with(".jsonl")) continue;
-        if(!std::binary_search(fixtures.begin(), fixtures.end(), name.substr(0, name.length() - 6) + ".osu"))
+        if(!Mc::binary_search(fixtures.begin(), fixtures.end(), name.substr(0, name.length() - 6) + ".osu"))
             orphans.push_back(it->path());
     }
     for(const fs::path &orphan : orphans) {
@@ -516,7 +516,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             std::vector<int> prefixes = {0, 1, 2, n / 13, n / 7, n / 3, n / 2, (2 * n) / 3, n - 2, n - 1};
             std::erase_if(prefixes, [n](int k) { return k < 0 || k >= n; });
             Mc::ranges::sort(prefixes);
-            prefixes.erase(std::unique(prefixes.begin(), prefixes.end()), prefixes.end());
+            prefixes.erase(Mc::unique(prefixes.begin(), prefixes.end()), prefixes.end());
             for(const int k : prefixes) {
                 DiffCalc::LOAD_DIFFOBJ_RESULT freshLoad = load();
                 const CalcSnapshot truncatedFresh = calcOnce(freshLoad, setup, k, &freshLoad.strainState);
@@ -598,7 +598,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
                     const CalcSnapshot shiftedCalc = calcOnce(shiftedLoad, setup, -1, nullptr);
 
                     const double relDiff =
-                        std::fabs(shiftedCalc.stars - pass1.stars) / std::max(std::fabs(pass1.stars), 1e-12);
+                        std::fabs(shiftedCalc.stars - pass1.stars) / Mc::max(std::fabs(pass1.stars), 1e-12);
                     if(relDiff > 1e-5) {
                         fixtureFailures++;
                         std::cout << "FAIL " << fixture << ' ' << label << " offset-invariance@+" << offset

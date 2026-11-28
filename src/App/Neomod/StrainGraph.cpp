@@ -6,8 +6,8 @@
 #include "OsuConVars.h"
 #include "ResourceManager.h"
 #include "VertexArrayObject.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 
 StrainGraph::StrainGraph() = default;
@@ -22,7 +22,7 @@ void StrainGraph::draw(std::span<const f32> aimStrains, std::span<const f32> spe
     if((!drawAim && !drawSpeed) || widthPx < 1.f || heightPx <= 0.f) return;
     if(aimStrains.empty() || aimStrains.size() != speedStrains.size()) return;
 
-    const i32 width = std::max(1, (i32)widthPx);
+    const i32 width = Mc::max(1, (i32)widthPx);
     if(aimStrains.data() != this->aimDataKey || speedStrains.data() != this->speedDataKey ||
        aimStrains.size() != this->strainCountKey || stars != this->starsKey || width != this->widthPxKey ||
        drawAim != this->showAimKey || drawSpeed != this->showSpeedKey) {
@@ -90,7 +90,7 @@ void StrainGraph::rebuild(std::span<const f32> aimStrains, std::span<const f32> 
     if(!(highestStrain > 0.0f)) return;
 
     const uSz count = aimStrains.size();
-    const uSz numBuckets = std::min(count, (uSz)widthPx);
+    const uSz numBuckets = Mc::min(count, (uSz)widthPx);
 
     // plain triangles: QUADS would need primitive conversion on every modern backend (and GLES can't at all)
     if(!this->aimVao) this->aimVao = resourceManager->createVertexArrayObject(DrawPrimitive::TRIANGLES);

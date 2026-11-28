@@ -2,6 +2,7 @@
 #include "SingleInstance.h"
 
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_PLATFORM_WASM
 
@@ -26,7 +27,6 @@ void release() noexcept {}
 
 #include "fmt/format.h"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstring>
@@ -81,7 +81,7 @@ std::vector<char> encode(std::span<const std::string> args) {
 void receive(std::span<const char> payload) {
     std::vector<std::string> args;
     for(auto it = payload.begin(); it != payload.end();) {
-        const auto end = std::find(it, payload.end(), '\0');
+        const auto end = Mc::find(it, payload.end(), '\0');
         if(end != it) args.emplace_back(it, end);
         it = end == payload.end() ? end : end + 1;
     }
@@ -230,7 +230,7 @@ Delivery deliver(const Endpoint &pipe_name, std::span<const char> msg, u64 deadl
         const DWORD err = GetLastError();
         if(err == ERROR_PIPE_BUSY) {
             // the instance is busy with another launch
-            WaitNamedPipeW(pipe_name.c_str(), static_cast<DWORD>(std::max<u64>(remaining_ms(deadline), 1)));
+            WaitNamedPipeW(pipe_name.c_str(), static_cast<DWORD>(Mc::max<u64>(remaining_ms(deadline), 1)));
             return Delivery::RETRY;
         }
         // the instance just quit
@@ -472,7 +472,7 @@ Delivery deliver(const Endpoint &ep, std::span<const char> msg, u64 deadline) {
         debugLog("can't create a socket: {}", strerror(errno));
         return Delivery::FAILED;
     }
-    set_timeouts(sock, std::max<u64>(remaining_ms(deadline), 1));
+    set_timeouts(sock, Mc::max<u64>(remaining_ms(deadline), 1));
 
     Delivery result = Delivery::RETRY;
     if(connect(sock, reinterpret_cast<const sockaddr *>(&ep.addr), ep.len) != 0) {

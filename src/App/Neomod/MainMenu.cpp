@@ -56,8 +56,8 @@
 #include "crypto.h"
 #include "MainMenuTips.h"
 #include "MainMenuNowPlaying.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 #include <limits>
@@ -466,7 +466,7 @@ void MainMenu::drawLogoImage(const McRect &mainButtonRect) {
 
     float xscale = mainButtonRect.getWidth() / static_cast<float>(logo->getWidth());
     float yscale = mainButtonRect.getHeight() / static_cast<float>(logo->getHeight());
-    float scale = std::min(xscale, yscale) * 0.8f;
+    float scale = Mc::min(xscale, yscale) * 0.8f;
 
     g->pushTransform();
     g->setColor(argb(alpha, 1.0f, 1.0f, 1.0f));
@@ -693,7 +693,7 @@ void MainMenu::draw() {
         {
             McFont *smallFont = osu->getSubTitleFont();
             g->translate(
-                std::max(arrowPos.x - smallFont->getStringWidth(notificationText) / 2.0f, Osu::getUIScale(5.0f)),
+                Mc::max(arrowPos.x - smallFont->getStringWidth(notificationText) / 2.0f, Osu::getUIScale(5.0f)),
                 (-offset * 2) * scale + arrowPos.y -
                     (osu->getSkin()->i_play_warning_arrow2.getSizeBaseRaw().y * scale) / 1.5f,
                 0);
@@ -843,7 +843,7 @@ void MainMenu::tick() {
                             osu->getVirtScreenSize();
 
     if(this->inRandomAnim && this->randomAnimType == 1 && this->menuAnim.animating()) {
-        const float decay = std::clamp<float>((1.0f - this->menuAnim - 0.075f) / 0.025f, 0.0f, 1.0f);
+        const float decay = Mc::clamp<float>((1.0f - this->menuAnim - 0.075f) / 0.025f, 0.0f, 1.0f);
 
         const vec2 pushAngle = vec2(mouseDelta.y, -mouseDelta.x) * 0.15f * decay;
 
@@ -854,11 +854,11 @@ void MainMenu::tick() {
 
     {
         this->friendAnimPercent =
-            1.0f - std::clamp<float>((this->menuAnimDuration > 0.0f
-                                          ? (this->menuAnimTime - engine->getTime()) / this->menuAnimDuration
-                                          : 0.0f),
-                                     0.0f, 1.0f);
-        this->friendAnimPercent = std::clamp<float>((this->friendAnimPercent - 0.5f) / 0.5f, 0.0f, 1.0f);
+            1.0f - Mc::clamp<float>((this->menuAnimDuration > 0.0f
+                                         ? (this->menuAnimTime - engine->getTime()) / this->menuAnimDuration
+                                         : 0.0f),
+                                    0.0f, 1.0f);
+        this->friendAnimPercent = Mc::clamp<float>((this->friendAnimPercent - 0.5f) / 0.5f, 0.0f, 1.0f);
         if(this->friendAnimEnabled) this->friendAnimPercent = 1.0f;
         if(!this->friendAnimScheduled) this->friendAnimPercent = 0.0f;
 
@@ -1207,7 +1207,7 @@ void MainMenu::updateLayout() {
 
     const f32 updateBtnWidth =
         this->updateAvailableButton->getFont()->getStringWidth(this->updateAvailableButton->getText()) + 50 * dpiScale;
-    this->updateAvailableButton->setSize(std::max(375 * dpiScale, updateBtnWidth), 50 * dpiScale);
+    this->updateAvailableButton->setSize(Mc::max(375 * dpiScale, updateBtnWidth), 50 * dpiScale);
     this->updateAvailableButton->setPos(screenSize.x / 2 - this->updateAvailableButton->getSize().x / 2,
                                         screenSize.y - this->updateAvailableButton->getSize().y - 10 * dpiScale);
 
@@ -1304,7 +1304,7 @@ void MainMenu::animMainButton() {
         const float randomDuration2 = (float)((double)prand() / (double)PRAND_MAX) * 3.5f;
         const float randomDuration3 = (float)((double)prand() / (double)PRAND_MAX) * 3.5f;
 
-        this->menuAnim.set(1.0f, 1.5f + std::max({randomDuration1, randomDuration2, randomDuration3}), anim::QuadOut);
+        this->menuAnim.set(1.0f, 1.5f + Mc::max({randomDuration1, randomDuration2, randomDuration3}), anim::QuadOut);
         this->menuAnim1.set(this->menuAnim1Target, 1.5f + randomDuration1, anim::QuadOut);
         this->menuAnim2.set(this->menuAnim2Target, 1.5f + randomDuration2, anim::QuadOut);
         this->menuAnim3.set(this->menuAnim3Target, 1.5f + randomDuration3, anim::QuadOut);

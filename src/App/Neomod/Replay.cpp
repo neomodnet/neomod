@@ -3,6 +3,7 @@
 
 #include "GameRules.h"
 #include "DifficultyCalculator.h"
+#include "Algorithms.h"
 
 #ifndef BUILD_TOOLS_ONLY
 #include "BeatmapInterface.h"
@@ -18,7 +19,6 @@
 #include "Logging.h"
 #include "UI.h"
 #else
-#include <algorithm>
 #endif
 
 using namespace flags::operators;
@@ -31,10 +31,10 @@ f32 Mods::get_naive_ar(f32 baseAR) const {
         if(this->ar_overridenegative < 0.0f) {
             AR = this->ar_overridenegative;
         } else {
-            AR = std::clamp<f32>(baseAR * (this->has(ModFlags::HardRock) ? 1.4f
-                                           : this->has(ModFlags::Easy)   ? 0.5f
-                                                                         : 1.0f),
-                                 0.0f, 10.0f);
+            AR = Mc::clamp<f32>(baseAR * (this->has(ModFlags::HardRock) ? 1.4f
+                                          : this->has(ModFlags::Easy)   ? 0.5f
+                                                                        : 1.0f),
+                                0.0f, 10.0f);
         }
     }
 
@@ -51,10 +51,10 @@ f32 Mods::get_naive_cs(f32 baseCS) const {
         if(this->cs_overridenegative < 0.0f) {
             CS = this->cs_overridenegative;
         } else {
-            CS = std::clamp<f32>(baseCS * (this->has(ModFlags::HardRock) ? 1.3f  // different!
-                                           : this->has(ModFlags::Easy)   ? 0.5f
-                                                                         : 1.0f),
-                                 0.0f, 10.0f);
+            CS = Mc::clamp<f32>(baseCS * (this->has(ModFlags::HardRock) ? 1.3f  // different!
+                                          : this->has(ModFlags::Easy)   ? 0.5f
+                                                                        : 1.0f),
+                                0.0f, 10.0f);
         }
     }
 
@@ -64,10 +64,10 @@ f32 Mods::get_naive_cs(f32 baseCS) const {
 f32 Mods::get_naive_hp(f32 baseHP) const {
     f32 HP = this->hp_override;
     if(HP < 0.f) {
-        HP = std::clamp<f32>(baseHP * (this->has(ModFlags::HardRock) ? 1.4f
-                                       : this->has(ModFlags::Easy)   ? 0.5f
-                                                                     : 1.0f),
-                             0.0f, 10.0f);
+        HP = Mc::clamp<f32>(baseHP * (this->has(ModFlags::HardRock) ? 1.4f
+                                      : this->has(ModFlags::Easy)   ? 0.5f
+                                                                    : 1.0f),
+                            0.0f, 10.0f);
     }
 
     return HP;
@@ -76,10 +76,10 @@ f32 Mods::get_naive_hp(f32 baseHP) const {
 f32 Mods::get_naive_od(f32 baseOD) const {
     f32 OD = this->od_override;
     if(OD < 0.f) {
-        OD = std::clamp<f32>(baseOD * (this->has(ModFlags::HardRock) ? 1.4f
-                                       : this->has(ModFlags::Easy)   ? 0.5f
-                                                                     : 1.0f),
-                             0.0f, 10.0f);
+        OD = Mc::clamp<f32>(baseOD * (this->has(ModFlags::HardRock) ? 1.4f
+                                      : this->has(ModFlags::Easy)   ? 0.5f
+                                                                    : 1.0f),
+                            0.0f, 10.0f);
     }
 
     if(this->has(ModFlags::ODOverrideLock)) {
@@ -257,7 +257,7 @@ Mods Mods::from_cvars() {
 #undef ADDIFCV
 
     if(f32 speed_override = cv::speed_override.getFloat(); speed_override >= 0.05f) {
-        mods.speed = std::max(speed_override, 0.05f);
+        mods.speed = Mc::max(speed_override, 0.05f);
     } else {
         mods.speed = 1.f;
     }

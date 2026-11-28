@@ -1,5 +1,6 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "OpenGLRenderTarget.h"
+#include "Algorithms.h"
 
 #if defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32)
 
@@ -29,7 +30,7 @@ void OpenGLRenderTarget::init() {
     static int maxSize = 0;
     if(!maxSize) glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
     if(maxSize < this->vSize.x || maxSize < this->vSize.y) {
-        this->vSize *= maxSize / std::max(this->vSize.x, this->vSize.y);
+        this->vSize *= maxSize / Mc::max(this->vSize.x, this->vSize.y);
         debugLog("WARNING: RenderTarget size exceeds max texture size, clamping to ({}x{})", this->vSize.x,
                  this->vSize.y);
     }

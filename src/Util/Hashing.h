@@ -6,7 +6,6 @@
 #include <string>
 #include <string_view>
 #include <cctype>
-#include <algorithm>
 
 namespace Hash {
 namespace flat = ankerl::unordered_dense;
@@ -63,9 +62,12 @@ struct StringHashNcase {
 struct StringEqualNcase {
    private:
     [[nodiscard]] inline bool equality(std::string_view lhs, std::string_view rhs) const {
-        return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), [](unsigned char a, unsigned char b) -> bool {
-            return detail::ascii_tolower(a) == detail::ascii_tolower(b);
-        });
+        if(lhs.size() != rhs.size()) return false;
+        for(size_t i = 0; i < lhs.size(); i++) {
+            if(detail::ascii_tolower((unsigned char)lhs[i]) != detail::ascii_tolower((unsigned char)rhs[i]))
+                return false;
+        }
+        return true;
     }
 
    public:

@@ -15,8 +15,8 @@
 #include "Keyboard.h"
 #include "Mouse.h"
 #include "MakeDelegateWrapper.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <deque>
 #include <utility>
@@ -98,9 +98,9 @@ void ConsoleLogView::draw() {
 
     // only the lines inside the view
     const float scrollY = top - this->getPos().y;
-    const size_t firstLine = static_cast<size_t>(std::max(0.f, std::floor(-scrollY / lineHeight)));
-    const size_t lastLine = std::min(
-        this->lines.size(), static_cast<size_t>(std::max(0.f, (this->getSize().y - scrollY) / lineHeight)) + 1);
+    const size_t firstLine = static_cast<size_t>(Mc::max(0.f, std::floor(-scrollY / lineHeight)));
+    const size_t lastLine =
+        Mc::min(this->lines.size(), static_cast<size_t>(Mc::max(0.f, (this->getSize().y - scrollY) / lineHeight)) + 1);
 
     this->drawSelection();
 
@@ -175,7 +175,7 @@ void ConsoleLogView::append(Console::LogRange range) {
     if(dropped > 0) this->shiftSelection(dropped);
 
     const bool appended = range.next > this->logRange.next;
-    this->wrapInto(std::max(this->logRange.next, range.first), range.next);
+    this->wrapInto(Mc::max(this->logRange.next, range.first), range.next);
     this->logRange = range;
     this->updateScrollSize();
 
@@ -189,7 +189,7 @@ void ConsoleLogView::append(Console::LogRange range) {
 void ConsoleLogView::wrapInto(u64 fromSeq, u64 toSeq) {
     const float scale = this->getTextScale();
     const f64 maxWidth =
-        std::max(1.f, this->getSize().x - 4 * scale - cv::ui_scrollview_scrollbarwidth.getFloat()) / scale;
+        Mc::max(1.f, this->getSize().x - 4 * scale - cv::ui_scrollview_scrollbarwidth.getFloat()) / scale;
     for(u64 seq = fromSeq; seq < toSeq; seq++) {
         const Console::LogEntry &entry = Console::getLogEntry(seq);
         for(auto &text : this->font->wrap(entry.text, maxWidth)) {
@@ -201,7 +201,7 @@ void ConsoleLogView::wrapInto(u64 fromSeq, u64 toSeq) {
 
 void ConsoleLogView::updateScrollSize() {
     this->vScrollSize.x = 1.;
-    this->vScrollSize.y = std::max(1.f, this->lines.size() * this->getLineHeight() + 2 * this->getPadding());
+    this->vScrollSize.y = Mc::max(1.f, this->lines.size() * this->getLineHeight() + 2 * this->getPadding());
 
     // content that fits shows from the top (same as CBaseUIScrollView::onResized)
     if(this->vScrollSize.y < this->getSize().y && this->vScrollPos.y != 1) this->scrollToY(1);
@@ -216,7 +216,7 @@ ConsoleLogView::Anchor ConsoleLogView::captureAnchor(f64 viewHeight) const {
         return {.atBottom = true, .entrySeq = 0, .subLine = 0, .fraction = 0.};
 
     const f64 row = (bottomY - this->getPadding()) / this->getLineHeight();
-    const size_t index = static_cast<size_t>(std::clamp(std::floor(row), 0., static_cast<f64>(this->lines.size() - 1)));
+    const size_t index = static_cast<size_t>(Mc::clamp(std::floor(row), 0., static_cast<f64>(this->lines.size() - 1)));
     const u64 entrySeq = this->lines[index].entrySeq;
     size_t subLine = 0;
     while(index - subLine > 0 && this->lines[index - subLine - 1].entrySeq == entrySeq) subLine++;
@@ -378,7 +378,7 @@ void ConsoleWindow::layout() {
     const float buttonWidth = this->submitButton->getFont()->getStringWidth("Submit") + 20 * dpiScale;
 
     const float inputY = size.y - margin - inputHeight;
-    const float inputWidth = std::max(1.f, size.x - 2 * margin - buttonWidth - gap);
+    const float inputWidth = Mc::max(1.f, size.x - 2 * margin - buttonWidth - gap);
 
     this->input->setRelPos(margin, inputY);
     this->input->setSize(inputWidth, inputHeight);
@@ -386,7 +386,7 @@ void ConsoleWindow::layout() {
     this->submitButton->setSize(buttonWidth, inputHeight);
 
     this->logView->setRelPos(margin, margin);
-    this->logView->setSize(size.x - 2 * margin, std::max(1.f, inputY - gap - margin));
+    this->logView->setSize(size.x - 2 * margin, Mc::max(1.f, inputY - gap - margin));
 
     this->suggestions->setRelPosX(margin);
     this->suggestions->setSizeX(inputWidth);

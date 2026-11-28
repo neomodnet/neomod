@@ -41,9 +41,7 @@
 #include "UIContextMenu.h"
 #include "UserStatsScreen.h"
 #include "VolumeOverlay.h"
-
-#include <algorithm>
-#include <ranges>
+#include "Algorithms.h"
 
 namespace {
 class NullScreen final : public UIScreen {
@@ -233,7 +231,7 @@ void UI::draw() {
             const f32 fadeDuration = 1.f;
             const f32 idleTime = (f32)(engine->getTime() - this->lastCursorMoveTime);
             cursorAlpha *=
-                std::clamp<f32>(cv::cursor_idle_time_before_fade.getFloat() - idleTime + fadeDuration, 0.f, 1.f);
+                Mc::clamp<f32>(cv::cursor_idle_time_before_fade.getFloat() - idleTime + fadeDuration, 0.f, 1.f);
         }
     }
 
@@ -274,7 +272,7 @@ void UI::draw() {
              !cv::mod_fadingcursor.getBool())) {
             cursorAlpha *=
                 1.0f -
-                std::clamp<float>((float)osu->score->getCombo() / cv::mod_fadingcursor_combo.getFloat(), 0.0f, 1.0f);
+                Mc::clamp<float>((float)osu->score->getCombo() / cv::mod_fadingcursor_combo.getFloat(), 0.0f, 1.0f);
         }
 
         // draw FPoSu cursor trail

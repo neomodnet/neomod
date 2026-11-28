@@ -1,7 +1,7 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "UIRankingScreenInfoLabel.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <chrono>
 #include <utility>
 
@@ -38,7 +38,7 @@ void UIRankingScreenInfoLabel::draw() {
     const std::string subTitleText{fmt::format("Beatmap by {}", this->sMapper)};
     const std::string playerText{this->buildPlayerString()};
 
-    const f32 globalScale = std::max((this->getSize().y / this->getMinimumHeight()) * 0.741f, 1.0f);
+    const f32 globalScale = Mc::max((this->getSize().y / this->getMinimumHeight()) * 0.741f, 1.0f);
     const f32 fontHeight = this->font->getHeight();
 
     // draw title
@@ -140,7 +140,7 @@ f32 UIRankingScreenInfoLabel::getMinimumWidth() const {
     const f32 subTitleWidth = 0;
     const f32 playerWidth = this->font->getStringWidth(this->buildPlayerString()) * this->fSubTitleScale;
 
-    return std::max({titleWidth, subTitleWidth, playerWidth});
+    return Mc::max({titleWidth, subTitleWidth, playerWidth});
 }
 
 f32 UIRankingScreenInfoLabel::getMinimumHeight() const {

@@ -24,7 +24,6 @@ void DirectoryWatcher::update() {}
 #include "SyncJthread.h"
 #include "SyncMutex.h"
 
-#include <algorithm>
 #include <cassert>
 #include <filesystem>
 #include <utility>

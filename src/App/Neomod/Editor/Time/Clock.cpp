@@ -1,7 +1,7 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "Clock.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <utility>
@@ -52,13 +52,13 @@ void Clock::togglePause() {
 void Clock::seek(i32 timeMS) {
     // the length is 0 while the music still loads
     const u32 length = this->getLength();
-    this->time = length > 0 ? std::clamp(timeMS, 0, (i32)length) : std::max(timeMS, 0);
+    this->time = length > 0 ? Mc::clamp(timeMS, 0, (i32)length) : Mc::max(timeMS, 0);
     this->seeked = true;
     if(this->track) this->track->setPosition(this->time - this->getOffset());
 }
 
 void Clock::setRate(f32 rate) {
-    this->rate = std::clamp(rate, 0.25f, 1.5f);
+    this->rate = Mc::clamp(rate, 0.25f, 1.5f);
     if(this->track) this->track->setRate(this->rate, true);
 }
 

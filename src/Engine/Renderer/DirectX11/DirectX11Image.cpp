@@ -5,6 +5,7 @@
 // $NoKeywords: $dximg
 //===============================================================================//
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_DIRECTX11
 #include "DirectX11Image.h"
@@ -79,8 +80,8 @@ void DirectX11Image::init() {
     auto* context = static_cast<DirectX11Interface*>(g)->getDeviceContext();
 
     // cap to 32px smallest mipmap (same as OpenGL)
-    const UINT maxDim = (UINT)std::max(this->iWidth, this->iHeight);
-    const UINT mipLevels = (UINT)std::max(1, (int)std::floor(std::log2(maxDim)) - 4);
+    const UINT maxDim = (UINT)Mc::max(this->iWidth, this->iHeight);
+    const UINT mipLevels = (UINT)Mc::max(1, (int)std::floor(std::log2(maxDim)) - 4);
 
     // textures have a fixed size, a resized image needs a new one (and a view of it)
     if(this->wasResized()) this->deleteDX();

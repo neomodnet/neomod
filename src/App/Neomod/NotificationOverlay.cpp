@@ -14,10 +14,9 @@
 #include "Logging.h"
 #include "UI.h"
 #include "SyncMutex.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
-#include <ranges>
 #include <utility>
 
 namespace {
@@ -114,7 +113,7 @@ void ToastElement::updateLayout() {
 void ToastElement::onClicked(MouseButtonFlags buttons) {
     // Change creation_time so that the fadeout is triggered immediately
     const f64 time_remaining_until_fadeout =
-        std::max<f64>(1., ((this->creation_time + (this->timeout - 0.5)) - engine->getTime()) - 1.);
+        Mc::max<f64>(1., ((this->creation_time + (this->timeout - 0.5)) - engine->getTime()) - 1.);
     this->creation_time -= time_remaining_until_fadeout;
 
     // TODO: toast click callbacks should also take left/right so that they can respond to them independently
@@ -127,7 +126,7 @@ void ToastElement::onClicked(MouseButtonFlags buttons) {
 
 void ToastElement::draw() {
     const f32 alpha =
-        0.9f * static_cast<f32>(std::max(0.0, (this->creation_time + (this->timeout - 0.5)) - engine->getTime()));
+        0.9f * static_cast<f32>(Mc::max(0.0, (this->creation_time + (this->timeout - 0.5)) - engine->getTime()));
 
     // background
     g->setColor(Color(this->isMouseInside() ? 0xff222222 : 0xff111111).setA(alpha));

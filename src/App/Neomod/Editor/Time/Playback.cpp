@@ -9,8 +9,7 @@
 #include "MapObjects.h"
 #include "Osu.h"
 #include "Skin.h"
-
-#include <algorithm>
+#include "Algorithms.h"
 
 using namespace neomod;
 using Cue = SoundCue;
@@ -74,7 +73,7 @@ void Playback::update(const Clock &clock, const MapObjects &objects, const Docum
 std::span<const Cue> Playback::crossed(std::span<const Cue> cues, i32 from, i32 to) {
     const auto first = Mc::ranges::upper_bound(cues, from, {}, &Cue::timeMS);
     const auto last =
-        std::upper_bound(first, cues.end(), to, [](i32 time, const Cue &cue) { return time < cue.timeMS; });
+        Mc::upper_bound(first, cues.end(), to, [](i32 time, const Cue &cue) { return time < cue.timeMS; });
     return {first, last};
 }
 

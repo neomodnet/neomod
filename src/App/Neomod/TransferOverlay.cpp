@@ -12,6 +12,7 @@
 #include "i18n.h"
 
 #include "BeatmapInstaller.h"
+#include "Algorithms.h"
 
 namespace {
 
@@ -150,7 +151,7 @@ void TransferRow::draw() {
     using namespace flags::operators;
     const bool active = !!(this->stage & (Queued | Downloading | Extracting | Installing));
     const f32 raw_p = !!(this->stage & (Extracting | Installing)) ? 1.f : this->progress;
-    const f32 fill_p = (this->stage == Failed) ? 1.f : (active ? std::max(0.05f, raw_p) : raw_p);
+    const f32 fill_p = (this->stage == Failed) ? 1.f : (active ? Mc::max(0.05f, raw_p) : raw_p);
     const f32 bar_h = DEF_PROGRESS_BAR_H * scale;
 
     g->setColor(color_for_progress(this->stage).setA(0.85f));

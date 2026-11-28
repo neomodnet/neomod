@@ -48,8 +48,8 @@
 #include "Graphics.h"
 #include "UniString.h"
 #include "DatabaseBeatmap.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cwctype>
 #include "ctre.hpp"
@@ -533,7 +533,7 @@ void Chat::drawTicker() {
     {
         g->rotate3DScene(this->fAnimation * 90, 0, 0);
 
-        const f32 a = (f32)std::clamp(6.0 - time_elapsed, 0.0, 1.0);
+        const f32 a = (f32)Mc::clamp(6.0 - time_elapsed, 0.0, 1.0);
         osu->getSliderFrameBuffer()->setColor(argb(a * (1.f - this->fAnimation), 1.f, 1.f, 1.f));
         osu->getSliderFrameBuffer()->draw(0, 0);
     }

@@ -9,8 +9,8 @@
 #include "Logging.h"
 #include "Graphics.h"
 #include "Font.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 
 Mouse::Mouse() : InputDevice() {
@@ -142,8 +142,8 @@ void Mouse::update() {
         doClip = true;
     }
     if(doClip) {
-        newPos.x = std::clamp<double>(newPos.x, clipRect.getMinX(), clipRect.getMaxX());
-        newPos.y = std::clamp<double>(newPos.y, clipRect.getMinY(), clipRect.getMaxY());
+        newPos.x = Mc::clamp<double>(newPos.x, clipRect.getMinX(), clipRect.getMaxX());
+        newPos.y = Mc::clamp<double>(newPos.y, clipRect.getMinY(), clipRect.getMaxY());
     }
 
     this->vRawDelta = rawDelta;

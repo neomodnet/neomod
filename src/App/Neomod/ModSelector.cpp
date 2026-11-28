@@ -1,5 +1,6 @@
 // Copyright (c) 2015, PG, All rights reserved.
 #include "ModSelector.h"
+#include "Algorithms.h"
 
 #include <memory>
 #include <utility>
@@ -626,8 +627,8 @@ void ModSelector::draw() {
             {
                 g->rotate(90);
                 g->translate(
-                    (int)(experimentalTextHeight / 3.0f + std::max(0.0f, experimentalModsAnimationTranslation +
-                                                                             this->experimentalContainer->getSize().x)),
+                    (int)(experimentalTextHeight / 3.0f + Mc::max(0.0f, experimentalModsAnimationTranslation +
+                                                                            this->experimentalContainer->getSize().x)),
                     (int)(osu->getVirtScreenHeight() / 2 - experimentalTextWidth / 2));
                 g->setColor(Color(0xff999999).setA(1.0f - this->fExperimentalAnimation * this->fExperimentalAnimation));
 
@@ -638,8 +639,8 @@ void ModSelector::draw() {
             g->pushTransform();
             {
                 g->rotate(90);
-                g->translate((int)(rectHeight + std::max(0.0f, experimentalModsAnimationTranslation +
-                                                                   this->experimentalContainer->getSize().x)),
+                g->translate((int)(rectHeight + Mc::max(0.0f, experimentalModsAnimationTranslation +
+                                                                  this->experimentalContainer->getSize().x)),
                              (int)(osu->getVirtScreenHeight() / 2 - rectWidth / 2));
                 g->drawRect(0, 0, rectWidth, rectHeight);
             }
@@ -1464,7 +1465,7 @@ std::string ModSelector::getOverrideSliderLabelText(const ModSelector::OVERRIDE_
     // HACKHACK: dirty
     float beatmapValue = 1.0f;
     if(s.type == OvrSliderType::CS) {
-        beatmapValue = std::clamp<float>(beatmap->getCS() * Osu::getCSDifficultyMultiplier(), 0.0f, 10.0f);
+        beatmapValue = Mc::clamp<float>(beatmap->getCS() * Osu::getCSDifficultyMultiplier(), 0.0f, 10.0f);
         convarValue = mapIface->getCS();
     } else if(s.type == OvrSliderType::AR) {
         beatmapValue = active ? mapIface->getRawARForSpeedMultiplier() : mapIface->getApproachRateForSpeedMultiplier();
@@ -1486,7 +1487,7 @@ std::string ModSelector::getOverrideSliderLabelText(const ModSelector::OVERRIDE_
         else
             convarValue = std::round(convarValue * 100.0f) / 100.0f;
     } else if(s.type == OvrSliderType::HP) {
-        beatmapValue = std::clamp<float>(beatmap->getHP() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
+        beatmapValue = Mc::clamp<float>(beatmap->getHP() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
         convarValue = mapIface->getHP();
     } else if(s.type == OvrSliderType::SPEED) {
         beatmapValue = active ? 1.f : mapIface->getSpeedMultiplier();

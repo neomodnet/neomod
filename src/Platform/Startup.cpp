@@ -16,12 +16,12 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_messagebox.h>
 
-#include <algorithm>
 #include <array>
 #include <iterator>
 #include <optional>
@@ -137,14 +137,15 @@ void resolve() {
     } else {
         // the ones a start stopped in come last
         renderers = built;
-        std::ranges::stable_partition(renderers, [](Renderer r) { return !Mc::ranges::contains(s_stoppedIn, r); });
+        Mc::stable_partition(renderers.begin(), renderers.end(),
+                             [](Renderer r) { return !Mc::ranges::contains(s_stoppedIn, r); });
         if(has_arg(REND_HEADLESS)) {
             // headless sets up its video driver for one renderer, which only a switch picks
             renderers.resize(1);
         } else if(chosen) {
             // the chosen one first, the others after it as usual
             const auto it = Mc::ranges::find(renderers, *chosen);
-            std::rotate(renderers.begin(), it, std::next(it));
+            Mc::rotate(renderers.begin(), it, std::next(it));
             s_settings.rendererChosen = true;
             s_settings.sdlgpuDriver = chosenDriver;
         }

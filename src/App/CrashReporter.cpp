@@ -25,8 +25,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <string>
 #include <string_view>
@@ -107,7 +107,7 @@ CrashReporter::CrashReporter() {
     const vec2 size = this->root->getNaturalSize();
     env->setWindowTitle(_("Crash report"));
     env->setWindowResizable(false);
-    env->setWindowSize(static_cast<int>(std::max(size.x, style.px(520.f))),
+    env->setWindowSize(static_cast<int>(Mc::max(size.x, style.px(520.f))),
                        static_cast<int>(size.y + style.px(style.metrics.padding)));
     env->centerWindow();
     this->root->setSize(engine->getScreenSize());

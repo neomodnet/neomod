@@ -3,8 +3,8 @@
 #include "types.h"
 #include "Vectors.h"
 #include "GameRules.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <concepts>
 #include <type_traits>
 
@@ -157,7 +157,7 @@ uSz nextStackingRun(const G &getObj, uSz numObjects, uSz start, float AR, float 
     for(uSz i = start + 1; i < numObjects; i++) {
         const auto *object = getObj(i);
         if((f32)object->getClickTime() - window > (f32)latestEnd) return i;
-        latestEnd = std::max(latestEnd, object->getEndTime());
+        latestEnd = Mc::max(latestEnd, object->getEndTime());
     }
     return numObjects;
 }

@@ -1,9 +1,9 @@
 // Copyright (c) 2014, PG, All rights reserved.
 #include "BassSound.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_BASS
 
-#include <algorithm>
 #include <atomic>
 #include <cmath>
 
@@ -243,7 +243,7 @@ void BassSound::setSpeed(f32 speed, bool preservePitch) {
     if(!this->isReady()) return;
     assert(this->bStream);  // can't call setSpeed() on a sample
 
-    speed = std::clamp<float>(speed, 0.05f, 50.0f);
+    speed = Mc::clamp<float>(speed, 0.05f, 50.0f);
 
     float freq = cv::snd_freq.getFloat();
     BASS_ChannelGetAttribute(this->srchandle, BASS_ATTRIB_FREQ, &freq);
@@ -264,7 +264,7 @@ void BassSound::setPitch(f32 pitch) {
     if(!this->isReady()) return;
     assert(this->bStream);  // can't call setPitch() on a sample
 
-    pitch = std::clamp<float>(pitch, 0.0f, 2.0f);
+    pitch = Mc::clamp<float>(pitch, 0.0f, 2.0f);
     BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO_PITCH, (pitch - 1.0f) * 60.0f);
 
     this->fPitch = pitch;
@@ -273,7 +273,7 @@ void BassSound::setPitch(f32 pitch) {
 void BassSound::setFrequency(float frequency) {
     if(!this->isReady()) return;
 
-    frequency = (frequency > 99.0f ? std::clamp<float>(frequency, 100.0f, 100000.0f) : 0.0f);
+    frequency = (frequency > 99.0f ? Mc::clamp<float>(frequency, 100.0f, 100000.0f) : 0.0f);
 
     for(const auto& [handle, _] : this->getActiveHandles()) {
         BASS_ChannelSetAttribute(handle, BASS_ATTRIB_FREQ, frequency);
@@ -283,7 +283,7 @@ void BassSound::setFrequency(float frequency) {
 void BassSound::setPan(float pan) {
     if(!this->isReady()) return;
 
-    this->fPan = std::clamp<float>(pan, -1.0f, 1.0f);
+    this->fPan = Mc::clamp<float>(pan, -1.0f, 1.0f);
 
     for(const auto& [handle, _] : this->getActiveHandles()) {
         BASS_ChannelSetAttribute(handle, BASS_ATTRIB_PAN, this->fPan);

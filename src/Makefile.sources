@@ -75,6 +75,7 @@ endif
 
 if BUILD_TESTS
 TEST_SOURCES := \
+	src/App/Tests/AlgorithmsTest.cpp \
 	src/App/Tests/AsyncPoolTest.cpp \
 	src/App/Tests/AudioTester/AudioTester.cpp \
 	src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp \

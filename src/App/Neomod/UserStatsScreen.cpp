@@ -23,8 +23,6 @@
 #include "CarouselData.h"
 #include "score.h"
 
-#include <ranges>
-
 UserStatsScreen::UserStatsScreen() : ScreenBackable() {
     m_userCard = new UserCard(0);
     m_userCard->setVisible(false);

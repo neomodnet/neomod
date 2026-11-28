@@ -39,6 +39,7 @@
 #include "LaunchArgs.h"
 
 #include <iostream>
+#include "Algorithms.h"
 
 Image *MISSING_TEXTURE{nullptr};
 
@@ -364,7 +365,7 @@ void Engine::onUpdate() {
             this->dTime += fixedDt;
         } else {
             const f64 now = Timing::getTimeReal();
-            frameTime = this->dFrameTime = std::max<f64>(now - this->dTime, 0.00005);
+            frameTime = this->dFrameTime = Mc::max<f64>(now - this->dTime, 0.00005);
             // total engine runtime
             this->dTime = now;
         }

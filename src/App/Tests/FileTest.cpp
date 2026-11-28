@@ -3,6 +3,7 @@
 
 #include "TestMacros.h"
 #include "ByteBufferedFile.h"
+#include "ContainerRanges.h"
 #include "Engine.h"
 #include "Environment.h"
 #include "File.h"
@@ -12,7 +13,6 @@
 
 #include "fmt/format.h"
 
-#include <algorithm>
 #include <atomic>
 #include <filesystem>
 #include <string>
@@ -165,8 +165,8 @@ void FileTest::update() {
             out.write<u32>(5);
         }
         TEST_ASSERT(Environment::renameFile(from, dir + "/Renamed") && readAll(dir + "/Renamed").size() == 4 &&
-                        std::ranges::contains(Environment::getFilesInFolder(dir), std::string{"Renamed"}) &&
-                        !std::ranges::contains(Environment::getFilesInFolder(dir), std::string{"renamed"}),
+                        Mc::ranges::contains(Environment::getFilesInFolder(dir), std::string{"Renamed"}) &&
+                        !Mc::ranges::contains(Environment::getFilesInFolder(dir), std::string{"renamed"}),
                     "a file renamed to its name in other case is there under that name only");
     }
 

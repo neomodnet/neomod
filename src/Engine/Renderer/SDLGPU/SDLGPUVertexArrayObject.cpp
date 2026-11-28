@@ -5,6 +5,7 @@
 // $NoKeywords: $sdlgpuvao
 //===============================================================================//
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_SDLGPU
 
@@ -18,7 +19,6 @@
 #include "Engine.h"
 #include "Logging.h"
 
-#include <algorithm>
 #include <cstring>
 #include <span>
 
@@ -142,13 +142,13 @@ void SDLGPUVertexArrayObject::init() {
         if(hasColors && hasTCs) {
             for(size_t i = 0; i < numVerts; i++) {
                 dst[i].pos = srcVerts[i];
-                dst[i].col = SDLGPUSimpleVertex::packColor(srcColors[std::min(i, maxColorIdx)]);
+                dst[i].col = SDLGPUSimpleVertex::packColor(srcColors[Mc::min(i, maxColorIdx)]);
                 dst[i].tex = srcTCs[i];
             }
         } else if(hasColors) {
             for(size_t i = 0; i < numVerts; i++) {
                 dst[i].pos = srcVerts[i];
-                dst[i].col = SDLGPUSimpleVertex::packColor(srcColors[std::min(i, maxColorIdx)]);
+                dst[i].col = SDLGPUSimpleVertex::packColor(srcColors[Mc::min(i, maxColorIdx)]);
                 dst[i].tex = vec2(0.f, 0.f);
             }
         } else if(hasTCs) {
@@ -265,7 +265,7 @@ void SDLGPUVertexArrayObject::uploadPartialUpdates() {
     if(m_dirtyIndices.empty()) return;
 
     Mc::ranges::sort(m_dirtyIndices);
-    m_dirtyIndices.erase(std::unique(m_dirtyIndices.begin(), m_dirtyIndices.end()), m_dirtyIndices.end());
+    m_dirtyIndices.erase(Mc::unique(m_dirtyIndices.begin(), m_dirtyIndices.end()), m_dirtyIndices.end());
 
     // bridging a small gap drags a few untouched vertices along with the run, which is far cheaper
     // than the extra copy command it saves

@@ -1,5 +1,6 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
 #include "ReplayFile.h"
+#include "Algorithms.h"
 
 #ifndef LZMA_API_STATIC
 #define LZMA_API_STATIC
@@ -32,7 +33,6 @@
 #include "UI.h"
 #include "Replay.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <memory>
@@ -61,10 +61,10 @@ BEATMAP_VALUES getBeatmapValuesForModsLegacy(LegacyFlags modsLegacy, float legac
     }
 
     // apply legacy mods to legacy beatmap values
-    v.AR = std::clamp<float>(legacyAR * v.difficultyMultiplier, 0.0f, 10.0f);
-    v.CS = std::clamp<float>(legacyCS * v.csDifficultyMultiplier, 0.0f, 10.0f);
-    v.OD = std::clamp<float>(legacyOD * v.difficultyMultiplier, 0.0f, 10.0f);
-    v.HP = std::clamp<float>(legacyHP * v.difficultyMultiplier, 0.0f, 10.0f);
+    v.AR = Mc::clamp<float>(legacyAR * v.difficultyMultiplier, 0.0f, 10.0f);
+    v.CS = Mc::clamp<float>(legacyCS * v.csDifficultyMultiplier, 0.0f, 10.0f);
+    v.OD = Mc::clamp<float>(legacyOD * v.difficultyMultiplier, 0.0f, 10.0f);
+    v.HP = Mc::clamp<float>(legacyHP * v.difficultyMultiplier, 0.0f, 10.0f);
 
     return v;
 }
@@ -353,7 +353,7 @@ void read_lazer_score_info(std::string_view json, Info& info) {
                      30 * stat(statistics, "slider_tail_hit") + 10 * stat(statistics, "large_tick_hit") +
                      100 * stat(statistics, "small_bonus") + 1000 * stat(statistics, "large_bonus");
     const f64 multiplier = info.mods.get_scorev1_multiplier();
-    info.score = std::llround(hits + std::max(classic - hits, 0.) * multiplier);
+    info.score = std::llround(hits + Mc::max(classic - hits, 0.) * multiplier);
 }
 
 Info from_bytes(std::span<const u8> data) {

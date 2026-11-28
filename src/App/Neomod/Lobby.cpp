@@ -1,7 +1,6 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
 #include "Lobby.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 

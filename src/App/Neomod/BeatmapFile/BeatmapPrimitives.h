@@ -7,8 +7,8 @@
 #include "DatabaseBeatmapTypes.h"
 #include "SyncStoptoken.h"
 #include "OsuConVars/DiffCalcDefaults.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <memory>
 #include <optional>
@@ -171,8 +171,8 @@ struct PRIMITIVE_CONTAINER final {
     // of one kind: DBType::HITCIRCLE, SLIDER or SPINNER
     template <typename Kind>
     [[nodiscard]] u32 getNumObjects() const {
-        return std::count_if(objects.begin(), objects.end(),
-                             [](const auto &object) { return std::holds_alternative<Kind>(object); });
+        return Mc::count_if(objects.begin(), objects.end(),
+                            [](const auto &object) { return std::holds_alternative<Kind>(object); });
     }
 
     u32 totalBreakDuration{0};

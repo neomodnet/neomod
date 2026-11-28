@@ -1,7 +1,7 @@
 // Copyright (c) 2011, PG, All rights reserved.
 #include "ConsoleBox.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -72,8 +72,8 @@ void ConsoleBox::draw() {
 void ConsoleBox::drawLogOverlay() {
     // the newest entries since the overlay was last emptied, at most console_overlay_lines of them
     const Console::LogRange range = Console::getLogRange();
-    const auto maxLines = static_cast<u64>(std::max(0, cv::console_overlay_lines.getInt()));
-    const u64 first = std::max({this->iOverlayFirst, range.first, range.next - std::min(maxLines, range.next)});
+    const auto maxLines = static_cast<u64>(Mc::max(0, cv::console_overlay_lines.getInt()));
+    const u64 first = Mc::max({this->iOverlayFirst, range.first, range.next - Mc::min(maxLines, range.next)});
     if(first >= range.next) return;
 
     const float dpiScale = this->getDPIScale();
@@ -184,7 +184,7 @@ void ConsoleBox::tick() {
     if(this->suggestion->isVisible()) {
         const int gap = 10 * this->getDPIScale();
         this->suggestion->setPosY(this->textbox->getPos().y - gap -
-                                  std::min(this->suggestion->getCount(), 4) * this->suggestion->getRowHeight());
+                                  Mc::min(this->suggestion->getCount(), 4) * this->suggestion->getRowHeight());
     }
 
     // handle overlay animation and timeout, as long as there are entries left to fade out
@@ -271,5 +271,5 @@ bool ConsoleBox::toggle() {
 float ConsoleBox::getAnimTargetY() { return 32.0f * this->getDPIScale(); }
 
 float ConsoleBox::getDPIScale() {
-    return ((float)std::max(env->getDPI(), this->textbox->getFont()->getDPI()) / 96.0f);  // NOTE: abusing font dpi
+    return ((float)Mc::max(env->getDPI(), this->textbox->getFont()->getDPI()) / 96.0f);  // NOTE: abusing font dpi
 }

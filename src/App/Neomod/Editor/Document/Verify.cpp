@@ -14,8 +14,8 @@
 #include "Vectors.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -132,7 +132,7 @@ std::vector<Issue> check(const Document &document, const MapObjects &objects, st
         } else if(const auto *slider = std::get_if<SLIDER>(&c.objects[i])) {
             quiet(slider->edgeSamples.empty() ? slider->hoverSamples : slider->edgeSamples.front(), start, line);
             // whole milliseconds on the object itself: a file can say any length
-            const f64 span = (f64)object.getDuration() / std::max(slider->repeat, 1);
+            const f64 span = (f64)object.getDuration() / Mc::max(slider->repeat, 1);
             // the first one that is
             for(i32 repeat = 1; repeat < slider->repeat; repeat++) {
                 if(unsnapped(Kind::UNSNAPPED_REPEAT, start + span * repeat, line)) break;
@@ -141,7 +141,7 @@ std::vector<Issue> check(const Document &document, const MapObjects &objects, st
             // one pass along it, to where it first leaves the screen
             const f32 length = slider->pixelLength;
             const i32 steps =
-                length > 0.f ? (i32)std::clamp(std::ceil(length / PATH_STEP), 1.f, (f32)MAX_PATH_STEPS) : 1;
+                length > 0.f ? (i32)Mc::clamp(std::ceil(length / PATH_STEP), 1.f, (f32)MAX_PATH_STEPS) : 1;
             for(i32 step = 0; step <= steps; step++) {
                 const i32 time = start + (i32)(span * step / steps);
                 if(isOffscreen(object.getRawPosAt(time), radius)) {
@@ -193,8 +193,8 @@ std::vector<Issue> check(const Document &document, const MapObjects &objects, st
         }
     }
 
-    std::stable_sort(issues.begin() + (std::ptrdiff_t)timed, issues.end(),
-                     [](const Issue &a, const Issue &b) { return *a.time < *b.time; });
+    Mc::stable_sort(issues.begin() + (std::ptrdiff_t)timed, issues.end(),
+                    [](const Issue &a, const Issue &b) { return *a.time < *b.time; });
     return issues;
 }
 }  // namespace Verify

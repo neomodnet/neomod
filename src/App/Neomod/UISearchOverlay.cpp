@@ -1,7 +1,7 @@
 // Copyright (c) 2017, PG, All rights reserved.
 #include "UISearchOverlay.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cwctype>
 #include <string>
@@ -67,7 +67,7 @@ void UISearchOverlay::draw() {
     const float lineLeft =
         this->getPos().x + this->getSize().x - lineWidth - lineHeight * 0.5f - (float)this->iOffsetRight;
     const int overflow =
-        std::max(0, (int)lineLeft + (int)searchText1Width + (int)drawnWidth - (int)osu->getVirtScreenWidth());
+        Mc::max(0, (int)lineLeft + (int)searchText1Width + (int)drawnWidth - (int)osu->getVirtScreenWidth());
     const int lineX = (int)(lineLeft - (float)overflow);
     const int lineY = (int)(lineHeight / 2.0f) + (int)(this->getPos().y + lineHeight * 1.5f);
 
@@ -80,7 +80,7 @@ void UISearchOverlay::draw() {
                                               0, composition->cursor + composition->clauseLength))
                                         : 0.0f;
         this->textInputArea = {.rect = McRect{textX + searchWidth, textY - lineHeight,
-                                              std::max(drawnWidth - searchWidth, 1.0f), lineHeight * 1.5f},
+                                              Mc::max(drawnWidth - searchWidth, 1.0f), lineHeight * 1.5f},
                                .caretX = textX + searchWidth + composedWidth};
     }
 
@@ -145,7 +145,7 @@ void UISearchOverlay::draw() {
                            searchTextFont->getStringWidth(std::string_view{composition->text}.substr(0, pos));
                 };
                 const float dpiScale = (float)searchTextFont->getDPI() / 96.0f;
-                const float thickness = std::max(1.0f, std::round(dpiScale));
+                const float thickness = Mc::max(1.0f, std::round(dpiScale));
                 const float underlineY = std::round(2 * dpiScale);
                 g->fillRectf(searchWidth, underlineY, drawnWidth - searchWidth, thickness);
                 if(composition->clauseLength > 0)

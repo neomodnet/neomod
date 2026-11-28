@@ -9,7 +9,6 @@
 #include "Paths.h"
 #include "Timing.h"
 
-#include <algorithm>
 #include <filesystem>
 #include <initializer_list>
 #include <system_error>

@@ -7,6 +7,7 @@
 #include "MD5Hash.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -110,7 +111,7 @@ uSz FastIFStream::read_at(uSz offset, u8 *out, uSz n) noexcept {
         u64 off = static_cast<u64>(offset) + total;
         ov.Offset = static_cast<DWORD>(off & 0xFFFFFFFFu);
         ov.OffsetHigh = static_cast<DWORD>(off >> 32);
-        DWORD want = static_cast<DWORD>(std::min<uSz>(n - total, 0xFFFFFFFFu));
+        DWORD want = static_cast<DWORD>(Mc::min<uSz>(n - total, 0xFFFFFFFFu));
         DWORD got = 0;
         if(!ReadFile(this->handle, out + total, want, &got, &ov)) break;  // incl. ERROR_HANDLE_EOF
         if(got == 0) break;                                               // EOF

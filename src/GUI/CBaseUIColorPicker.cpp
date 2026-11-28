@@ -13,8 +13,8 @@
 #include "UIStyle.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <string_view>
 #include <utility>
@@ -304,7 +304,7 @@ Color CBaseUIColorPicker::fromHSV(float hue, float saturation, float value) {
                                                       {low, falling, value},
                                                       {rising, low, value},
                                                       {value, low, falling}}};
-    const auto byte = [](float f) { return (int)std::round(std::clamp(f, 0.f, 1.f) * 255.f); };
+    const auto byte = [](float f) { return (int)std::round(Mc::clamp(f, 0.f, 1.f) * 255.f); };
     return rgb(byte(sixths[sixth][0]), byte(sixths[sixth][1]), byte(sixths[sixth][2]));
 }
 
@@ -312,8 +312,8 @@ void CBaseUIColorPicker::show(Color c, bool keepHSV) {
     this->colour = c;
     if(!keepHSV) {
         const float r = c.Rf(), green = c.Gf(), b = c.Bf();
-        const float most = std::max({r, green, b});
-        const float range = most - std::min({r, green, b});
+        const float most = Mc::max({r, green, b});
+        const float range = most - Mc::min({r, green, b});
         this->value = most;
         if(most > 0.f) this->saturation = range / most;
         if(range > 0.f) {

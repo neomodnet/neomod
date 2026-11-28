@@ -47,8 +47,8 @@
 #include "UIIcon.h"
 #include "UniString.h"
 #include "DatabaseBeatmap.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <functional>
@@ -395,8 +395,8 @@ void OnlineMapListing::onResolutionChange(vec2 /*newResolution*/) {
     sSz visible_count = n_std;
     if(n_std > max_slots) {
         const f32 probe_w = this->font->getStringWidth(tformat("+{:d} more", n_std));  // worst-case digits
-        const sSz chip_slots = std::max<sSz>(1, (sSz)std::ceil((probe_w + GAP) / STEP));
-        visible_count = std::max<sSz>(0, max_slots - chip_slots);
+        const sSz chip_slots = Mc::max<sSz>(1, (sSz)std::ceil((probe_w + GAP) / STEP));
+        visible_count = Mc::max<sSz>(0, max_slots - chip_slots);
     }
 
     this->overflow_indicator_str.clear();
@@ -406,7 +406,7 @@ void OnlineMapListing::onResolutionChange(vec2 /*newResolution*/) {
         this->overflow_indicator_str = tformat("+{:d} more", hidden);
         const f32 chip_w = this->font->getStringWidth(this->overflow_indicator_str);
         // right-anchored just left of the leftmost visible icon, clamped to never cross the thumbnail
-        const f32 chip_left = std::max(left_limit, card.x - (f32)visible_count * STEP - GAP - chip_w);
+        const f32 chip_left = Mc::max(left_limit, card.x - (f32)visible_count * STEP - GAP - chip_w);
         this->overflow_indicator_relrect = McRect(vec2(chip_left, row_y), vec2(chip_w, ICON));
     }
 
@@ -490,14 +490,14 @@ void OnlineMapListing::draw() {
 
     const f32 padding = 5.f;
     const vec2 progress_size = {this->getSize().x - map_bg_size.x, this->getSize().y};
-    const f32 alpha = std::min(0.25f + this->hover_anim + this->click_anim, 1.f);
+    const f32 alpha = Mc::min(0.25f + this->hover_anim + this->click_anim, 1.f);
 
     f32 download_progress = 0.f;
     const bool installed = this->install.installed;
     const bool failed = !installed && this->install.download.stage == MapInstallStage::Failed;
     if(this->install.in_flight()) {
         // To show we're downloading, always draw at least 5%
-        download_progress = std::max(0.05f, this->install.download.progress);
+        download_progress = Mc::max(0.05f, this->install.download.progress);
     }
 
     g->pushClipRect(McRect(pos_counter, progress_size));
@@ -529,7 +529,7 @@ void OnlineMapListing::draw() {
                                   .shadow_softness_px = 0.5f * outline_scale};
 
         // ellipsize the title so it stops before the right-aligned creator name
-        const f32 title_max_w = std::max(0.f, progress_size.x - this->creator_width - 4.f * padding);
+        const f32 title_max_w = Mc::max(0.f, progress_size.x - this->creator_width - 4.f * padding);
 
         g->pushTransform();
         {
@@ -797,7 +797,7 @@ void OnlineMapPreview::layout() {
     const f32 scale = Osu::getUIScale();
     const vec2 size = this->getSize();
     const f32 pad = DEF_PREVIEW_PAD * scale;
-    const f32 inner_w = std::max(0.f, size.x - 2.f * pad);
+    const f32 inner_w = Mc::max(0.f, size.x - 2.f * pad);
     McFont* font = engine->getDefaultFont();
 
     // buttons, stacked at the bottom
@@ -844,8 +844,8 @@ void OnlineMapPreview::layout() {
             // the rest of the text, from where the last line starts (the lines may have dropped a space at the end)
             std::string_view rest = text;
             for(uSz i = 0; i + 1 < max_lines; ++i) {
-                rest.remove_prefix(std::min(lines[i].size(), rest.size()));
-                rest.remove_prefix(std::min(rest.find_first_not_of(' '), rest.size()));
+                rest.remove_prefix(Mc::min(lines[i].size(), rest.size()));
+                rest.remove_prefix(Mc::min(rest.find_first_not_of(' '), rest.size()));
             }
             lines.resize(max_lines);
             lines.back() = line_font->ellipsize(rest, inner_w);
@@ -900,7 +900,7 @@ void OnlineMapPreview::layout() {
                                    ? PREVIEW_MIN_DIFFICULTY_LINES + 1  // "+N more"
                                    : diffs.size();
     const f32 thumb_h =
-        std::min(inner_w * 3.f / 4.f, content_bottom - y - 3.f * pad - (f32)reserved_lines * line_advance);
+        Mc::min(inner_w * 3.f / 4.f, content_bottom - y - 3.f * pad - (f32)reserved_lines * line_advance);
     f32 text_top = pad;
     if(thumb_h >= DEF_PREVIEW_MIN_THUMB_HEIGHT * scale) {
         this->thumb_relrect = McRect((size.x - thumb_h * 4.f / 3.f) / 2.f, pad, thumb_h * 4.f / 3.f, thumb_h);
@@ -1224,11 +1224,11 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     y += this->title->getSize().y;
 
     // the results list stays centered unless that would put it under the preview's column
-    const f32 preview_width = std::min(DEF_PREVIEW_WIDTH * scale, newResolution.x * PREVIEW_MAX_SCREEN_WIDTH_RATIO);
+    const f32 preview_width = Mc::min(DEF_PREVIEW_WIDTH * scale, newResolution.x * PREVIEW_MAX_SCREEN_WIDTH_RATIO);
     const f32 preview_column = preview_width + 2.f * DEF_PREVIEW_MARGIN * scale;
-    const f32 results_width = std::min(newResolution.x - 10.f * scale - preview_column, 1024.f * scale);
-    const f32 x_start = std::min((f32)osu->getVirtScreenWidth() / 2.f - results_width / 2.f,
-                                 newResolution.x - preview_column - results_width);
+    const f32 results_width = Mc::min(newResolution.x - 10.f * scale - preview_column, 1024.f * scale);
+    const f32 x_start = Mc::min((f32)osu->getVirtScreenWidth() / 2.f - results_width / 2.f,
+                                newResolution.x - preview_column - results_width);
     x = x_start;
     y += 50.f * scale;
 
@@ -1236,7 +1236,7 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     const f32 BUTTONS_MARGIN = 10.f * scale;
     const f32 button_width = 150.f * scale;
     this->search_bar->setRelPos(x, y);
-    this->search_bar->setSize(std::max(results_width - 2.f * (button_width + BUTTONS_MARGIN), button_width),
+    this->search_bar->setSize(Mc::max(results_width - 2.f * (button_width + BUTTONS_MARGIN), button_width),
                               40.0f * scale);
     x += this->search_bar->getSize().x + BUTTONS_MARGIN;
     this->newest_btn->setRelPos(x, y);
@@ -1269,7 +1269,7 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     }
 
     // Preview panel, vertically centered on the results list
-    const f32 preview_height = std::min(this->results->getSize().y, DEF_PREVIEW_MAX_HEIGHT * scale);
+    const f32 preview_height = Mc::min(this->results->getSize().y, DEF_PREVIEW_MAX_HEIGHT * scale);
     this->preview->setRelPos(newResolution.x - DEF_PREVIEW_MARGIN * scale - preview_width,
                              y + (this->results->getSize().y - preview_height) / 2.f);
     this->preview->setSize(preview_width, preview_height);
@@ -1281,7 +1281,7 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     for(auto* checkbox : {this->ranked_only, this->auto_select}) {
         checkbox->setSizeY(checkbox_height);
         checkbox->setWidthToContent(0);
-        checkboxes_width = std::max(checkboxes_width, checkbox->getSize().x);
+        checkboxes_width = Mc::max(checkboxes_width, checkbox->getSize().x);
     }
     const f32 checkboxes_x = x + results_width - checkboxes_width;
     const f32 checkboxes_y = y + this->results->getSize().y + 10.f * scale;

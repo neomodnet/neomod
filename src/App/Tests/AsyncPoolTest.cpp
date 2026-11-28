@@ -6,8 +6,8 @@
 #include "AsyncChannel.h"
 #include "Engine.h"
 #include "Timing.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <string>
@@ -184,7 +184,7 @@ void AsyncPoolTest::startStressTest() {
     // fg workers inside continuation bridges (screenshot: submit(Background).then_on_main).
     // one of each per thread, all must finish.
     const size_t n = Async::get_thread_count();
-    m_stressWindow = std::clamp<int>(static_cast<int>(n), 4, 16);
+    m_stressWindow = Mc::clamp<int>(static_cast<int>(n), 4, 16);
     m_stressStartMS = Timing::getTicksMS();
     m_stressLoaders.reserve(n);
     m_stressConts.reserve(n);

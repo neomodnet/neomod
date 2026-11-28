@@ -5,12 +5,12 @@
 
 #include "noinclude.h"
 #include "types.h"
+#include "Algorithms.h"
 
 #ifndef BUILD_TOOLS_ONLY  // avoid an unnecessary dependency on fmt when building tools only
 #include "fmt/format.h"
 #endif
 
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
@@ -68,9 +68,9 @@ inline constexpr bool argb_compatible_v =
 
 forceinline constexpr Channel to_byte(Numeric auto value) {
     if constexpr(std::is_floating_point_v<decltype(value)>)
-        return static_cast<Channel>(std::clamp<decltype(value)>(value, 0, 1) * 255);
+        return static_cast<Channel>(Mc::clamp<decltype(value)>(value, 0, 1) * 255);
     else
-        return static_cast<Channel>(std::clamp<std::common_type_t<decltype(value), int>>(value, 0, 255));
+        return static_cast<Channel>(Mc::clamp<std::common_type_t<decltype(value), int>>(value, 0, 255));
 }
 }  // namespace Colors
 
@@ -207,13 +207,13 @@ constexpr Color multiply(Color color1, Color color2) {
 }
 
 constexpr Color add(Color color1, Color color2) {
-    return rgb(std::clamp(color1.Rf() + color2.Rf(), 0.0f, 1.0f), std::clamp(color1.Gf() + color2.Gf(), 0.0f, 1.0f),
-               std::clamp(color1.Bf() + color2.Bf(), 0.0f, 1.0f));
+    return rgb(Mc::clamp(color1.Rf() + color2.Rf(), 0.0f, 1.0f), Mc::clamp(color1.Gf() + color2.Gf(), 0.0f, 1.0f),
+               Mc::clamp(color1.Bf() + color2.Bf(), 0.0f, 1.0f));
 }
 
 constexpr Color subtract(Color color1, Color color2) {
-    return rgb(std::clamp(color1.Rf() - color2.Rf(), 0.0f, 1.0f), std::clamp(color1.Gf() - color2.Gf(), 0.0f, 1.0f),
-               std::clamp(color1.Bf() - color2.Bf(), 0.0f, 1.0f));
+    return rgb(Mc::clamp(color1.Rf() - color2.Rf(), 0.0f, 1.0f), Mc::clamp(color1.Gf() - color2.Gf(), 0.0f, 1.0f),
+               Mc::clamp(color1.Bf() - color2.Bf(), 0.0f, 1.0f));
 }
 
 }  // namespace Colors

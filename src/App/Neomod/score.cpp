@@ -17,6 +17,7 @@
 #include "AsyncPPCalculator.h"
 #include "Logging.h"
 #include "UI.h"
+#include "Algorithms.h"
 
 using namespace neomod;
 
@@ -83,7 +84,7 @@ f64 LiveScore::getScoreMultiplier() const { return this->mods.get_scorev1_multip
 void LiveScore::addHitResult(GameplayJudge *judge, LiveHitResult hit, i32 delta, bool ignoreOnHitErrorBar,
                              bool hitErrorBarOnly, bool ignoreCombo, bool ignoreScore) {
     // current combo, excluding the current hitobject which caused the addHitResult() call
-    const int scoreComboMultiplier = std::max(this->iCombo - 1, 0);
+    const int scoreComboMultiplier = Mc::max(this->iCombo - 1, 0);
 
     if(hit == LiveHitResult::HIT_MISS) {
         this->iCombo = 0;
@@ -222,7 +223,7 @@ void LiveScore::updateHitErrorStats() const {
         int customStartIndex = -1;
         if(cv::hud_statistics_hitdelta_chunksize.getInt() >= 0) {
             customStartIndex +=
-                std::max(0, (int)this->hitdeltas.size() - cv::hud_statistics_hitdelta_chunksize.getInt());
+                Mc::max(0, (int)this->hitdeltas.size() - cv::hud_statistics_hitdelta_chunksize.getInt());
         }
 
         for(int i = 0; i < this->hitdeltas.size(); i++) {

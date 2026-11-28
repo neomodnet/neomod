@@ -30,8 +30,8 @@
 #include "Vectors.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <span>
 #include <string>
@@ -331,7 +331,7 @@ void MapSettingsOverlay::updateLayout() {
     const f32 scale = Osu::getUIScale();
     const auto screenWidth = (f32)osu->getVirtScreenWidth();
 
-    const f32 contentWidth = std::min(screenWidth - 2.f * PAD * scale, std::round(CONTENT_MAX_WIDTH * scale));
+    const f32 contentWidth = Mc::min(screenWidth - 2.f * PAD * scale, std::round(CONTENT_MAX_WIDTH * scale));
     const f32 columnWidth = std::round((contentWidth - COLUMN_GAP * scale) / 2.f);
     const f32 left = std::round((screenWidth - contentWidth) / 2.f);
     const f32 right = left + columnWidth + std::round(COLUMN_GAP * scale);
@@ -341,7 +341,7 @@ void MapSettingsOverlay::updateLayout() {
 
     // the names (in whichever language) decide how much of the row is left for the sliders
     const f32 labelWidth = std::round(
-        std::max(this->font->getStringWidth(_("Background dim")), this->font->getStringWidth(_("Local offset"))) +
+        Mc::max(this->font->getStringWidth(_("Background dim")), this->font->getStringWidth(_("Local offset"))) +
         PAD * scale);
     this->labelX = left;
     const f32 sliderX = left + labelWidth;

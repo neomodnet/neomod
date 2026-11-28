@@ -5,8 +5,8 @@
 
 #include "SString.h"
 #include "ContainerRanges.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <memory>
@@ -48,8 +48,8 @@ void trim_inplace(std::string_view& str) noexcept {
 
 bool contains_ncase(const std::string_view haystack, const std::string_view needle) noexcept {
     return !haystack.empty() && !needle.empty() &&
-           std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
-                       [](unsigned char ch1, unsigned char ch2) { return ascii_tolower(ch1) == ascii_tolower(ch2); }) !=
+           Mc::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
+                      [](unsigned char ch1, unsigned char ch2) { return ascii_tolower(ch1) == ascii_tolower(ch2); }) !=
                haystack.end();
 }
 
@@ -65,7 +65,7 @@ bool is_comment(const std::string_view str, const std::string_view token) noexce
 
 void lower_inplace(std::string& str) noexcept {
     if(str.empty()) return;
-    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return ascii_tolower(c); });
+    Mc::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return ascii_tolower(c); });
 }
 
 std::string to_lower(const std::string_view str) noexcept {

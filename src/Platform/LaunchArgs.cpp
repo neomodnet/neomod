@@ -3,7 +3,6 @@
 #include "ContainerRanges.h"
 #include "SString.h"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cctype>

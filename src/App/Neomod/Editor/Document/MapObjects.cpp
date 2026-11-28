@@ -7,8 +7,8 @@
 #include "DatabaseBeatmapTypes.h"
 #include "Document.h"
 #include "GameRules.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <iterator>
 #include <span>
 #include <tuple>
@@ -55,8 +55,7 @@ MapObjects::MapObjects(const Document &document) : revision(document.getRevision
         this->indexes[id] = this->ids.size();
         this->ids.push_back(id);
         this->byEndTime.push_back({.object = this->objects[i], .id = id, .meshBuilt = false});
-        this->longestObjectMS =
-            std::max(this->longestObjectMS, this->objects.endTimes[i] - this->objects.clickTimes[i]);
+        this->longestObjectMS = Mc::max(this->longestObjectMS, this->objects.endTimes[i] - this->objects.clickTimes[i]);
     }
     Mc::ranges::stable_sort(this->byEndTime, {}, [](const Shown &shown) { return shown.object.getEndTime(); });
 }
@@ -70,8 +69,8 @@ bool MapObjects::update(const Document &document) {
     if(!patched->objects.empty()) this->remake(document, patched->objects);
     // one made again has its combo already
     std::vector<uSz> recounted;
-    std::set_difference(patched->combos.begin(), patched->combos.end(), patched->objects.begin(),
-                        patched->objects.end(), std::back_inserter(recounted));
+    Mc::set_difference(patched->combos.begin(), patched->combos.end(), patched->objects.begin(), patched->objects.end(),
+                       std::back_inserter(recounted));
     for(const uSz i : recounted) {
         const auto [number, colorCounter, colorOffset, isEndOfCombo] = comboOf(c.objects[i]);
         this->objects.comboNumbers[i] = number;
@@ -80,8 +79,8 @@ bool MapObjects::update(const Document &document) {
         this->objects.endsCombo[i] = isEndOfCombo;
     }
     std::vector<uSz> changed;
-    std::set_union(patched->objects.begin(), patched->objects.end(), recounted.begin(), recounted.end(),
-                   std::back_inserter(changed));
+    Mc::set_union(patched->objects.begin(), patched->objects.end(), recounted.begin(), recounted.end(),
+                  std::back_inserter(changed));
     if(!changed.empty()) this->startCombosAround(changed);
     // stacking doesn't go by combos: the ones only counted again stay as they are stacked
     if(!patched->objects.empty()) this->restackAround(patched->objects, c);
@@ -101,7 +100,7 @@ const MapObjects::Sounds &MapObjects::getSounds() const {
         Mc::ranges::stable_sort(made.cues, {}, &SoundCue::timeMS);
         for(const auto &cue : made.cues) {
             if(cue.kind == SoundCue::Kind::SLIDE) {
-                made.longestSlideMS = std::max(made.longestSlideMS, cue.endTimeMS - cue.timeMS);
+                made.longestSlideMS = Mc::max(made.longestSlideMS, cue.endTimeMS - cue.timeMS);
             }
         }
         this->sounds = std::move(made);
@@ -120,7 +119,7 @@ void MapObjects::remake(const Document &document, std::span<const uSz> indexes) 
     const Primitives::PRIMITIVE_CONTAINER &c = document.getPrimitives();
     // their entries by end time give way to the new entries, each where it goes
     std::erase_if(this->byEndTime, [&](const Shown &shown) {
-        return std::binary_search(indexes.begin(), indexes.end(), (uSz)shown.object.getIndex());
+        return Mc::binary_search(indexes.begin(), indexes.end(), (uSz)shown.object.getIndex());
     });
     // the longest an object lasts, found again when one that lasted as long got shorter
     bool shorter = false;
@@ -129,7 +128,7 @@ void MapObjects::remake(const Document &document, std::span<const uSz> indexes) 
         const i32 duration = this->objects[i].getDuration();
         this->objects.remake(c, i);
         shorter |= duration == this->longestObjectMS && this->objects[i].getDuration() < duration;
-        this->longestObjectMS = std::max(this->longestObjectMS, this->objects[i].getDuration());
+        this->longestObjectMS = Mc::max(this->longestObjectMS, this->objects[i].getDuration());
         const Document::Id id = document.getIdAt(this->objects.lines[i]);
         this->ids[i] = id;
         this->indexes[id] = i;
@@ -138,7 +137,7 @@ void MapObjects::remake(const Document &document, std::span<const uSz> indexes) 
     if(shorter) {
         this->longestObjectMS = 0;
         for(uSz i = 0; i < this->objects.size(); i++) {
-            this->longestObjectMS = std::max(this->longestObjectMS, this->objects[i].getDuration());
+            this->longestObjectMS = Mc::max(this->longestObjectMS, this->objects[i].getDuration());
         }
     }
     Mc::ranges::sort(made, {}, endOrder);
@@ -146,8 +145,8 @@ void MapObjects::remake(const Document &document, std::span<const uSz> indexes) 
     merged.reserve(this->byEndTime.size() + made.size());
     auto next = this->byEndTime.begin();
     for(const Shown &shown : made) {
-        const auto at = std::upper_bound(next, this->byEndTime.end(), endOrder(shown),
-                                         [](const auto &order, const Shown &s) { return order < endOrder(s); });
+        const auto at = Mc::upper_bound(next, this->byEndTime.end(), endOrder(shown),
+                                        [](const auto &order, const Shown &s) { return order < endOrder(s); });
         merged.insert(merged.end(), next, at);
         merged.push_back(shown);
         next = at;
@@ -180,7 +179,7 @@ void MapObjects::restackAround(std::span<const uSz> indexes, const Primitives::P
     std::vector<uSz> runs{*first};
     uSz end = this->objects.size();
     for(uSz run = this->nextRun(*first, c); run < this->objects.size(); run = this->nextRun(run, c)) {
-        if(run > indexes.back() && std::binary_search(this->stackRuns.begin(), this->stackRuns.end(), run)) {
+        if(run > indexes.back() && Mc::binary_search(this->stackRuns.begin(), this->stackRuns.end(), run)) {
             end = run;
             break;
         }

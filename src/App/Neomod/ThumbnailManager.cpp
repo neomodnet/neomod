@@ -17,8 +17,8 @@
 #include "OsuConVars.h"
 #include "ResourceManager.h"
 #include "Thread.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -208,8 +208,8 @@ void ThumbnailManager::Impl::update() {
     // start/poll the downloads of the most recently accessed candidates only (a few per frame): the downloader itself
     // has no priorities, so this is what gets the thumbnails that are visible right now served first
     static constexpr uSz ELEMS_TO_CHECK{4};
-    const uSz num_to_check = std::min(ELEMS_TO_CHECK, candidates.size());
-    std::partial_sort(
+    const uSz num_to_check = Mc::min(ELEMS_TO_CHECK, candidates.size());
+    Mc::partial_sort(
         candidates.begin(), candidates.begin() + (sSz)num_to_check, candidates.end(),
         [](const auto* a, const auto* b) { return a->second.last_access_time > b->second.last_access_time; });
 
@@ -318,7 +318,7 @@ void ThumbnailManager::Impl::prune_oldest_entries() {
     Mc::ranges::sort(loaded_entries, {}, &ThumbEntry::last_access_time);
 
     // unload oldest images (a bit more, to not constantly be unloading images for each new image added after we hit the limit once)
-    const uSz to_unload = std::clamp<uSz>((uSz)(MAX_LOADED_IMAGES / 4.f), 0, loaded_entries.size() / 2);
+    const uSz to_unload = Mc::clamp<uSz>((uSz)(MAX_LOADED_IMAGES / 4.f), 0, loaded_entries.size() / 2);
     for(uSz i = 0; i < to_unload; ++i) {
         logIfCV(debug_thumbs, "unloading {} from memory due to age", loaded_entries[i]->image->getFilePath());
         this->unload_image(*loaded_entries[i]);

@@ -6,11 +6,11 @@
 #include <array>
 #include <concepts>
 #include <optional>
-#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #ifndef UTIL_MD5HASH_H
@@ -47,12 +47,10 @@ template <std::integral T = u64>
 }
 
 // fill a contiguous container/array of trivially copyable elements with random bytes
-template <std::ranges::contiguous_range R>
-    requires std::ranges::sized_range<R> && std::is_trivially_copyable_v<std::ranges::range_value_t<R>> &&
-             std::ranges::output_range<R, std::ranges::range_value_t<R>>
+template <typename R>
+    requires std::is_trivially_copyable_v<std::remove_pointer_t<decltype(std::data(std::declval<R&>()))>>
 void get_rand(R& out) {
-    get_bytes(std::span{reinterpret_cast<u8*>(std::ranges::data(out)),
-                        std::ranges::size(out) * sizeof(std::ranges::range_value_t<R>)});
+    get_bytes(std::span{reinterpret_cast<u8*>(std::data(out)), std::size(out) * sizeof(*std::data(out))});
 }
 }  // namespace rng
 

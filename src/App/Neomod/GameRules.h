@@ -4,6 +4,7 @@
 #include "noinclude.h"
 #include "types.h"
 #include "Vectors.h"
+#include "Algorithms.h"
 
 class GameplayJudge;
 
@@ -145,7 +146,7 @@ inline vec2 getPlayfieldCenter() {
 inline constexpr const float broken_gamefield_rounding_allowance{1.00041f};
 
 inline f32 getRawHitCircleScale(f32 CS) {
-    return std::max(0.0f, ((1.0f - 0.7f * (CS - 5.0f) / 5.0f) / 2.0f) * broken_gamefield_rounding_allowance);
+    return Mc::max(0.0f, ((1.0f - 0.7f * (CS - 5.0f) / 5.0f) / 2.0f) * broken_gamefield_rounding_allowance);
 }
 
 // gives the circle diameter in osu!pixels, goes negative above CS 12.1429

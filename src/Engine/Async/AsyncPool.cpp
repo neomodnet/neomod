@@ -9,6 +9,7 @@
 #include "SyncMutex.h"
 #include "Thread.h"
 #include "Timing.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_PLATFORM_WASM
 #ifndef MCENGINE_FEATURE_NO_THREADS
@@ -16,11 +17,9 @@
 #endif
 #endif
 
-#include <algorithm>
 #include <cassert>
 #include <charconv>
 #include <iterator>
-#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -46,15 +45,15 @@ void run(StateBase *task) noexcept {
 
 #ifndef MCENGINE_FEATURE_NO_THREADS
 size_t configured_thread_count() noexcept {
-    size_t count = std::clamp<size_t>(McThread::get_logical_cpu_count() - 1, 2, 32);
+    size_t count = Mc::clamp<size_t>(McThread::get_logical_cpu_count() - 1, 2, 32);
 #ifdef MCENGINE_PLATFORM_WASM
     // the browser side preallocates a fixed worker pool (PTHREAD_POOL_SIZE), leave room for the other engine threads
-    count = std::min<size_t>(count, 8);
+    count = Mc::min<size_t>(count, 8);
 #endif
     if(const auto arg = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_ASYNC_THREADS); arg && !arg->empty()) {
         size_t requested{0};
         if(std::from_chars(arg->data(), arg->data() + arg->size(), requested).ec == std::errc{})
-            count = std::clamp<size_t>(requested, 2, 64);
+            count = Mc::clamp<size_t>(requested, 2, 64);
     }
     return count;
 }
@@ -114,9 +113,9 @@ class Pool final {
         m_fgCount = 1;  // the main thread, during update() and while waiting on a future
 #else
         const size_t total = configured_thread_count();
-        m_bgCount = std::clamp<size_t>(total / 4, 1, 8);
+        m_bgCount = Mc::clamp<size_t>(total / 4, 1, 8);
         m_fgCount = total - m_bgCount;
-        m_stealCap = std::max<size_t>(1, m_fgCount / 2);
+        m_stealCap = Mc::max<size_t>(1, m_fgCount / 2);
 
         m_threads.reserve(total);
         for(size_t i = 0; i < m_fgCount; i++) {
@@ -430,7 +429,7 @@ void Scope::track(detail::StateBase *task, detail::StateBase *antecedent) {
     {
         Sync::scoped_lock lock(this->mutex);
         const auto done =
-            std::partition(this->owned.begin(), this->owned.end(), [](const Owned &o) { return !o.task->done(); });
+            Mc::partition(this->owned.begin(), this->owned.end(), [](const Owned &o) { return !o.task->done(); });
         finished.assign(std::make_move_iterator(done), std::make_move_iterator(this->owned.end()));
         this->owned.erase(done, this->owned.end());
         this->owned.push_back({.task = detail::Ref<detail::StateBase>(task), .antecedent = antecedent});

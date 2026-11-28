@@ -9,11 +9,11 @@
 #include "ConVar.h"
 #include "Thread.h"
 #include "ContainerRanges.h"
+#include "Algorithms.h"
 
 #include <archive.h>
 #include <archive_entry.h>
 
-#include <algorithm>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -391,7 +391,7 @@ bool Archive::Reader::isPathSafe(std::string_view path) { return path.find("..")
 
 Archive::Writer::Writer(std::string_view hdrCharset, int compressionLevel)
     : compressionLevel(compressionLevel),
-      threads(std::clamp<int>(cv::archive_threads.getInt(), 0, McThread::get_logical_cpu_count())),
+      threads(Mc::clamp<int>(cv::archive_threads.getInt(), 0, McThread::get_logical_cpu_count())),
       sHdrCharset(hdrCharset) {}
 
 std::string Archive::Writer::normalizePath(std::string_view path) {
@@ -574,8 +574,8 @@ bool Archive::Writer::configureArchive(struct archive* a) {
     if(this->compressionLevel == COMPRESSION_STORE) {
         options += "zip:compression=store,";
     } else if(this->compressionLevel != COMPRESSION_DEFAULT) {
-        options += fmt::format("zip:compression=deflate,zip:compression-level={:d},",
-                               std::clamp(this->compressionLevel, 1, 9));
+        options +=
+            fmt::format("zip:compression=deflate,zip:compression-level={:d},", Mc::clamp(this->compressionLevel, 1, 9));
     }
     if(this->threads != 1) {
         options += fmt::format("zip:threads={:d},", this->threads);
@@ -648,7 +648,7 @@ int Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& sto
                     return ARCHIVE_FATAL;
                 }
 
-                size_t toWrite = std::min(remaining, CHUNK_SIZE);
+                size_t toWrite = Mc::min(remaining, CHUNK_SIZE);
                 la_ssize_t written = archive_write_data(a, ptr, toWrite);
                 if(written < 0) {
                     logIfCV(debug_file, "failed to write data for '{:s}': {:s}", pending.archivePath.c_str(),

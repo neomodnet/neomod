@@ -1,5 +1,6 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "PauseOverlay.h"
+#include "Algorithms.h"
 
 #include <cmath>
 #include <utility>
@@ -321,7 +322,7 @@ void PauseOverlay::updateLayout() {
         vec2 newPos =
             vec2(osu->getVirtScreenWidth() / 2.0f - maxWidth / 2, (i + 1) * height - height / 2.0f - maxHeight / 2.0f);
 
-        const float pinch = std::max(0.0f, (height / 2.0f - maxHeight / 2.0f));
+        const float pinch = Mc::max(0.0f, (height / 2.0f - maxHeight / 2.0f));
         if((float)i < half)
             newPos.y += pinch;
         else if((float)i > half)

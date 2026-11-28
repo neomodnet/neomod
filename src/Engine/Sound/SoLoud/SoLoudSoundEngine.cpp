@@ -1,5 +1,6 @@
 // Copyright (c) 2025, WH, All rights reserved.
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_SOLOUD
 
@@ -21,7 +22,6 @@
 #include "ResourceManager.h"
 
 #include <utility>
-#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -90,8 +90,8 @@ SoLoudSoundEngine::SoLoudSoundEngine() : SoundEngine() {
     cv::snd_freq.setDefaultDouble(SoLoud::Soloud::AUTO);
 
     this->iMaxActiveVoices =
-        std::clamp<int>(cv::snd_sanity_simultaneous_limit.getInt(), 64,
-                        255);  // TODO: lower this minimum (it will crash if more than this many sounds play at once...)
+        Mc::clamp<int>(cv::snd_sanity_simultaneous_limit.getInt(), 64,
+                       255);  // TODO: lower this minimum (it will crash if more than this many sounds play at once...)
 
     OUTPUT_DEVICE defaultOutputDevice{.isDefault = true, .driver = getMAorSDLCV()};
     cv::snd_output_device.setValue(defaultOutputDevice.name);
@@ -155,8 +155,8 @@ bool SoLoudSoundEngine::play(Sound *snd, f32 pan, f32 pitch, f32 playVolume, boo
     // @spec: adding 1 here because kiwec changed the calling code in some way that i dont understand yet
     pitch += 1.0f;
 
-    pan = std::clamp<f32>(pan, -1.0f, 1.0f);
-    pitch = std::clamp<f32>(pitch, 0.01f, 2.0f);
+    pan = Mc::clamp<f32>(pan, -1.0f, 1.0f);
+    pitch = Mc::clamp<f32>(pitch, 0.01f, 2.0f);
 
     auto *soloudSound = snd->as<SoLoudSound>();
     if(!soloudSound) return false;
@@ -624,7 +624,7 @@ SoLoudSoundEngine::~SoLoudSoundEngine() {
 void SoLoudSoundEngine::setMasterVolume(f32 volume) {
     if(!this->isReady()) return;
 
-    this->fMasterVolume = std::clamp<f32>(volume, 0.0f, 1.0f);
+    this->fMasterVolume = Mc::clamp<f32>(volume, 0.0f, 1.0f);
 
     // if (cv::debug_snd.getBool())
     // 	debugLog("setting global volume to {:f}", fVolume);
@@ -792,7 +792,7 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
     unsigned int bufferSize =
         cv::snd_soloud_buffer.isDefault() ? automaticBufferSize : cv::snd_soloud_buffer.getVal<unsigned int>();
     if(bufferSize > 2048) bufferSize = SoLoud::Soloud::AUTO;
-    if constexpr(Env::cfg(OS::WASM)) bufferSize = std::clamp(std::bit_floor(bufferSize), 16U, 2048U);
+    if constexpr(Env::cfg(OS::WASM)) bufferSize = Mc::clamp(std::bit_floor(bufferSize), 16U, 2048U);
 
     // asio: the driver's current rate and preferred buffer size unless the asio cvars ask for something specific
     // (soloud clamps the size to what the driver allows); after the driver changed those itself (control panel,
@@ -968,7 +968,7 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
 
 void SoLoudSoundEngine::onMaxActiveChange(f32 newMax) {
     if(!soloud || !this->isReady()) return;
-    const auto desired = std::clamp<unsigned int>(static_cast<unsigned int>(newMax), 64, 255);
+    const auto desired = Mc::clamp<unsigned int>(static_cast<unsigned int>(newMax), 64, 255);
     if(std::cmp_not_equal(soloud->getMaxActiveVoiceCount(), desired)) {
         SoLoud::result res = soloud->setMaxActiveVoiceCount(desired);
         if(res != SoLoud::SO_NO_ERROR) debugLog("SoundEngine WARNING: failed to setMaxActiveVoiceCount ({})", res);

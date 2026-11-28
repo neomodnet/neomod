@@ -15,6 +15,7 @@
 #include "Parsing.h"
 #include "Logging.h"
 #include "SString.h"
+#include "Algorithms.h"
 
 #include <string_view>
 #include <utility>
@@ -284,11 +285,11 @@ bool import_from_osu_stable() {
         if(Parsing::parse(line, "BeatmapDirectory", '=', &str)) {
             if(str.length() > 2) cv::songs_folder.setValue(str);
         } else if(Parsing::parse(line, "VolumeUniversal", '=', &flt))
-            cv::volume_master.setValue(std::clamp<float>(flt / 100.f, 0.1f, 1.f));
+            cv::volume_master.setValue(Mc::clamp<float>(flt / 100.f, 0.1f, 1.f));
         else if(Parsing::parse(line, "VolumeEffect", '=', &flt))
             cv::volume_effects.setValue(flt / 100.f);
         else if(Parsing::parse(line, "VolumeMusic", '=', &flt))
-            cv::volume_music.setValue(std::clamp<float>(flt / 100.f, 0.1f, 1.f));
+            cv::volume_music.setValue(Mc::clamp<float>(flt / 100.f, 0.1f, 1.f));
         else if(Parsing::parse(line, "AllowPublicInvites", '=', &b))
             cv::allow_mp_invites.setValue(b);
         else if(Parsing::parse(line, "AutoChatHide", '=', &b))

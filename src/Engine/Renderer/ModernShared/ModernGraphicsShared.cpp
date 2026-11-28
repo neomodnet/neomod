@@ -1,5 +1,6 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "config.h"
+#include "Algorithms.h"
 
 #if (defined(MCENGINE_FEATURE_GLES32) || defined(MCENGINE_FEATURE_DIRECTX11) || defined(MCENGINE_FEATURE_SDLGPU))
 
@@ -14,7 +15,6 @@
 
 #include "Graphics_private.h"
 
-#include <algorithm>
 #include <cmath>
 #include <tuple>
 
@@ -28,7 +28,7 @@ static CONSTINIT VertexArrayObject lineStripVAO{DrawPrimitive::LINE_STRIP};
 // emit outer/inner vertex pairs for a triangle strip outline
 inline void addArcStripVertices(VertexArrayObject &vao, float cx, float cy, float rInner, float rOuter,
                                 float startAngle, float endAngle) {
-    const int numSteps = std::max(1, (int)((endAngle - startAngle) / 0.05f));
+    const int numSteps = Mc::max(1, (int)((endAngle - startAngle) / 0.05f));
     const float step = (endAngle - startAngle) / (float)numSteps;
 
     // rotate (c,s) by step each iteration
@@ -66,7 +66,7 @@ DrawPrimitive ModernGraphicsShared::convertToTriangles(DrawPrimitive primitive, 
     const auto emit = [&](size_t i) {
         outVertices.push_back(vertices[i]);
         if(hasTexcoords) outTexcoords.push_back(texcoords[i]);
-        if(!colors.empty()) outColors.push_back(colors[std::min(i, maxColorIdx)]);
+        if(!colors.empty()) outColors.push_back(colors[Mc::min(i, maxColorIdx)]);
     };
 
     switch(primitive) {

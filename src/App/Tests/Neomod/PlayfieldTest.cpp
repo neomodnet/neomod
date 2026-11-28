@@ -23,10 +23,9 @@
 #include "Timing.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <filesystem>
-#include <ranges>
 
 namespace Mc::Tests {
 using namespace neomod;
@@ -106,7 +105,7 @@ void PlayfieldTest::fitView() {
     const vec2 playfield{GameRules::OSU_COORD_WIDTH, GameRules::OSU_COORD_HEIGHT};
     constexpr f32 margin = 40.0f;
     m_view.scale =
-        std::max(0.01f, std::min((screen.x - 2 * margin) / playfield.x, (screen.y - 2 * margin) / playfield.y));
+        Mc::max(0.01f, Mc::min((screen.x - 2 * margin) / playfield.x, (screen.y - 2 * margin) / playfield.y));
     m_view.offset = (screen - playfield * m_view.scale) / 2.0f;
 }
 
@@ -119,7 +118,7 @@ void PlayfieldTest::drawAt(i32 timeMS) {
     const i32 lead = (i32)m_view.approachTimeMS + GameRules::getFadeInTime() + 1000;
     m_shown.clear();
     HitObjects &objects = *m_objects;
-    for(Entry &e : std::views::reverse(m_byEndTime)) {
+    for(Entry &e : Mc::ranges::reversed(m_byEndTime)) {
         if(objects.clickTimes[e.index] - lead > timeMS || objects.endTimes[e.index] + 2000 < timeMS) continue;
         if(!e.meshBuilt) {
             HitObjectDrawing::rebuildMesh(m_view, objects, e.index);
@@ -132,7 +131,7 @@ void PlayfieldTest::drawAt(i32 timeMS) {
 
     HitObjectDrawing::drawFollowPoints(m_view, objects, 0);
     HitObjectDrawing::draw(m_view, objects, m_shown, m_sliderRT);
-    for(const u32 i : std::views::reverse(m_shown)) HitObjectDrawing::draw2(m_view, objects, i);
+    for(const u32 i : Mc::ranges::reversed(m_shown)) HitObjectDrawing::draw2(m_view, objects, i);
 }
 
 void PlayfieldTest::drawCorpusFrame() {
@@ -149,7 +148,7 @@ void PlayfieldTest::drawCorpusFrame() {
     const i64 from = (i64)m_firstTimeMS - 1000;
     const i64 to = (i64)m_lastTimeMS + 1000;
     for(int i = 0; i < CORPUS_POSES; i++) {
-        this->drawAt((i32)std::clamp<i64>(from + (to - from) * i / (CORPUS_POSES - 1), INT32_MIN, INT32_MAX));
+        this->drawAt((i32)Mc::clamp<i64>(from + (to - from) * i / (CORPUS_POSES - 1), INT32_MIN, INT32_MAX));
     }
     if(m_corpusNext % 1000 == 0) logRaw("  {}/{}", m_corpusNext, m_corpus.size());
 }

@@ -14,6 +14,7 @@
 #include "CBaseUIDispatch.h"
 
 #include <unordered_set>
+#include "Algorithms.h"
 
 // #include "ResourceManager.h"
 // #include "Logging.h"
@@ -458,17 +459,17 @@ void CBaseUIScrollView::onCapturedMouseMove() {
         if(this->bScrollbarIsVerticalScrolling) {
             const f64 trackTop = this->getPos().y + this->fScrollbarInsetTop;
             const f64 trackHeight = this->getSize().y - this->fScrollbarInsetTop - this->fScrollbarInsetBottom;
-            const f64 percent = std::clamp<f64>((curMousePos.y - trackTop - this->verticalScrollbar.getWidth() -
-                                                 this->verticalScrollbar.getHeight() - this->vMouseBackup.y - 1.0) /
-                                                    (trackHeight - 2.0 * this->verticalScrollbar.getWidth()),
-                                                0.0, 1.0);
+            const f64 percent = Mc::clamp<f64>((curMousePos.y - trackTop - this->verticalScrollbar.getWidth() -
+                                                this->verticalScrollbar.getHeight() - this->vMouseBackup.y - 1.0) /
+                                                   (trackHeight - 2.0 * this->verticalScrollbar.getWidth()),
+                                               0.0, 1.0);
             this->scrollToYInt(-this->vScrollSize.y * percent, true, false);
         } else {
             const f64 percent =
-                std::clamp<f64>((curMousePos.x - this->getPos().x - this->horizontalScrollbar.getHeight() -
-                                 this->horizontalScrollbar.getWidth() - this->vMouseBackup.x - 1.0) /
-                                    (this->getSize().x - 2.0 * this->horizontalScrollbar.getHeight()),
-                                0.0, 1.0);
+                Mc::clamp<f64>((curMousePos.x - this->getPos().x - this->horizontalScrollbar.getHeight() -
+                                this->horizontalScrollbar.getWidth() - this->vMouseBackup.x - 1.0) /
+                                   (this->getSize().x - 2.0 * this->horizontalScrollbar.getHeight()),
+                               0.0, 1.0);
             this->scrollToXInt(-this->vScrollSize.x * percent, true, false);
         }
     }
@@ -632,7 +633,7 @@ void CBaseUIScrollView::scrollToYInt(int scrollPosY, bool animated, bool slow) {
     f64 lowerBounds = -this->vScrollSize.y + this->getSize().y;
     if(lowerBounds >= upperBounds) lowerBounds = upperBounds;
 
-    const f64 targetY = std::clamp<f64>(scrollPosY, lowerBounds, upperBounds);
+    const f64 targetY = Mc::clamp<f64>(scrollPosY, lowerBounds, upperBounds);
 
     // a scroll to where we already sit (and aren't animating away from) is a no-op: don't re-dirty
     // clipping. the songbrowser's left-edge auto-recenter calls this every frame, and a full O(n)
@@ -667,7 +668,7 @@ void CBaseUIScrollView::scrollToXInt(int scrollPosX, bool animated, bool slow) {
     f64 lowerBounds = -this->vScrollSize.x + this->getSize().x;
     if(lowerBounds >= upperBounds) lowerBounds = upperBounds;
 
-    const f64 targetX = std::clamp<f64>(scrollPosX, lowerBounds, upperBounds);
+    const f64 targetX = Mc::clamp<f64>(scrollPosX, lowerBounds, upperBounds);
 
     // no-op scroll (already at target, not animating): don't re-dirty clipping (see scrollToYInt)
     if(!this->vScrollPos.x.animating() && std::round(this->vScrollPos.x) == std::round(targetX)) {
@@ -802,12 +803,12 @@ void CBaseUIScrollView::updateScrollbars() {
         else if(rawVerticalPercent < 0.0)
             overscroll = 1.0 - std::abs(rawVerticalPercent) * 0.95;
 
-        const f64 verticalPercent = std::clamp<f64>(rawVerticalPercent, 0.0, 1.0);
+        const f64 verticalPercent = Mc::clamp<f64>(rawVerticalPercent, 0.0, 1.0);
 
         const f64 verticalHeightPercent = (this->getSize().y - (verticalBlockWidth * 2)) / this->vScrollSize.y;
         const f64 verticalBlockHeight =
-            std::clamp<f64>(std::max(verticalHeightPercent * trackHeight, verticalBlockWidth) * overscroll,
-                            verticalBlockWidth, std::max(trackHeight, verticalBlockWidth));
+            Mc::clamp<f64>(Mc::max(verticalHeightPercent * trackHeight, verticalBlockWidth) * overscroll,
+                           verticalBlockWidth, Mc::max(trackHeight, verticalBlockWidth));
 
         this->verticalScrollbar =
             McRect(this->getPos().x + this->getSize().x - (verticalBlockWidth * this->fScrollbarSizeMultiplier),
@@ -823,12 +824,12 @@ void CBaseUIScrollView::updateScrollbars() {
     // update horizontal scrollbar
     if(this->bHorizontalScrolling && this->vScrollSize.x > this->getSize().x) {
         const f64 horizontalPercent =
-            std::clamp<f64>((this->vScrollPos.x > 0 ? -this->vScrollPos.x : std::abs(this->vScrollPos.x)) /
-                                (this->vScrollSize.x - this->getSize().x),
-                            0.0, 1.0);
+            Mc::clamp<f64>((this->vScrollPos.x > 0 ? -this->vScrollPos.x : std::abs(this->vScrollPos.x)) /
+                               (this->vScrollSize.x - this->getSize().x),
+                           0.0, 1.0);
         const f64 horizontalBlockWidth = cv::ui_scrollview_scrollbarwidth.getInt();
         const f64 horizontalHeightPercent = (this->getSize().x - (horizontalBlockWidth * 2.0)) / this->vScrollSize.x;
-        const f64 horizontalBlockHeight = std::max(horizontalHeightPercent * this->getSize().x, horizontalBlockWidth);
+        const f64 horizontalBlockHeight = Mc::max(horizontalHeightPercent * this->getSize().x, horizontalBlockWidth);
 
         this->horizontalScrollbar = McRect(
             this->getPos().x +
@@ -874,7 +875,7 @@ CBaseUIScrollView *CBaseUIScrollView::setScrollSize(dvec2 scrollSize) {
         // Scroll to bottom without animation
         // XXX: Correct way to do this would be to keep the animation, but then you have to correct
         //      the existing scrolling animation, AND the possible scroll bounce animation.
-        const auto target = std::max(oldScrollPos.y, this->vScrollSize.y);
+        const auto target = Mc::max(oldScrollPos.y, this->vScrollSize.y);
         this->scrollToY(-target, false);
     }
 

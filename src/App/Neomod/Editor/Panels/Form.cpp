@@ -10,8 +10,8 @@
 #include "ContainerRanges.h"
 #include "EditorState.h"
 #include "UIStyle.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 
 namespace {
@@ -180,7 +180,7 @@ bool Form::visitNext(std::span<Form *const> forms, bool backwards) {
         }
     }
     if(all.empty()) return false;
-    if(backwards) std::reverse(all.begin(), all.end());
+    if(backwards) Mc::reverse(all.begin(), all.end());
 
     const auto focused = Mc::ranges::find_if(all, [](CBaseUIStyledTextbox *field) { return field->isFocused(); });
     all[focused == all.end() ? 0 : (uSz)(focused - all.begin() + 1) % all.size()]->visit();

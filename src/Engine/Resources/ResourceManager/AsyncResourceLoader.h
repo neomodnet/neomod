@@ -4,8 +4,8 @@
 #include "AsyncFuture.h"
 #include "SyncMutex.h"
 #include "Hashing.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <atomic>
 #include <vector>
 
@@ -19,7 +19,7 @@ class AsyncResourceLoader final {
     ~AsyncResourceLoader();
 
     // main interface for ResourceManager
-    inline void setMaxPerUpdate(size_t num) { this->iLoadsPerUpdate = std::clamp<size_t>(num, 1, 512); }
+    inline void setMaxPerUpdate(size_t num) { this->iLoadsPerUpdate = Mc::clamp<size_t>(num, 1, 512); }
     void requestAsyncLoad(Resource *resource);
     void update(bool lowLatency);
     void shutdown();

@@ -14,6 +14,7 @@
 #include "ConVar.h"
 #include "Graphics.h"
 #include "Vectors.h"
+#include "Algorithms.h"
 
 #include <png.h>
 #include <zlib.h>
@@ -22,7 +23,6 @@
 #include <turbojpeg.h>
 #endif
 
-#include <algorithm>
 #include <cassert>
 #include <csetjmp>
 #include <cstddef>
@@ -395,8 +395,8 @@ Image::Image(i32 width, i32 height, bool mipmapped, bool keepInSystemMemory) : R
     this->type = Image::TYPE::TYPE_RGBA;
     this->filterMode = mipmapped ? TextureFilterMode::MIPMAP : TextureFilterMode::LINEAR;
     this->wrapMode = TextureWrapMode::CLAMP;
-    this->iWidth = std::min(16384, width);  // sanity
-    this->iHeight = std::min(16384, height);
+    this->iWidth = Mc::min(16384, width);  // sanity
+    this->iHeight = Mc::min(16384, height);
 
     this->bCreatedImage = true;
 
@@ -427,8 +427,8 @@ bool Image::SizedRGBABytes::resize(i32 newWidth, i32 newHeight) noexcept {
     const u64 oldStride = static_cast<u64>(this->width) * Image::NUM_CHANNELS;
     const u64 newStride = static_cast<u64>(newWidth) * Image::NUM_CHANNELS;
     const u64 newBytes = newStride * newHeight;
-    const u64 keptStride = std::min(oldStride, newStride);
-    const i32 keptRows = std::min(this->height, newHeight);
+    const u64 keptStride = Mc::min(oldStride, newStride);
+    const i32 keptRows = Mc::min(this->height, newHeight);
 
     auto *data = static_cast<u8 *>(malloc(newBytes));
     if(!data) return false;
@@ -455,8 +455,8 @@ bool Image::resize(i32 w, i32 h) {
                  this->iHeight, w, h);
         return false;
     }
-    const i32 keptTilesX = (std::min(w, this->iWidth) + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
-    const i32 keptTilesY = (std::min(h, this->iHeight) + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
+    const i32 keptTilesX = (Mc::min(w, this->iWidth) + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
+    const i32 keptTilesY = (Mc::min(h, this->iHeight) + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
     this->iWidth = w;
     this->iHeight = h;
     this->bResized = true;
@@ -523,8 +523,8 @@ std::vector<McIRect> Image::getDirtyRects() {
             // convert tile coords to pixel coords, clamping to image bounds
             const i32 px = gx << DIRTY_TILE_SHIFT;
             const i32 py = gy << DIRTY_TILE_SHIFT;
-            const i32 pw = std::min(gx2 << DIRTY_TILE_SHIFT, this->iWidth) - px;
-            const i32 ph = std::min(gy2 << DIRTY_TILE_SHIFT, this->iHeight) - py;
+            const i32 pw = Mc::min(gx2 << DIRTY_TILE_SHIFT, this->iWidth) - px;
+            const i32 ph = Mc::min(gy2 << DIRTY_TILE_SHIFT, this->iHeight) - py;
 
             rects.emplace_back(px, py, pw, ph);
         }

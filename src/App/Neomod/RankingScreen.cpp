@@ -1,5 +1,6 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "RankingScreen.h"
+#include "Algorithms.h"
 
 #include <array>
 #include <cmath>
@@ -162,7 +163,7 @@ class RankingScreenOnlinePanel final : public CBaseUIElement {
             drawText(font, this->status, centerX - font->getStringWidth(this->status) / 2.f, y);
         }
 
-        const f32 columnWidth = std::min((this->getSize().x - padding * 3.f) / 2.f, Osu::getUIScale(400.f));
+        const f32 columnWidth = Mc::min((this->getSize().x - padding * 3.f) / 2.f, Osu::getUIScale(400.f));
         const f32 columnsX = centerX - columnWidth - padding / 2.f;
         for(size_t i = 0; i < this->columns.size(); i++) {
             const Column &column = this->columns[i];
@@ -337,7 +338,7 @@ void RankingScreen::draw() {
         const float heightMultiplier = 1.25f;
         const int experimentalModHeight = (experimentalModFont->getHeight() * heightMultiplier);
         const vec2 experimentalModPos = vec2(modPosStart.x - maxStringWidth - backgroundMargin,
-                                             std::max(modPosStart.y, modPosMax.y) + Osu::getUIScale(10) +
+                                             Mc::max(modPosStart.y, modPosMax.y) + Osu::getUIScale(10) +
                                                  experimentalModFont->getHeight() * heightMultiplier);
         const int backgroundWidth = maxStringWidth + 2 * backgroundMargin;
         const int backgroundHeight = experimentalModHeight * m_impl->extraMods.size() + 2 * backgroundMargin;
@@ -689,8 +690,8 @@ void RankingScreen::updateLayout() {
 
     m_impl->songInfo->setSize(
         osu->getVirtScreenWidth(),
-        std::max(m_impl->songInfo->getMinimumHeight(),
-                 m_impl->rankingTitle->getSize().y * cv::rankingscreen_topbar_height_percent.getFloat()));
+        Mc::max(m_impl->songInfo->getMinimumHeight(),
+                m_impl->rankingTitle->getSize().y * cv::rankingscreen_topbar_height_percent.getFloat()));
 
     m_impl->rankings->setSize(osu->getVirtScreenSize().x + 2,
                               osu->getVirtScreenSize().y - m_impl->songInfo->getSize().y + 3);
@@ -713,10 +714,10 @@ void RankingScreen::updateLayout() {
     m_impl->rankingPanel->setScale(Osu::getRectScale(hardcodedOsuRankingPanelImageSize, 317.0f),
                                    Osu::getRectScale(hardcodedOsuRankingPanelImageSize, 317.0f));
     m_impl->rankingPanel->setSize(
-        std::max(hardcodedOsuRankingPanelImageSize.x * m_impl->rankingPanel->getScale().x,
-                 m_impl->rankingPanel->getImage()->getWidth() * m_impl->rankingPanel->getScale().x),
-        std::max(hardcodedOsuRankingPanelImageSize.y * m_impl->rankingPanel->getScale().y,
-                 m_impl->rankingPanel->getImage()->getHeight() * m_impl->rankingPanel->getScale().y));
+        Mc::max(hardcodedOsuRankingPanelImageSize.x * m_impl->rankingPanel->getScale().x,
+                m_impl->rankingPanel->getImage()->getWidth() * m_impl->rankingPanel->getScale().x),
+        Mc::max(hardcodedOsuRankingPanelImageSize.y * m_impl->rankingPanel->getScale().y,
+                m_impl->rankingPanel->getImage()->getHeight() * m_impl->rankingPanel->getScale().y));
 
     m_impl->rankingIndex->setFont(osu->getSongBrowserFont());
     m_impl->rankingIndex->setSize(m_impl->rankings->getSize().x + 2, osu->getVirtScreenHeight() * 0.07f * uiScale);

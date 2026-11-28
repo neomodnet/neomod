@@ -6,8 +6,8 @@
 #include "ConVar.h"
 #include "Logging.h"
 #include "Vectors.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <numbers>
 
@@ -195,8 +195,8 @@ struct Anim final {
         elapsedTime += frameTime;
 
         const T diff = std::abs(value - target);
-        const T absMax = std::max(std::abs(value), std::abs(target));
-        const T threshold = std::max(T{1e-4}, absMax * T{1e-7});
+        const T absMax = Mc::max(std::abs(value), std::abs(target));
+        const T threshold = Mc::max(T{1e-4}, absMax * T{1e-7});
 
         if(diff <= threshold) {
             value = target;
@@ -205,7 +205,7 @@ struct Anim final {
             return true;
         }
 
-        T percent = std::clamp(elapsedTime / duration, zero, one);
+        T percent = Mc::clamp(elapsedTime / duration, zero, one);
 
         logIf(s_doLogging, "slot {:d}: anim {:d}, percent = {:f}", slot, idx, percent);
 
@@ -427,7 +427,7 @@ T AnimHandleT<T>::remaining() const {
     if(pool<T>.animCount[m_slot] == 0) return T{0};
     auto &a = pool<T>.anims[m_slot][0];
     if(!a.started) return (a.delay - a.elapsedTime) + a.duration;
-    return std::max(T{0}, a.duration - a.elapsedTime);
+    return Mc::max(T{0}, a.duration - a.elapsedTime);
 }
 
 template <AnimatableType T>

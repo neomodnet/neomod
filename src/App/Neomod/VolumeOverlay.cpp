@@ -22,6 +22,7 @@
 #include "PreviewTrackManager.h"
 #include "Skin.h"
 #include "score.h"
+#include "Algorithms.h"
 
 VolumeOverlay::VolumeOverlay() : UIScreen() {
     cv::volume_master.setCallback(SA::MakeDelegate<&VolumeOverlay::onMasterVolumeChange>(this));
@@ -373,8 +374,8 @@ void VolumeOverlay::onVolumeChange(int multiplier) {
             volumeConVar = &cv::volume_effects;
 
         // change the volume
-        float newVolume = std::clamp<float>(
-            volumeConVar->getFloat() + cv::volume_change_interval.getFloat() * multiplier, 0.0f, 1.0f);
+        float newVolume =
+            Mc::clamp<float>(volumeConVar->getFloat() + cv::volume_change_interval.getFloat() * multiplier, 0.0f, 1.0f);
         volumeConVar->setValue(newVolume);
     }
 
@@ -385,7 +386,7 @@ void VolumeOverlay::onVolumeChange(int multiplier) {
 void VolumeOverlay::onTimewarp(int multiplier) {
     // steps of 0.05x, clamped like the mod selector speed slider
     const f32 speed =
-        std::clamp(std::round((osu->getScore()->mods.speed + 0.05f * (f32)multiplier) * 20.f) / 20.f, 0.05f, 2.5f);
+        Mc::clamp(std::round((osu->getScore()->mods.speed + 0.05f * (f32)multiplier) * 20.f) / 20.f, 0.05f, 2.5f);
 
     ConVar *speedConVar = &cv::speed_override;
     cvars().beginSession({&speedConVar, 1});

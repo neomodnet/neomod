@@ -80,8 +80,8 @@
 #include "MD5Hash.h"
 #include "Registration.h"
 #include "StrainGraph.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -529,7 +529,7 @@ f32 SongBrowser::getSkinScale(const SkinImage &img) {
 // images (fake top bar trick) can't push the hitbox over the whole screen.
 vec2 SongBrowser::getSkinDimensions(const SkinImage &img) {
     vec2 dims = img.getImageSizeForCurrentFrame() * SongBrowser::getSkinScale(img);
-    dims.y = std::min(dims.y, img.getSizeBaseRawForScaling2x().y * SongBrowser::getUIScale());
+    dims.y = Mc::min(dims.y, img.getSizeBaseRawForScaling2x().y * SongBrowser::getUIScale());
     return dims;
 }
 
@@ -635,7 +635,7 @@ struct SortKeys {
         // the first 8 bytes are equal: strings of up to 8 bytes only differ in length
         if(a.len > 8 && b.len > 8) {
             const int cmp = std::memcmp(this->strings.data() + a.offset + 8, this->strings.data() + b.offset + 8,
-                                        std::min(a.len, b.len) - 8);
+                                        Mc::min(a.len, b.len) - 8);
             if(cmp != 0) return cmp;
         }
         return a.len == b.len ? 0 : (a.len < b.len ? -1 : 1);
@@ -669,8 +669,8 @@ std::vector<u32> sorted_diffs(SortTypes::type method, const CarouselData &data) 
             key.idx = diff;
             key.stars = map->getStarRating(StarPrecalc::active_idx);
             key.diff = (map->getAR() + 1) * (map->getCS() + 1) * (map->getHP() + 1) * (map->getOD() + 1) *
-                       ((f32)std::max(map->getMostCommonBPM(), 1));
-            setStars = std::max(setStars, key.stars);
+                       ((f32)Mc::max(map->getMostCommonBPM(), 1));
+            setStars = Mc::max(setStars, key.stars);
             switch(method) {
                 using enum SortTypes::type;
                 case ARTIST:
@@ -758,7 +758,7 @@ size_t group_index(GroupTypes::type grouping, const DatabaseBeatmap &diff) {
             return alphanum_group(diff.getTitleLatin());
         case DIFFICULTY: {
             const f32 stars = diff.getStarRating(StarPrecalc::active_idx);
-            return std::isfinite(stars) ? (size_t)std::clamp(stars, 0.f, 11.f) : 0;
+            return std::isfinite(stars) ? (size_t)Mc::clamp(stars, 0.f, 11.f) : 0;
         }
         case BPM: {
             const int bpm = diff.getMostCommonBPM();
@@ -1020,9 +1020,9 @@ bool SongBrowserImpl::drawBeatmapOrMenuBackground() {
             if(!ready)
                 this->fBackgroundFadeInTime = (f32)engine->getTime();
             else if(this->fBackgroundFadeInTime > 0.0f && engine->getTime() > this->fBackgroundFadeInTime) {
-                alpha = std::clamp<float>((f32)((engine->getTime() - this->fBackgroundFadeInTime) /
-                                                cv::songbrowser_background_fade_in_duration.getFloat()),
-                                          0.0f, 1.0f);
+                alpha = Mc::clamp<float>((f32)((engine->getTime() - this->fBackgroundFadeInTime) /
+                                               cv::songbrowser_background_fade_in_duration.getFloat()),
+                                         0.0f, 1.0f);
                 alpha = 1.0f - (1.0f - alpha) * (1.0f - alpha);
             }
         }
@@ -1263,7 +1263,7 @@ ScoreGrade SongBrowserImpl::getGrade(CarouselNode node) const {
     if(node.isDiff()) return this->data.diffGrade[node.idx];
     ScoreGrade best = ScoreGrade::N;
     if(node.isSet()) {
-        for(const u32 diff : this->getNeighbours(node.idx)) best = std::min(best, this->data.diffGrade[diff]);
+        for(const u32 diff : this->getNeighbours(node.idx)) best = Mc::min(best, this->data.diffGrade[diff]);
     }
     return best;
 }
@@ -2247,8 +2247,8 @@ bool SongBrowserImpl::scrollToBestButton(bool animated) {
         // basically: if there is already a collection open, don't open another collection button with the same beatmap
         // a better way would be to build "candidates" no matter what group we're in and not just scroll to the first occurrence
         // AGHH this is so slow and ugly JUST SHOOT ME!
-        auto it = std::ranges::find(*groups, this->openGroup.idx);
-        if(!this->openGroup || it == groups->end() || !shows(*it)) it = std::ranges::find_if(*groups, shows);
+        auto it = Mc::ranges::find(*groups, this->openGroup.idx);
+        if(!this->openGroup || it == groups->end() || !shows(*it)) it = Mc::ranges::find_if(*groups, shows);
         if(it == groups->end()) {
             // TODO: only scroll to top if we literally don't see any buttons on screen
             this->carousel->scrollToY(0, animated);
@@ -2374,7 +2374,7 @@ void SongBrowserImpl::updateLayout() {
     this->songInfo->setRelPos(margin, margin);
     this->songInfo->setSize(
         this->topbarLeft->getSize().x - margin,
-        std::max(this->topbarLeft->getSize().y * 0.75f, this->songInfo->getMinimumHeight() + margin));
+        Mc::max(this->topbarLeft->getSize().y * 0.75f, this->songInfo->getMinimumHeight() + margin));
 
     const f32 topbarLeftButtonMargin = 5 * dpiScale;
     const f32 topbarLeftButtonHeight = 30 * dpiScale;
@@ -2407,7 +2407,7 @@ void SongBrowserImpl::updateLayout() {
     // horizontal positioning by DPI makes no sense here if we want them to ever have a chance of lining up with skin elements
     this->sortButton->setSize(200.f * dpiScale, 30.f * dpiScale);
     this->sortButton->setRelPos((this->topbarRight->getSize() * (5.f / 6.f)).x - (this->sortButton->getSize().x / 2.f),
-                                std::max(0.f, this->topbarRight->getSize().y - (2 * (30.f * dpiScale) + 10.f)));
+                                Mc::max(0.f, this->topbarRight->getSize().y - (2 * (30.f * dpiScale) + 10.f)));
 
     this->sortLabel->onResized();  // HACKHACK: framework bug (should update string metrics on setSizeToContent())
     this->sortLabel->setSizeToContent(-1, 0);
@@ -2427,7 +2427,7 @@ void SongBrowserImpl::updateLayout() {
     // "hardcoded" group buttons
     const float group_margin = 10.f * dpiScale;
     const f32 group_btn_width =
-        std::clamp<f32>((this->topbarRight->getSize().x - 2 * group_margin) / 4, 0.f, 200 * dpiScale);
+        Mc::clamp<f32>((this->topbarRight->getSize().x - 2 * group_margin) / 4, 0.f, 200 * dpiScale);
     this->groupByCollectionBtn->setSize(group_btn_width - 1, 30 * dpiScale);
     this->groupByCollectionBtn->setRelPos(this->topbarRight->getSize().x - (group_margin + (4 * (group_btn_width + 1))),
                                           this->topbarRight->getSize().y - 30 * dpiScale);
@@ -2956,7 +2956,7 @@ void SongBrowserImpl::onSearchUpdate() {
         this->carousel->clearRows();
 
         // reset all search flags
-        std::ranges::fill(this->data.diffMatch, true);
+        Mc::fill(this->data.diffMatch.begin(), this->data.diffMatch.end(), true);
         this->shownSearch = this->lastSearch;
 
         // this also rebuilds the visible buttons list
@@ -3486,7 +3486,7 @@ void SongBrowserImpl::onSongContextMenu(std::string_view text, int id) {
 
                 if(id == 2) {
                     const u32 set = this->data.diffSet[this->contextMenuNode.idx];
-                    can_add_to_collection = !std::ranges::all_of(this->data.setChildren(set), [&](u32 diff) {
+                    can_add_to_collection = !Mc::ranges::all_of(this->data.setChildren(set), [&](u32 diff) {
                         return collection.get_maps().contains(this->data.diffMap[diff]->getMD5());
                     });
                 }
@@ -3961,8 +3961,8 @@ void SongBrowserImpl::recreateCollectionsButtons() {
         if(isCollection(this->contextMenuNode)) this->contextMenuNode = {};
         this->collectionButtons.clear();
         auto &groups = this->data.groups;
-        const auto firstCollection = std::ranges::find_if(groups, &CarouselGroup::isCollection);
-        assert(std::all_of(firstCollection, groups.end(), [](const CarouselGroup &g) { return g.isCollection; }));
+        const auto firstCollection = Mc::ranges::find_if(groups, &CarouselGroup::isCollection);
+        assert(Mc::all_of(firstCollection, groups.end(), [](const CarouselGroup &g) { return g.isCollection; }));
         groups.erase(firstCollection, groups.end());
     }
 

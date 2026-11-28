@@ -2,8 +2,8 @@
 #include "VertexArrayObject.h"
 
 #include "ContainerRanges.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 
 static_assert(DrawUsageType::STATIC == DrawUsageType{0});
@@ -158,8 +158,8 @@ void VertexArrayObject::setDrawRange(int fromIndex, int toIndex) noexcept {
 }
 
 void VertexArrayObject::setDrawPercent(float fromPercent, float toPercent, int nearestMultiple) noexcept {
-    this->fDrawPercentFromPercent = std::clamp<float>(fromPercent, 0.0f, 1.0f);
-    this->fDrawPercentToPercent = std::clamp<float>(toPercent, 0.0f, 1.0f);
+    this->fDrawPercentFromPercent = Mc::clamp<float>(fromPercent, 0.0f, 1.0f);
+    this->fDrawPercentToPercent = Mc::clamp<float>(toPercent, 0.0f, 1.0f);
     this->iDrawPercentNearestMultiple = nearestMultiple;
 }
 
@@ -183,5 +183,5 @@ std::pair<int, int> VertexArrayObject::getDrawRange() const noexcept {
         if(multiple != 0) end -= end % multiple;
     }
 
-    return {std::clamp<int>(start, 0, this->iNumVertices), std::clamp<int>(end, 0, this->iNumVertices)};
+    return {Mc::clamp<int>(start, 0, this->iNumVertices), Mc::clamp<int>(end, 0, this->iNumVertices)};
 }

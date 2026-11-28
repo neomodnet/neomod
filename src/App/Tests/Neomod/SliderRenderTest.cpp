@@ -17,8 +17,8 @@
 #include "SliderRenderer.h"
 #include "SliderCurves.h"
 #include "Logging.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <numeric>
@@ -69,7 +69,7 @@ constexpr int BENCH_FRAMES = 200;
 
 f64 median(std::vector<f64> v) {
     if(v.empty()) return 0.0;
-    std::nth_element(v.begin(), v.begin() + (std::ptrdiff_t)(v.size() / 2), v.end());
+    Mc::nth_element(v.begin(), v.begin() + (std::ptrdiff_t)(v.size() / 2), v.end());
     return v[v.size() / 2];
 }
 
@@ -172,12 +172,12 @@ void SliderRenderTest::rebuildBattery() {
 
         f32 scale = 1.0f;
         if(solo) {
-            const f32 z = std::min(((f32)W - 80.0f) / (lsize.x + diameter), ((f32)H - 80.0f) / (lsize.y + diameter));
-            scale = std::clamp(z, 1.0f, 400.0f);
+            const f32 z = Mc::min(((f32)W - 80.0f) / (lsize.x + diameter), ((f32)H - 80.0f) / (lsize.y + diameter));
+            scale = Mc::clamp(z, 1.0f, 400.0f);
             m_hitcircleDiameter = diameter * scale;  // true zoom: body scales with the path
         } else {
             const f32 pad = m_hitcircleDiameter + 40.0f;  // leave room for the body radius + a margin
-            scale = std::clamp(std::min((cellW - pad) / lsize.x, (cellH - pad) / lsize.y), 0.25f, 4.0f);
+            scale = Mc::clamp(Mc::min((cellW - pad) / lsize.x, (cellH - pad) / lsize.y), 0.25f, 4.0f);
         }
 
         const int col = (int)(i % cols), row = (int)(i / cols);
@@ -209,7 +209,7 @@ void SliderRenderTest::draw() {
     const Scene scene = currentScene();
     const f32 from = 0.0f;
     const f32 to =
-        scene.snake < 0.0f ? std::clamp((f32)std::fmod(engine->getTime(), 3.0) / 1.5f, 0.0f, 1.0f) : scene.snake;
+        scene.snake < 0.0f ? Mc::clamp((f32)std::fmod(engine->getTime(), 3.0) / 1.5f, 0.0f, 1.0f) : scene.snake;
 
     if(scene.poison) {
         m_sliderRT->enable(/*clear=*/false);
@@ -234,7 +234,7 @@ void SliderRenderTest::draw() {
             const int gx = (k % 4) - 2, gy = (k / 4) - 1;  // small grid of overlapping copies
             const vec2 offset = scene.copies > 1 ? vec2{(f32)gx * 9.0f, (f32)gy * 9.0f} : vec2{0.0f};
             const auto capAt = [&](f32 t) -> vec2 {
-                return s.screenPoints[(uSz)std::clamp(std::round(t * lastIdx), 0.0f, lastIdx)] + offset;
+                return s.screenPoints[(uSz)Mc::clamp(std::round(t * lastIdx), 0.0f, lastIdx)] + offset;
             };
 
             TestBody &body = m_bodies.emplace_back();

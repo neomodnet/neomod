@@ -12,8 +12,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,8 +49,8 @@ void StepPopup::addRow(std::string label, CBaseUIElement *control) {
     this->rows->add(line, BoxItem::fit());
 }
 
-CBaseUINumberField *StepPopup::addNumber(std::string name, std::string label, f64 value, f64 min, f64 max,
-                                         f64 step, int decimals) {
+CBaseUINumberField *StepPopup::addNumber(std::string name, std::string label, f64 value, f64 min, f64 max, f64 step,
+                                         int decimals) {
     auto *field = new CBaseUINumberField(std::move(name));
     field->setRange(min, max)->setStep(step, step)->setDecimals(decimals)->setValue(value);
     this->numbers.push_back(field);
@@ -88,7 +88,7 @@ void StepPopup::addToggle(std::string name, std::string label, bool on) {
 void StepPopup::open(Document::Action action, vec2 pos) {
     // one column as wide as the widest label
     f32 width = 0.f;
-    for(CBaseUIStyledLabel *label : this->labels) width = std::max(width, label->getNaturalSize().x);
+    for(CBaseUIStyledLabel *label : this->labels) width = Mc::max(width, label->getNaturalSize().x);
     for(CBaseUIStyledLabel *label : this->labels) label->setBoxItem(BoxItem::fixed(width / uiStyle().getScale()));
     this->state.compose.startPreview(action);
     this->update();

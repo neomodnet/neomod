@@ -24,8 +24,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <filesystem>
 #include <system_error>
 #include <utility>
@@ -80,7 +80,7 @@ SampleSets::SampleSets(EditorState &state, CBaseUIPopupLayer &popups, i32 index,
       state(state),
       popups(popups),
       folderChanged(std::move(folderChanged)),
-      index(std::clamp(index, 1, MAX_INDEX)) {
+      index(Mc::clamp(index, 1, MAX_INDEX)) {
     const UIStyle &style = uiStyle();
     // a press on its surface stays with it
     this->bClickThroughSelf = false;
@@ -103,7 +103,7 @@ SampleSets::SampleSets(EditorState &state, CBaseUIPopupLayer &popups, i32 index,
     const std::array<std::string, SETS> sets{_("Normal"), _("Soft"), _("Drum")};
     // one column as wide as the widest set name
     f32 labelWidth = 0.f;
-    for(const std::string &set : sets) labelWidth = std::max(labelWidth, style.font()->getStringWidth(set));
+    for(const std::string &set : sets) labelWidth = Mc::max(labelWidth, style.font()->getStringWidth(set));
     labelWidth /= style.getScale();
     const auto row = [&style, labelWidth](std::string label) {
         auto *line = new CBaseUIBox(Axis::ROW);
@@ -196,7 +196,7 @@ std::vector<i32> SampleSets::indicesIn(std::span<const std::string> files) {
             if(!Mc::ranges::contains(indices, index)) indices.push_back(index);
         }
     }
-    std::sort(indices.begin(), indices.end());
+    Mc::sort(indices.begin(), indices.end());
     return indices;
 }
 
@@ -240,7 +240,7 @@ std::string SampleSets::pickedName() const {
 }
 
 void SampleSets::setIndex(i32 index) {
-    this->index = std::clamp(index, 1, MAX_INDEX);
+    this->index = Mc::clamp(index, 1, MAX_INDEX);
     this->hush();
     this->scan();
 }

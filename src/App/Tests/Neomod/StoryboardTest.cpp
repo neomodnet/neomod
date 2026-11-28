@@ -16,8 +16,8 @@
 #include "Vectors.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -97,7 +97,7 @@ std::string readOsb(const std::string &folder, std::string_view osu) {
 f64 lastSpriteEnd(const Storyboard &sb) {
     f64 last = 0.0;
     for(uSz i = 0; i < sb.getNumSprites(); i++) {
-        if(const f64 end = sb.getSpriteSpan(i).second; std::isfinite(end)) last = std::max(last, end);
+        if(const f64 end = sb.getSpriteSpan(i).second; std::isfinite(end)) last = Mc::max(last, end);
     }
     return last;
 }
@@ -107,7 +107,7 @@ f64 lastSpriteEnd(const Storyboard &sb) {
 std::array<f64, 10> sampleTimes(const Storyboard &sb, uSz sprite) {
     auto [start, end] = sb.getSpriteSpan(sprite);
     if(!std::isfinite(start)) start = 0.0;
-    if(!std::isfinite(end)) end = std::max(start, lastSpriteEnd(sb));
+    if(!std::isfinite(end)) end = Mc::max(start, lastSpriteEnd(sb));
     std::array<f64, 10> times{};
     for(uSz i = 0; i < times.size(); i++) times[i] = start + (end - start) * (f64)i / (f64)(times.size() - 1);
     return times;
@@ -185,7 +185,7 @@ void bench(const std::vector<CorpusSet> &sets, int rounds) {
         heavy.push_back({.name = set.name, .osu = std::move(osu), .osb = std::move(osb), .sprites = sprites});
     }
     Mc::ranges::sort(heavy, std::greater{}, &Heavy::sprites);
-    heavy.resize(std::min<uSz>(heavy.size(), 5));
+    heavy.resize(Mc::min<uSz>(heavy.size(), 5));
 
     const Storyboard::View view{.screen = McRect{0.f, 0.f, 1920.f, 1080.f}};
     for(const auto &map : heavy) {
@@ -194,11 +194,11 @@ void bench(const std::vector<CorpusSet> &sets, int rounds) {
         for(int r = 0; r < rounds; r++) {
             const f64 start = Timing::getTimeReal();
             Storyboard sb{"", map.osu, map.osb, "", {}};
-            parse = std::min(parse, Timing::getTimeReal() - start);
+            parse = Mc::min(parse, Timing::getTimeReal() - start);
 
             sb.load(true);
             f64 first = 0.0;
-            for(uSz i = 0; i < sb.getNumSprites(); i++) first = std::min(first, sb.getSpriteSpan(i).first);
+            for(uSz i = 0; i < sb.getNumSprites(); i++) first = Mc::min(first, sb.getSpriteSpan(i).first);
             const f64 last = lastSpriteEnd(sb);
             const f64 sweepStart = Timing::getTimeReal();
             frames = 0;
@@ -206,11 +206,11 @@ void bench(const std::vector<CorpusSet> &sets, int rounds) {
                 sb.update(time, true, false);
                 sb.draw(Storyboard::Layer::BACKGROUND, Storyboard::Layer::OVERLAY, view);
             }
-            sweep = std::min(sweep, Timing::getTimeReal() - sweepStart);
+            sweep = Mc::min(sweep, Timing::getTimeReal() - sweepStart);
         }
         logRaw("  bench {}: {} sprites, best of {}: parse {:.1f} ms, sweep {:.1f} ms ({} frames, {:.1f} us a frame)",
                map.name, map.sprites, rounds, parse * 1000.0, sweep * 1000.0, frames,
-               sweep * 1e6 / (f64)std::max<u64>(frames, 1));
+               sweep * 1e6 / (f64)Mc::max<u64>(frames, 1));
     }
 }
 }  // namespace
@@ -683,7 +683,7 @@ void StoryboardTest::runCorpus(const std::string &dir) {
     TEST_ASSERT(!sets.empty(), "the corpus has sets");
 
     if(const auto rounds = getTestArg("bench")) {
-        bench(sets, std::max(1, Parsing::strto<i32>(*rounds)));
+        bench(sets, Mc::max(1, Parsing::strto<i32>(*rounds)));
         return;
     }
 
@@ -702,7 +702,7 @@ void StoryboardTest::runCorpus(const std::string &dir) {
     {
         std::atomic<uSz> next{0};
         std::vector<Sync::jthread> workers;
-        const unsigned count = std::max(1u, std::thread::hardware_concurrency());
+        const unsigned count = Mc::max(1u, Sync::jthread::hardware_concurrency());
         for(unsigned i = 0; i < count; i++) {
             workers.emplace_back([&] {
                 for(uSz j; (j = next.fetch_add(1)) < jobs.size();) {
@@ -721,10 +721,10 @@ void StoryboardTest::runCorpus(const std::string &dir) {
         uSz setSprites = 0, setSamples = 0, missingImages = 0, missingSamples = 0;
         for(; j < jobs.size() && jobs[j].set == &set; j++) {
             parse += results[j].parseTime;
-            setSprites = std::max(setSprites, results[j].sprites);
-            setSamples = std::max(setSamples, results[j].samples);
-            missingImages = std::max(missingImages, results[j].missingImages);
-            missingSamples = std::max(missingSamples, results[j].missingSamples);
+            setSprites = Mc::max(setSprites, results[j].sprites);
+            setSamples = Mc::max(setSamples, results[j].samples);
+            missingImages = Mc::max(missingImages, results[j].missingImages);
+            missingSamples = Mc::max(missingSamples, results[j].missingSamples);
             for(const auto &problem : results[j].problems) {
                 if(problems++ < 20) logRaw("  {}: {}", set.name, problem);
             }

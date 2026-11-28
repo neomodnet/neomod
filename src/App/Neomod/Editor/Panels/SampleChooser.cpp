@@ -18,8 +18,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cctype>
 #include <optional>
@@ -133,8 +133,8 @@ void SampleChooser::list(std::string_view picked) {
     for(std::string &file : Environment::getFilesInFolder(this->folder)) {
         if(MapFiles::isSound(file) && !SString::strcase_equal(file, song)) this->files.push_back(std::move(file));
     }
-    std::sort(this->files.begin(), this->files.end(), [](const std::string &a, const std::string &b) {
-        return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](char x, char y) {
+    Mc::sort(this->files.begin(), this->files.end(), [](const std::string &a, const std::string &b) {
+        return Mc::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](char x, char y) {
             return std::tolower((unsigned char)x) < std::tolower((unsigned char)y);
         });
     });

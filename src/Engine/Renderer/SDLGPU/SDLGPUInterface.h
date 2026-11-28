@@ -16,6 +16,7 @@
 #include "ModernGraphicsShared.h"
 #include "Hashing.h"
 #include "SyncMutex.h"
+#include "Algorithms.h"
 
 #include <vector>
 #include <array>
@@ -23,7 +24,6 @@
 #include <bit>
 #include <cassert>
 #include <memory>
-#include <algorithm>
 
 class SDLGPUShader;
 class SDLGPUVertexArrayObject;
@@ -332,8 +332,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
             return min.x <= o.max.x + pad && o.min.x <= max.x + pad && min.y <= o.max.y + pad && o.min.y <= max.y + pad;
         }
         void add(const Bounds &o) {
-            min = {std::min(min.x, o.min.x), std::min(min.y, o.min.y)};
-            max = {std::max(max.x, o.max.x), std::max(max.y, o.max.y)};
+            min = {Mc::min(min.x, o.min.x), Mc::min(min.y, o.min.y)};
+            max = {Mc::max(max.x, o.max.x), Mc::max(max.y, o.max.y)};
         }
     };
 

@@ -67,8 +67,8 @@
 
 #include "fmt/format.h"
 #include "fmt/ranges.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <chrono>
@@ -400,7 +400,7 @@ Editor::Editor(std::span<const u8> session)
         [this](i32 by) {
             const auto &divisors = BeatSnap::DIVISORS;
             const auto at = Mc::ranges::find(divisors, this->state.divisor) - divisors.begin();
-            this->setDivisor(divisors[std::clamp<i64>(at + by, 0, (i64)divisors.size() - 1)]);
+            this->setDivisor(divisors[Mc::clamp<i64>(at + by, 0, (i64)divisors.size() - 1)]);
         },
         [this] { return fmt::format("1/{}", this->state.divisor); });
     divisor->setPadding(style.metrics.padding);
@@ -595,7 +595,7 @@ void Editor::showMap() {
     const EditorSession::View &view = this->session.views.front();
     // a file can say anything
     const f32 zoom = view.zoom.value_or(document->getTimelineZoom().value_or(1.f));
-    this->state.zoom = std::isfinite(zoom) ? std::clamp(zoom, 0.1f, 8.f) : 1.f;
+    this->state.zoom = std::isfinite(zoom) ? Mc::clamp(zoom, 0.1f, 8.f) : 1.f;
     this->state.divisor = view.divisor                 ? *view.divisor
                           : document->getBeatDivisor() ? BeatSnap::clampDivisor(*document->getBeatDivisor())
                                                        : this->state.divisor;
@@ -824,7 +824,7 @@ bool Editor::onWheel(WheelDelta vertical, WheelDelta /*horizontal*/) {
         // up doubles the divisor, down halves it
         i32 divisor = this->state.divisor;
         for(i32 i = 0; i < std::abs(vertical.ticks); i++) {
-            divisor = BeatSnap::clampDivisor(vertical.ticks > 0 ? std::min(16, divisor * 2) : std::max(1, divisor / 2));
+            divisor = BeatSnap::clampDivisor(vertical.ticks > 0 ? Mc::min(16, divisor * 2) : Mc::max(1, divisor / 2));
         }
         this->setDivisor(divisor);
     } else {
@@ -944,7 +944,7 @@ bool Editor::canRun(Command command, i32 value) const {
 
 void Editor::run(Command command, i32 value) {
     if(command == Command::TAB) {
-        this->setTab((Tab)std::clamp(value, 0, (i32)Tab::HISTORY));
+        this->setTab((Tab)Mc::clamp(value, 0, (i32)Tab::HISTORY));
         return;
     }
     if(!this->state.clock.isAttached()) return;
@@ -1053,7 +1053,7 @@ void Editor::run(Command command, i32 value) {
             break;
         case Command::MOVE: {
             constexpr std::array<vec2, 4> DIRECTIONS{vec2{-1.f, 0.f}, vec2{1.f, 0.f}, vec2{0.f, -1.f}, vec2{0.f, 1.f}};
-            compose.nudge(DIRECTIONS[std::clamp(value, 0, 3)], this->state.snapSettings());
+            compose.nudge(DIRECTIONS[Mc::clamp(value, 0, 3)], this->state.snapSettings());
             break;
         }
         case Command::CANCEL:
@@ -1441,7 +1441,7 @@ std::vector<MenuItem> Editor::timingMenu() {
                  .action =
                      [this] {
                          const auto &timing = this->state.document->getPrimitives().timingpoints;
-                         this->openSampleSets(std::max(
+                         this->openSampleSets(Mc::max(
                              neomod::HitSoundUtils::samplesAt(timing, this->state.clock.getTime()).sampleIndex, 1));
                      },
                  .enabled = this->state.clock.isAttached()},
@@ -1485,7 +1485,7 @@ void Editor::seek(Command command) {
             if(!objects.empty() && time < objects.endTimes.back()) {
                 clock.seek(objects.endTimes.back());
             } else {
-                clock.seek(std::max(0, (i32)clock.getLength() - 500));
+                clock.seek(Mc::max(0, (i32)clock.getLength() - 500));
             }
             break;
         case Command::NEXT_POINT:
@@ -1515,7 +1515,7 @@ void Editor::seek(Command command) {
                     clock.seek(*it);
                 }
             } else if(const auto it =
-                          std::find_if(bookmarks.rbegin(), bookmarks.rend(), [&](i32 b) { return b < time - 500; });
+                          Mc::find_if(bookmarks.rbegin(), bookmarks.rend(), [&](i32 b) { return b < time - 500; });
                       it != bookmarks.rend()) {
                 clock.seek(*it);
             }
@@ -1587,7 +1587,7 @@ void Editor::openStepPopup(Command command) {
                                           return this->state.compose.previewMap([](vec2 v) { return v; }, false);
                                       const f32 limit = limits[p.choice(0)][x && y ? 2 : y ? 1 : 0];
                                       p.numberField(0)->setRange(0.5, limit);
-                                      const auto f = (f32)std::min(p.number(0), (f64)limit);
+                                      const auto f = (f32)Mc::min(p.number(0), (f64)limit);
                                       const vec2 factor{x ? f : 1.f, y ? f : 1.f};
                                       return this->state.compose.previewMap(
                                           [&](vec2 v) { return vec::round(c + (v - c) * factor); }, true);

@@ -1,7 +1,8 @@
 // Copyright (c) 2025, WH, All rights reserved.
 #pragma once
 
-#include <algorithm>
+#include "Algorithms.h"
+
 #include <memory>
 #include <vector>
 #include <cassert>
@@ -25,7 +26,7 @@ struct FixedSizeArray {
         if constexpr(std::is_trivially_copyable_v<T>) {
             if(size_) memcpy(data_.get(), other.data_.get(), size_ * sizeof(T));
         } else {
-            std::copy_n(other.data_.get(), size_, data_.get());
+            Mc::copy_n(other.data_.get(), size_, data_.get());
         }
     }
 
@@ -36,7 +37,7 @@ struct FixedSizeArray {
             if constexpr(std::is_trivially_copyable_v<T>) {
                 if(size_) memcpy(data_.get(), other.data_.get(), size_ * sizeof(T));
             } else {
-                std::copy_n(other.data_.get(), size_, data_.get());
+                Mc::copy_n(other.data_.get(), size_, data_.get());
             }
         }
         return *this;
@@ -74,7 +75,7 @@ struct FixedSizeArray {
         if constexpr(std::is_trivially_copyable_v<T>) {
             if(size_) memcpy(data_.get(), vec.data(), size_ * sizeof(T));
         } else {
-            std::copy(vec.begin(), vec.end(), data_.get());
+            Mc::copy(vec.begin(), vec.end(), data_.get());
         }
     }
 
@@ -96,7 +97,7 @@ struct FixedSizeArray {
         if constexpr(std::is_trivially_copyable_v<T>) {
             if(size_) memcpy(data_.get(), vec.data(), size_ * sizeof(T));
         } else {
-            std::copy(vec.begin(), vec.end(), data_.get());
+            Mc::copy(vec.begin(), vec.end(), data_.get());
         }
         return *this;
     }

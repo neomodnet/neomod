@@ -11,8 +11,8 @@
 #include "SyncMutex.h"
 #include "SyncStoptoken.h"
 #include "Logging.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <optional>
@@ -109,7 +109,7 @@ class DownloadManager {
                !locked->completed.load(std::memory_order_acquire)) {
                 const auto retry_it = this->per_host_retry_after.find(locked->host);
                 const auto ready_at =
-                    retry_it == this->per_host_retry_after.end() ? now : std::max(now, retry_it->second);
+                    retry_it == this->per_host_retry_after.end() ? now : Mc::max(now, retry_it->second);
 
                 if(!request && ready_at <= now) {
                     // TODO: prevent more than 1 simultaneous download per domain
@@ -357,10 +357,11 @@ i32 resolve_beatmapset_id_for(i32 beatmap_id, i32 set_id_hint, const MD5Hash& md
         .timeout = 5,
         .connect_timeout = 5,
     };
-    networkHandler->httpRequestAsync(url, std::move(options), [beatmap_id, md5, by_md5](const Mc::Net::Response& response) {
-        const i32 set_id = response.success ? parse_beatmapset_metadata(response.text()).set_id : 0;
-        (by_md5 ? md5_to_beatmapset[md5] : beatmap_to_beatmapset[beatmap_id]) = set_id;
-    });
+    networkHandler->httpRequestAsync(
+        url, std::move(options), [beatmap_id, md5, by_md5](const Mc::Net::Response& response) {
+            const i32 set_id = response.success ? parse_beatmapset_metadata(response.text()).set_id : 0;
+            (by_md5 ? md5_to_beatmapset[md5] : beatmap_to_beatmapset[beatmap_id]) = set_id;
+        });
 
     if(by_md5) {
         queried_md5 = md5;

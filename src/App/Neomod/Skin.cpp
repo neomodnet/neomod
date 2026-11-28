@@ -25,10 +25,9 @@
 #include "UniString.h"
 
 #include "ctre.hpp"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cstring>
-#include <ranges>
 #include <utility>
 
 struct Skin::BeatmapOverride {
@@ -206,7 +205,7 @@ void Skin::load() {
 
             if(this->o_random && this->filepaths_for_random_skin.size() > 0) {
                 const int randomIndex =
-                    (int)(prand() % std::min(this->filepaths_for_random_skin.size(), skinNames.size()));
+                    (int)(prand() % Mc::min(this->filepaths_for_random_skin.size(), skinNames.size()));
 
                 this->name = skinNames[randomIndex];
                 this->skin_dir = this->filepaths_for_random_skin[randomIndex];
@@ -919,15 +918,15 @@ void Skin::unloadBeatmapOverride() {
     const auto o = std::move(this->beatmap_override);
 
     // (in reverse, so that an element replaced twice gets back what the skin had)
-    for(auto &[ref, own] : o->basic_images | std::views::reverse) {
+    for(auto &[ref, own] : Mc::ranges::reversed(o->basic_images)) {
         resourceManager->destroyResource(ref->img);
         *ref = own;
     }
     // (own then holds the map's, destroyed with o)
-    for(auto &[ref, own] : o->skin_images | std::views::reverse) {
+    for(auto &[ref, own] : Mc::ranges::reversed(o->skin_images)) {
         ref->swap(*own);
     }
-    for(auto &[ref, own] : o->sounds_replaced | std::views::reverse) {
+    for(auto &[ref, own] : Mc::ranges::reversed(o->sounds_replaced)) {
         resourceManager->destroyResource(*ref);
         *ref = own;
     }
@@ -1231,7 +1230,7 @@ void Skin::fixupPrefix(std::string &prefix, const std::string &baseDir) {
 
 Color Skin::getComboColorForCounter(int i, int offset, std::span<const Color> beatmapColors) const {
     i += cv::skin_color_index_add.getInt();
-    i = std::max(i, 0);
+    i = Mc::max(i, 0);
 
     if(beatmapColors.size() > 0 && !cv::ignore_beatmap_combo_colors.getBool()) {
         return beatmapColors[(i + offset) % beatmapColors.size()];

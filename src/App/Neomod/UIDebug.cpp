@@ -39,7 +39,6 @@
 #include "TextInput.h"
 #include "NeomodEnvInterop.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <ctime>

@@ -16,6 +16,7 @@
 #include "UIAvatar.h"
 #include "UIUserContextMenu.h"
 #include "UserStatsScreen.h"
+#include "Algorithms.h"
 
 // NOTE: selected username is stored in this->sText
 
@@ -158,7 +159,7 @@ void UserCard::draw() {
             g->setColor(0xffbf962a);
             g->fillRect(this->getPos().x + this->getSize().x - barWidth - barBorder - 1,
                         this->getPos().y + this->getSize().y - barHeight - barBorder,
-                        barWidth * std::clamp<float>(this->fPercentToNextLevel, 0.0f, 1.0f), barHeight);
+                        barWidth * Mc::clamp<float>(this->fPercentToNextLevel, 0.0f, 1.0f), barHeight);
         }
 
         // draw pp increase/decrease delta

@@ -1,6 +1,6 @@
 #include "HitObjects.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <utility>
 #include <type_traits>
@@ -48,11 +48,11 @@ f32 hitAnimationAt(i32 elapsedMS, i32 durationMS) {
 
 // a trail (see HitObjectDrawing::pose()) elapsedMS after the hit: the circle alpha, from 1 to 0 over durationMS
 f32 trailAlphaAt(i32 elapsedMS, i32 durationMS) {
-    return 1.0f - std::clamp((f32)elapsedMS / (f32)durationMS, 0.0f, 1.0f);
+    return 1.0f - Mc::clamp((f32)elapsedMS / (f32)durationMS, 0.0f, 1.0f);
 }
 
 // and its approach circle's scale, a tenth larger over the first 100 ms
-f32 trailApproachScaleAt(i32 elapsedMS) { return 1.0f + 0.1f * std::clamp((f32)elapsedMS / 100.0f, 0.0f, 1.0f); }
+f32 trailApproachScaleAt(i32 elapsedMS) { return 1.0f + 0.1f * Mc::clamp((f32)elapsedMS / 100.0f, 0.0f, 1.0f); }
 
 f32 lerp3f(f32 a, f32 b, f32 c, f32 percent) {
     if(percent <= 0.5f)
@@ -93,7 +93,7 @@ void HitObjectDrawing::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHi
             // percentage scale is linear with respect to the entire hittable 50s range in both directions (contrary to
             // OD brackets which are nonlinear of course)
             if(hitDeltaRangePercent != 0.0f) {
-                hitDeltaRangePercent = std::clamp<f32>(
+                hitDeltaRangePercent = Mc::clamp<f32>(
                     hitDeltaRangePercent * cv::hitresult_delta_colorize_multiplier.getFloat(), -1.0f, 1.0f);
 
                 const f32 rf = lerp3f(cv::hitresult_delta_colorize_early_r.getFloat() / 255.0f, 1.0f,
@@ -120,10 +120,10 @@ void HitObjectDrawing::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHi
         const f32 fadeOutDurationPercent =
             cv::hitresult_fadeout_duration.getFloat() / cv::hitresult_duration.getFloat();
 
-        g->setAlpha(std::clamp<f32>(animPercent < fadeInEndPercent
-                                        ? animPercent / fadeInEndPercent
-                                        : 1.0f - ((animPercent - fadeOutStartPercent) / fadeOutDurationPercent),
-                                    0.0f, 1.0f));
+        g->setAlpha(Mc::clamp<f32>(animPercent < fadeInEndPercent
+                                       ? animPercent / fadeInEndPercent
+                                       : 1.0f - ((animPercent - fadeOutStartPercent) / fadeOutDurationPercent),
+                                   0.0f, 1.0f));
     }
 
     g->pushTransform();
@@ -186,19 +186,19 @@ void HitObjectDrawing::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHi
         if(doScaleOrRotateAnim && cv::hitresult_animated.getBool()) {
             if(!hasParticle) {
                 if(animPercent < fadeInEndPercent * 0.8f)
-                    scale = std::lerp(0.6f, 1.1f, std::clamp<f32>(animPercent / (fadeInEndPercent * 0.8f), 0.0f, 1.0f));
+                    scale = std::lerp(0.6f, 1.1f, Mc::clamp<f32>(animPercent / (fadeInEndPercent * 0.8f), 0.0f, 1.0f));
                 else if(animPercent < fadeInEndPercent * 1.2f)
                     scale = std::lerp(1.1f, 0.9f,
-                                      std::clamp<f32>((animPercent - fadeInEndPercent * 0.8f) /
-                                                          (fadeInEndPercent * 1.2f - fadeInEndPercent * 0.8f),
-                                                      0.0f, 1.0f));
+                                      Mc::clamp<f32>((animPercent - fadeInEndPercent * 0.8f) /
+                                                         (fadeInEndPercent * 1.2f - fadeInEndPercent * 0.8f),
+                                                     0.0f, 1.0f));
                 else if(animPercent < fadeInEndPercent * 1.4f)
                     scale = std::lerp(0.9f, 1.0f,
-                                      std::clamp<f32>((animPercent - fadeInEndPercent * 1.2f) /
-                                                          (fadeInEndPercent * 1.4f - fadeInEndPercent * 1.2f),
-                                                      0.0f, 1.0f));
+                                      Mc::clamp<f32>((animPercent - fadeInEndPercent * 1.2f) /
+                                                         (fadeInEndPercent * 1.4f - fadeInEndPercent * 1.2f),
+                                                     0.0f, 1.0f));
             } else
-                scale = std::lerp(0.9f, 1.05f, std::clamp<f32>(animPercent, 0.0f, 1.0f));
+                scale = std::lerp(0.9f, 1.05f, Mc::clamp<f32>(animPercent, 0.0f, 1.0f));
 
             // TODO: osu draws an additive copy of the hitresult on top (?) with 0.5 alpha anim and negative timing, if
             // the skin hasParticle. in this case only the copy does the wobble anim, while the main result just scales
@@ -212,10 +212,10 @@ void HitObjectDrawing::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHi
                 vec2 downAnim{0.f};
                 if(skin->i_hit0.getNumImages() < 2 && skin->version > 1.0f)
                     downAnim.y =
-                        std::lerp(-5.0f, 40.0f, std::clamp<f32>(animPercent * animPercent * animPercent, 0.0f, 1.0f)) *
+                        std::lerp(-5.0f, 40.0f, Mc::clamp<f32>(animPercent * animPercent * animPercent, 0.0f, 1.0f)) *
                         osuCoordScaleMultiplier;
 
-                f32 missScale = 1.0f + std::clamp<f32>((1.0f - (animPercent / fadeInEndPercent)), 0.0f, 1.0f) *
+                f32 missScale = 1.0f + Mc::clamp<f32>((1.0f - (animPercent / fadeInEndPercent)), 0.0f, 1.0f) *
                                            (cv::hitresult_miss_fadein_scale.getFloat() - 1.0f);
                 if(!cv::hitresult_animated.getBool()) missScale = 1.0f;
 
@@ -342,12 +342,12 @@ void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32
     if(isVisibleWith(objects, index, curPosMS, mods, l.approachTimeMS)) {
         // approach circle scale
         // freeze frame keeps the usual shrink rate, so objects later in the combo start out larger
-        const f32 scale = std::max(0.0f, (f32)(objects.clickTimes[index] - curPosMS) / (f32)l.approachTimeMS);
+        const f32 scale = Mc::max(0.0f, (f32)(objects.clickTimes[index] - curPosMS) / (f32)l.approachTimeMS);
         l.approachScale = 1 + (scale * cv::approach_scale_multiplier.getFloat());
         if(flags::has<ModFlags::ApproachDifferent>(mods)) {
             constexpr f32 back_const = 1.70158;
 
-            f32 time = 1.0f - std::min(scale, 1.0f);
+            f32 time = 1.0f - Mc::min(scale, 1.0f);
             {
                 switch(cv::mod_approach_different_style.getInt()) {
                     default:  // "Linear"
@@ -400,10 +400,10 @@ void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32
 
         // hitobject body fadein
         const i32 fadeInStart = visibleTms - l.approachTimeMS;
-        // std::min() ensures that the fade always finishes at click_time
+        // Mc::min() ensures that the fade always finishes at click_time
         // (even if the fadeintime is longer than the approachtime)
-        const i32 fadeInEnd = std::min(visibleTms, visibleTms - l.approachTimeMS + l.fadeInTimeMS);
-        l.alpha = std::clamp<f32>(1.0f - ((f32)(fadeInEnd - curPosMS) / (f32)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
+        const i32 fadeInEnd = Mc::min(visibleTms, visibleTms - l.approachTimeMS + l.fadeInTimeMS);
+        l.alpha = Mc::clamp<f32>(1.0f - ((f32)(fadeInEnd - curPosMS) / (f32)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
         l.alphaWithoutHidden = l.alpha;
 
         if(flags::has<ModFlags::FreezeFrame>(mods)) {
@@ -411,9 +411,9 @@ void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32
             //       this makes slider bodies & spinners draw correctly
             const i32 fadeInStart = objects.clickTimes[index] - l.approachTimeMS;
             const i32 fadeInEnd =
-                std::min(objects.clickTimes[index], objects.clickTimes[index] - l.approachTimeMS + l.fadeInTimeMS);
+                Mc::min(objects.clickTimes[index], objects.clickTimes[index] - l.approachTimeMS + l.fadeInTimeMS);
             l.alphaWithoutHidden =
-                std::clamp<f32>(1.0f - ((f32)(fadeInEnd - curPosMS) / (f32)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
+                Mc::clamp<f32>(1.0f - ((f32)(fadeInEnd - curPosMS) / (f32)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
         }
 
         if(flags::has<ModFlags::Hidden>(mods)) {
@@ -422,7 +422,7 @@ void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32
             const f32 fin_end_percent = cv::mod_hd_circle_fadein_end_percent.getFloat();
             const i32 hiddenFadeInStartMS = visibleTms - (i32)(l.approachTimeMS * fin_start_percent);
             const i32 hiddenFadeInEndMS = visibleTms - (i32)(l.approachTimeMS * fin_end_percent);
-            l.alpha = std::clamp<f32>(
+            l.alpha = Mc::clamp<f32>(
                 1.0f - ((f32)(hiddenFadeInEndMS - curPosMS) / (f32)(hiddenFadeInEndMS - hiddenFadeInStartMS)), 0.0f,
                 1.0f);
 
@@ -432,18 +432,18 @@ void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32
             const i32 hiddenFadeOutStart = visibleTms - (i32)(l.approachTimeMS * fout_start_percent);
             const i32 hiddenFadeOutEnd = visibleTms - (i32)(l.approachTimeMS * fout_end_percent);
             if(curPosMS >= hiddenFadeOutStart)
-                l.alpha = std::clamp<f32>(
+                l.alpha = Mc::clamp<f32>(
                     ((f32)(hiddenFadeOutEnd - curPosMS) / (f32)(hiddenFadeOutEnd - hiddenFadeOutStart)), 0.0f, 1.0f);
         }
 
         // approach circle fadein (doubled fadeintime)
         const i32 approachCircleFadeStart = visibleTms - l.approachTimeMS;
         const i32 approachCircleFadeEnd =
-            std::min(visibleTms,
-                     visibleTms - l.approachTimeMS +
-                         2 * l.fadeInTimeMS);  // std::min() ensures that the fade always finishes at click_time
-                                               // (even if the fadeintime is longer than the approachtime)
-        l.alphaForApproachCircle = std::clamp<f32>(
+            Mc::min(visibleTms,
+                    visibleTms - l.approachTimeMS +
+                        2 * l.fadeInTimeMS);  // Mc::min() ensures that the fade always finishes at click_time
+                                              // (even if the fadeintime is longer than the approachtime)
+        l.alphaForApproachCircle = Mc::clamp<f32>(
             1.0f - ((f32)(approachCircleFadeEnd - curPosMS) / (f32)(approachCircleFadeEnd - approachCircleFadeStart)),
             0.0f, 1.0f);
 
@@ -457,9 +457,9 @@ void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32
 
             l.hittableDimRGBColorMultiplierPct =
                 std::lerp(cv::hitobject_hittable_dim_start_percent.getFloat(), 1.0f,
-                          std::clamp<f32>(1.0f - (f32)(hittableDimFadeEnd - curPosMS) /
-                                                     (f32)(hittableDimFadeEnd - hittableDimFadeStart),
-                                          0.0f, 1.0f));
+                          Mc::clamp<f32>(1.0f - (f32)(hittableDimFadeEnd - curPosMS) /
+                                                    (f32)(hittableDimFadeEnd - hittableDimFadeStart),
+                                         0.0f, 1.0f));
         }
 
         objects.visible[index] = true;
@@ -475,15 +475,15 @@ void updateSlideLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods
     const i32 visibleTms =
         flags::has<ModFlags::FreezeFrame>(mods) ? objects.comboStartTimes[index] : objects.clickTimes[index];
     const f32 sliderSnakeDuration = (1.0f / 3.0f) * l.approachTimeMS * cv::slider_snake_duration_multiplier.getFloat();
-    s.sliderSnakePercent = std::min(1.0f, (f32)(curPosMS - (visibleTms - l.approachTimeMS)) / sliderSnakeDuration);
+    s.sliderSnakePercent = Mc::min(1.0f, (f32)(curPosMS - (visibleTms - l.approachTimeMS)) / sliderSnakeDuration);
 
     const i32 reverseArrowFadeInStart =
         objects.clickTimes[index] -
         (cv::snaking_sliders.getBool() ? (l.approachTimeMS - sliderSnakeDuration) : l.approachTimeMS);
     const i32 reverseArrowFadeInEnd = reverseArrowFadeInStart + cv::slider_reverse_arrow_fadein_duration.getInt();
-    s.reverseArrowAlpha = 1.0f - std::clamp<f32>(((f32)(reverseArrowFadeInEnd - curPosMS) /
-                                                  (f32)(reverseArrowFadeInEnd - reverseArrowFadeInStart)),
-                                                 0.0f, 1.0f);
+    s.reverseArrowAlpha = 1.0f - Mc::clamp<f32>(((f32)(reverseArrowFadeInEnd - curPosMS) /
+                                                 (f32)(reverseArrowFadeInEnd - reverseArrowFadeInStart)),
+                                                0.0f, 1.0f);
     s.reverseArrowAlpha *= cv::slider_reverse_arrow_alpha_multiplier.getFloat();
 
     s.bodyAlpha = l.alpha;
@@ -491,15 +491,15 @@ void updateSlideLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods
         s.bodyAlpha = l.alphaWithoutHidden;   // fade in as usual
 
         // fade out over the duration of the slider, starting exactly when the default fadein finishes
-        // std::min() ensures that the fade always starts at click_time
+        // Mc::min() ensures that the fade always starts at click_time
         // (even if the fadeintime is longer than the approachtime)
-        const i32 hiddenSliderBodyFadeOutStart = std::min(visibleTms, visibleTms - l.approachTimeMS + l.fadeInTimeMS);
+        const i32 hiddenSliderBodyFadeOutStart = Mc::min(visibleTms, visibleTms - l.approachTimeMS + l.fadeInTimeMS);
         const f32 fade_percent = cv::mod_hd_slider_fade_percent.getFloat();
         const i32 hiddenSliderBodyFadeOutEnd = objects.clickTimes[index] + (i32)(fade_percent * s.sliderTimeMS);
         if(curPosMS >= hiddenSliderBodyFadeOutStart) {
-            s.bodyAlpha = std::clamp<f32>(((f32)(hiddenSliderBodyFadeOutEnd - curPosMS) /
-                                           (f32)(hiddenSliderBodyFadeOutEnd - hiddenSliderBodyFadeOutStart)),
-                                          0.0f, 1.0f);
+            s.bodyAlpha = Mc::clamp<f32>(((f32)(hiddenSliderBodyFadeOutEnd - curPosMS) /
+                                          (f32)(hiddenSliderBodyFadeOutEnd - hiddenSliderBodyFadeOutStart)),
+                                         0.0f, 1.0f);
             s.bodyAlpha *= s.bodyAlpha;  // quad in body fadeout
         }
     }
@@ -518,24 +518,24 @@ void updateAnimations(HitObjects &objects, uSz index, f64 curPosMS, f32 speedAdj
     f32 fadeout_scale_time = cv::slider_followcircle_fadeout_scale_time.getFloat() * animation_multiplier;
 
     // handle followcircle animations
-    s.followCircleAnimationAlpha = std::clamp<f32>(
+    s.followCircleAnimationAlpha = Mc::clamp<f32>(
         (f32)((curPosMS - objects.clickTimes[index])) / 1000.0f /
-            std::clamp<f32>(fadein_fade_time, 0.0f, (objects.endTimes[index] - objects.clickTimes[index]) / 1000.0f),
+            Mc::clamp<f32>(fadein_fade_time, 0.0f, (objects.endTimes[index] - objects.clickTimes[index]) / 1000.0f),
         0.0f, 1.0f);
     if(objects.finished[index]) {
         s.followCircleAnimationAlpha =
             1.0f -
-            std::clamp<f32>((f32)((curPosMS - (objects.endTimes[index]))) / 1000.0f / fadeout_fade_time, 0.0f, 1.0f);
+            Mc::clamp<f32>((f32)((curPosMS - (objects.endTimes[index]))) / 1000.0f / fadeout_fade_time, 0.0f, 1.0f);
         s.followCircleAnimationAlpha *= s.followCircleAnimationAlpha;  // quad in
     }
 
-    s.followCircleAnimationScale = std::clamp<f32>(
+    s.followCircleAnimationScale = Mc::clamp<f32>(
         (f32)((curPosMS - objects.clickTimes[index])) / 1000.0f /
-            std::clamp<f32>(fadein_scale_time, 0.0f, (objects.endTimes[index] - objects.clickTimes[index]) / 1000.0f),
+            Mc::clamp<f32>(fadein_scale_time, 0.0f, (objects.endTimes[index] - objects.clickTimes[index]) / 1000.0f),
         0.0f, 1.0f);
     if(objects.finished[index]) {
         s.followCircleAnimationScale =
-            std::clamp<f32>((f32)((curPosMS - (objects.endTimes[index]))) / 1000.0f / fadeout_scale_time, 0.0f, 1.0f);
+            Mc::clamp<f32>((f32)((curPosMS - (objects.endTimes[index]))) / 1000.0f / fadeout_scale_time, 0.0f, 1.0f);
     }
     s.followCircleAnimationScale = -s.followCircleAnimationScale * (s.followCircleAnimationScale - 2.0f);  // quad out
 
@@ -554,8 +554,8 @@ void updateSlide(SliderState &s, i32 clickTimeMS, f64 curPosMS, bool visible) {
     // slider slide percent
     s.slidePct = 0.0f;
     if(curPosMS > clickTimeMS)
-        s.slidePct = std::clamp<f32>(
-            (f32)std::clamp<f64>(curPosMS - clickTimeMS, 0.0, (i32)s.sliderTimeMS) / s.sliderTimeMS, 0.0f, 1.0f);
+        s.slidePct = Mc::clamp<f32>(
+            (f32)Mc::clamp<f64>(curPosMS - clickTimeMS, 0.0, (i32)s.sliderTimeMS) / s.sliderTimeMS, 0.0f, 1.0f);
 
     // if this slider is active, recalculate sliding/curve position and general state
     if(s.slidePct > 0.0f || visible) {
@@ -659,7 +659,7 @@ void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS,
             }
 
             // the slide stops where the end was hit, as in play
-            updateSlideLook(objects, index, std::min(timeMS, endTimeMS), mods);
+            updateSlideLook(objects, index, Mc::min(timeMS, endTimeMS), mods);
             s.tracking = s.startFinished;
             updateAnimations(objects, index, timeMS, animationSpeed);
 
@@ -691,11 +691,11 @@ void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS,
             // the follow circle pulses on every tick and repeat
             i32 lastPulseMS = -1;
             for(const auto &click : s.clicks) {
-                if(click.finished) lastPulseMS = std::max(lastPulseMS, click.timeMS);
+                if(click.finished) lastPulseMS = Mc::max(lastPulseMS, click.timeMS);
             }
             const f32 pulseMS = cv::slider_followcircle_tick_pulse_time.getFloat() * animationSpeed * 1000.0f;
             s.followCircleTickAnimationScale =
-                lastPulseMS < 0 ? 0.0f : std::clamp<f32>((f32)(timeMS - lastPulseMS) / pulseMS, 0.0f, 1.0f);
+                lastPulseMS < 0 ? 0.0f : Mc::clamp<f32>((f32)(timeMS - lastPulseMS) / pulseMS, 0.0f, 1.0f);
         } break;
         case HitObjectType::SPINNER: {
             SpinnerState &s = objects.spinnerAt(index);
@@ -1542,7 +1542,7 @@ void drawSliderObject2(const PlayfieldView &view, const HitObjects &objects, uSz
                                                      : (1.0f - s.followCircleTickAnimationScale) / 0.9f);
         if(s.followCircleTickAnimationScale < 0.1f) {
             tickAnimation = -tickAnimation * (tickAnimation - 2.0f);
-            tickAnimation = std::clamp<f32>(tickAnimation / 0.02f, 0.0f, 1.0f);
+            tickAnimation = Mc::clamp<f32>(tickAnimation / 0.02f, 0.0f, 1.0f);
         }
         f32 tickAnimationScale = 1.0f + tickAnimation * cv::slider_followcircle_tick_pulse_scale.getFloat();
 
@@ -1636,10 +1636,10 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
     // version 1.0 skins get a "spinner-osu" hit burst (behind everything else) after a successful hit
     if(s.hitSuccess && deltaEnd <= 0 && skin->version < 2.0f && skin->i_spinner_osu != MISSING_TEXTURE) {
         const f32 t = (f32)-deltaEnd / 1000.f;
-        const f32 osuAlpha = std::clamp<f32>(t / cv::hitresult_fadein_duration.getFloat(), 0.f, 1.f) *
-                             (1.f - std::clamp<f32>((t - cv::hitresult_fadeout_start_time.getFloat()) /
-                                                        cv::hitresult_fadeout_duration.getFloat(),
-                                                    0.f, 1.f));
+        const f32 osuAlpha = Mc::clamp<f32>(t / cv::hitresult_fadein_duration.getFloat(), 0.f, 1.f) *
+                             (1.f - Mc::clamp<f32>((t - cv::hitresult_fadeout_start_time.getFloat()) /
+                                                       cv::hitresult_fadeout_duration.getFloat(),
+                                                   0.f, 1.f));
         if(osuAlpha > 0.f) {
             g->setColor(Color(0xffffffff).setA(osuAlpha));
             drawSprite(skin->i_spinner_osu, windowPos(0.f, -68.f), spinnerScale / skin->i_spinner_osu.scale());
@@ -1653,7 +1653,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
     const f64 curPosMS = objects.clickTimes[index] - l.deltaMS;
     const i32 endTimeMS = objects.endTimes[index];
     const f32 percent =
-        1.f - std::clamp<f32>((f32)-l.deltaMS / (f32)std::max(endTimeMS - objects.clickTimes[index], 1), 0.f, 1.f);
+        1.f - Mc::clamp<f32>((f32)-l.deltaMS / (f32)Mc::max(endTimeMS - objects.clickTimes[index], 1), 0.f, 1.f);
 
     // avoid blinking when effectively paused
     const bool madeProgress = curPosMS != s.lastDrawMusicPosMS;
@@ -1661,12 +1661,12 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
 
     // only used for fade out anim atm
     const f32 alphaMultiplier =
-        std::clamp<f32>((deltaEnd < 0 ? 1.f - ((f32)std::abs(deltaEnd) / (f32)fadeOutTimeMS) : 1.f), 0.f, 1.f);
+        Mc::clamp<f32>((deltaEnd < 0 ? 1.f - ((f32)std::abs(deltaEnd) / (f32)fadeOutTimeMS) : 1.f), 0.f, 1.f);
     const f32 alpha = l.alphaWithoutHidden * alphaMultiplier;
     const auto easeOut = [](f32 t) { return 1.f - (1.f - t) * (1.f - t); };
 
     // the spinner grows until reaching 100% during spinning, depending on how many spins are left
-    const f32 clampedRatio = std::clamp<f32>(s.ratio, 0.0f, 1.0f);
+    const f32 clampedRatio = Mc::clamp<f32>(s.ratio, 0.0f, 1.0f);
     const f32 finishScale = 0.80f + easeOut(clampedRatio) * 0.20f;
 
     // spun out / autopilot spinners are drawn dimmed
@@ -1676,8 +1676,8 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
 
     // "SPIN!" starts fading out on the first (half) spin, but not before 500 ms in, and "CLEAR!" can't show up before
     // that either
-    const i32 spinStartMS = s.firstSpinTimeMS < 0 ? -1 : std::max(s.firstSpinTimeMS, objects.clickTimes[index] + 500);
-    const i32 clearTimeMS = (s.completedTimeMS < 0 || spinStartMS < 0) ? -1 : std::max(s.completedTimeMS, spinStartMS);
+    const i32 spinStartMS = s.firstSpinTimeMS < 0 ? -1 : Mc::max(s.firstSpinTimeMS, objects.clickTimes[index] + 500);
+    const i32 clearTimeMS = (s.completedTimeMS < 0 || spinStartMS < 0) ? -1 : Mc::max(s.completedTimeMS, spinStartMS);
 
     if(skin->o_spinner_fade_playfield) {
         // black bars above and below the spinner-background, covering the rest of stable's 4:3 window
@@ -1718,14 +1718,14 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
             const bool blink =
                 madeProgress && !objects.finished[index] && !skin->o_spinner_no_blink && !cv::avoid_flashes.getBool();
             i32 progress = (i32)(clampedRatio * 100.f);
-            if(blink) progress = std::min(progress, 99);
+            if(blink) progress = Mc::min(progress, 99);
             i32 bars = progress / 10;
             if(blink && (prand() % 10) < (progress % 10)) bars++;
 
             const f32 width = (f32)skin->i_spinner_metre.getWidth();
             const f32 height = (f32)skin->i_spinner_metre.getHeight();
             const f32 hidden =
-                std::min(height, 692.f * skin->i_spinner_metre.scale() * (1.f - (f32)bars / 10.f)) / height;
+                Mc::min(height, 692.f * skin->i_spinner_metre.scale() * (1.f - (f32)bars / 10.f)) / height;
             if(hidden < 1.f) {
                 const f32 metreScale = spinnerScale / skin->i_spinner_metre.scale();
                 // anchored to the top left corner of stable's 4:3 window, not to the spinner itself
@@ -1762,7 +1762,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
         if(skin->i_spinner_glow != MISSING_TEXTURE) {
             // additive cyan glow which fills in with progress, and flashes white on bonus spins
             const f32 flash =
-                s.bonusTimeMS < 0 ? 1.f : std::clamp<f32>((f32)(curPosMS - s.bonusTimeMS) / 200.f, 0.f, 1.f);
+                s.bonusTimeMS < 0 ? 1.f : Mc::clamp<f32>((f32)(curPosMS - s.bonusTimeMS) / 200.f, 0.f, 1.f);
             g->setBlendMode(DrawBlendMode::ADDITIVE);
             g->setColor(argb(alpha * clampedRatio, std::lerp(1.f, 3.f / 255.f, flash),
                              std::lerp(1.f, 151.f / 255.f, flash), 1.f));
@@ -1801,11 +1801,11 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
     if(clearTimeMS >= 0 && curPosMS >= clearTimeMS && skin->i_spinner_clear != MISSING_TEXTURE) {
         // fades in over 400 ms with a bounce, and out over the last 50 ms. when cleared less than 400 ms before the
         // end, the animation starts 400 ms before the end, so it shows up already partway through.
-        const f32 t = (f32)(curPosMS - std::min(clearTimeMS, endTimeMS - 400));
-        const f32 fadeIn = easeOut(std::clamp<f32>(t / 400.f, 0.f, 1.f));
-        const f32 fadeOut = 1.f - std::clamp<f32>((f32)(curPosMS - (endTimeMS - 50)) / 50.f, 0.f, 1.f);
+        const f32 t = (f32)(curPosMS - Mc::min(clearTimeMS, endTimeMS - 400));
+        const f32 fadeIn = easeOut(Mc::clamp<f32>(t / 400.f, 0.f, 1.f));
+        const f32 fadeOut = 1.f - Mc::clamp<f32>((f32)(curPosMS - (endTimeMS - 50)) / 50.f, 0.f, 1.f);
         const f32 bounce = t < 240.f ? std::lerp(2.f, 0.8f, easeOut(t / 240.f))
-                                     : std::lerp(0.8f, 1.f, std::clamp<f32>((t - 240.f) / 160.f, 0.f, 1.f));
+                                     : std::lerp(0.8f, 1.f, Mc::clamp<f32>((t - 240.f) / 160.f, 0.f, 1.f));
 
         g->setColor(Color(0xffffffff).setA(fadeIn * fadeOut));
         drawSprite(skin->i_spinner_clear, windowPos(0.f, -104.f),
@@ -1816,12 +1816,12 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
     if(skin->i_spinner_spin != MISSING_TEXTURE) {
         // fades in over the second half of the fadein and out over the last 400 ms, unless the first spin fades it
         // out for good (300 ms, restarted as a 100 ms fade if the spinner gets cleared before that finishes)
-        const f32 halfFadeInMS = std::max(1.f, (f32)l.fadeInTimeMS / 2.f);
-        const i32 endFadeMS = std::clamp((objects.endTimes[index] - objects.clickTimes[index]), 1, 400);
+        const f32 halfFadeInMS = Mc::max(1.f, (f32)l.fadeInTimeMS / 2.f);
+        const i32 endFadeMS = Mc::clamp((objects.endTimes[index] - objects.clickTimes[index]), 1, 400);
         const auto idleAlpha = [&](f64 t) {
             if(t >= endTimeMS - endFadeMS)
-                return 1.f - std::clamp<f32>((f32)(t - (endTimeMS - endFadeMS)) / (f32)endFadeMS, 0.f, 1.f);
-            return std::clamp<f32>((f32)(t - objects.clickTimes[index]) / halfFadeInMS + 1.f, 0.f, 1.f);
+                return 1.f - Mc::clamp<f32>((f32)(t - (endTimeMS - endFadeMS)) / (f32)endFadeMS, 0.f, 1.f);
+            return Mc::clamp<f32>((f32)(t - objects.clickTimes[index]) / halfFadeInMS + 1.f, 0.f, 1.f);
         };
 
         f32 spinAlpha = idleAlpha(curPosMS);
@@ -1834,7 +1834,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
                 fadeStartMS = clearTimeMS;
                 fadeMS = 100.f;
             }
-            spinAlpha = fadeFrom * (1.f - std::clamp<f32>((f32)(curPosMS - fadeStartMS) / fadeMS, 0.f, 1.f));
+            spinAlpha = fadeFrom * (1.f - Mc::clamp<f32>((f32)(curPosMS - fadeStartMS) / fadeMS, 0.f, 1.f));
         }
 
         if(spinAlpha > 0.f) {
@@ -1845,7 +1845,7 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
 
     // bonus score counter
     if(s.bonusSpins > 0 && curPosMS >= s.bonusTimeMS) {
-        const f32 t = std::clamp<f32>((f32)(curPosMS - s.bonusTimeMS) / 800.f, 0.f, 1.f);
+        const f32 t = Mc::clamp<f32>((f32)(curPosMS - s.bonusTimeMS) / 800.f, 0.f, 1.f);
         if(t < 1.f) {
             const f32 digitScale = spinnerScale * std::lerp(2.f, 1.28f, easeOut(t)) / skin->i_scores[0].scale();
             const vec2 pos = windowPos(0.f, 80.f);
@@ -1868,8 +1868,8 @@ void drawSpinnerObject(const PlayfieldView &view, HitObjects &objects, uSz index
     // RPM
     if(skin->i_spinner_rpm != MISSING_TEXTURE) {
         // slides up into place during the fadein
-        const f32 slide = easeOut(std::clamp<f32>(
-            (f32)(curPosMS - (objects.clickTimes[index] - l.fadeInTimeMS)) / (f32)std::max(1, l.fadeInTimeMS), 0.f,
+        const f32 slide = easeOut(Mc::clamp<f32>(
+            (f32)(curPosMS - (objects.clickTimes[index] - l.fadeInTimeMS)) / (f32)Mc::max(1, l.fadeInTimeMS), 0.f,
             1.f));
         const f32 hideOffset = 50.f * (1.f - slide);
 
@@ -2019,8 +2019,8 @@ void HitObjects::make(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz ind
         for(f32 tick : ticks) {
             slider.ticks.emplace_back(SliderTick{.percent = tick, .finished = false});
         }
-        slider.clicks.reserve((uSz)std::max(slider.repeat - 1, 0) +
-                              (uSz)std::max(slider.repeat, 0) * slider.ticks.size());
+        slider.clicks.reserve((uSz)Mc::max(slider.repeat - 1, 0) +
+                              (uSz)Mc::max(slider.repeat, 0) * slider.ticks.size());
 
         // build repeats
         for(i32 i = 0; i < (slider.repeat - 1); i++) {
@@ -2124,7 +2124,7 @@ struct StackedObject {
 void HitObjects::stack(uSz from, uSz to, f32 AR, i32 beatmapVersion, f32 stackLeniency, f32 rawHitcircleDiameter,
                        bool hardRock) {
     // reset
-    std::fill(this->stacks.begin() + (sSz)from, this->stacks.begin() + (sSz)to, 0);
+    Mc::fill(this->stacks.begin() + (sSz)from, this->stacks.begin() + (sSz)to, 0);
 
     std::vector<StackedObject<HitObjects>> run;
     run.reserve(to - from);
@@ -2244,13 +2244,12 @@ void drawFollowPoints(const PlayfieldView &view, const HitObjects &objects, uSz 
     // 0.7x means animation lasts only 0.7 of it's time
     const f64 animationMultiplier = view.getSpeedAdjustedAnimationSpeed();
     const i32 followPointApproachTime =
-        animationMultiplier *
-        (cv::followpoints_clamp.getBool()
-             ? std::min((i32)view.getApproachTime(), (i32)cv::followpoints_approachtime.getFloat())
-             : (i32)cv::followpoints_approachtime.getFloat());
+        animationMultiplier * (cv::followpoints_clamp.getBool()
+                                   ? Mc::min((i32)view.getApproachTime(), (i32)cv::followpoints_approachtime.getFloat())
+                                   : (i32)cv::followpoints_approachtime.getFloat());
     const bool followPointsConnectCombos = cv::followpoints_connect_combos.getBool();
     const bool followPointsConnectSpinners = cv::followpoints_connect_spinners.getBool();
-    const f32 followPointSeparationMultiplier = std::max(cv::followpoints_separation_multiplier.getFloat(), 0.1f);
+    const f32 followPointSeparationMultiplier = Mc::max(cv::followpoints_separation_multiplier.getFloat(), 0.1f);
     const f32 followPointFadeTime = animationMultiplier * cv::followpoints_prevfadetime.getFloat();
     const f32 followPointScaleMultiplier = cv::followpoints_scale_multiplier.getFloat();
     const int screenWidth = (int)view.getScreenSize().x;
@@ -2316,7 +2315,7 @@ void drawFollowPoints(const PlayfieldView &view, const HitObjects &objects, uSz 
 
                 // draw
                 f32 alpha = 1.0f;
-                f32 followAnimPercent = std::clamp<f32>((f32)(curPos - fadeInTime) / followPointFadeTime, 0.0f, 1.0f);
+                f32 followAnimPercent = Mc::clamp<f32>((f32)(curPos - fadeInTime) / followPointFadeTime, 0.0f, 1.0f);
                 followAnimPercent = -followAnimPercent * (followAnimPercent - 2.0f);  // quad out
 
                 // NOTE: only internal osu default skin uses scale + move transforms here, it is impossible to achieve
@@ -2336,7 +2335,7 @@ void drawFollowPoints(const PlayfieldView &view, const HitObjects &objects, uSz 
                 if(curPos >= fadeInTime && curPos < fadeOutTime) {
                     // future trail
                     const f32 delta = (f32)(curPos - fadeInTime);
-                    alpha = std::min(delta / followPointFadeTime, 1.0f);
+                    alpha = Mc::min(delta / followPointFadeTime, 1.0f);
                 } else if(curPos >= fadeOutTime && curPos < (fadeOutTime + (i32)followPointFadeTime)) {
                     // previous trail
                     const f32 delta = (f32)(curPos - fadeOutTime);

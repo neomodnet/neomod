@@ -10,8 +10,8 @@
 
 #include "fmt/format.h"
 #include "fmt/ranges.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -148,7 +148,7 @@ std::optional<std::string> takeIn(const std::string &folder, const std::string &
     if(std::error_code ec; std::filesystem::equivalent(File::getFsPath(path), File::getFsPath(folder + name), ec)) {
         return name;
     }
-    const uSz dot = std::min(name.rfind('.'), name.size());
+    const uSz dot = Mc::min(name.rfind('.'), name.size());
     const std::string stem = name.substr(0, dot), extension = name.substr(dot);
     for(i32 n = 2; Environment::fileExists(folder + name); n++) name = fmt::format("{} ({}){}", stem, n, extension);
     if(!File::copy(path, folder + name)) return std::nullopt;

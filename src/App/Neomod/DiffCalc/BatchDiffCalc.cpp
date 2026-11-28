@@ -21,6 +21,7 @@
 #include "SyncJthread.h"
 #include "SyncStoptoken.h"
 #include "ContainerRanges.h"
+#include "Algorithms.h"
 
 #include <atomic>
 #include <memory>
@@ -376,8 +377,8 @@ MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONT
     // build DifficultyHitObjects once at speed=1.0, every AR/CS variant restacks them.
     // object construction and stacking are speed-independent;
     // only the timing fields need rescaling per speed.
-    auto diffres = DiffCalc::loadDifficultyHitObjects(primitives, std::clamp(base_ar, 0.f, 10.f),
-                                                      std::clamp(base_cs, 0.f, 10.f), 1.0f, VARIANTS[0].hr, stoken);
+    auto diffres = DiffCalc::loadDifficultyHitObjects(primitives, Mc::clamp(base_ar, 0.f, 10.f),
+                                                      Mc::clamp(base_cs, 0.f, 10.f), 1.0f, VARIANTS[0].hr, stoken);
     if(stoken.stop_requested()) return result;
 
     result.length_ms = diffres.diffobjects.empty()
@@ -424,10 +425,10 @@ MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONT
         if(stoken.stop_requested()) return result;
         if(diffres.error.errc) break;
 
-        const f32 ar = std::clamp(base_ar * var.ar_od_hp_mul, 0.f, 10.f);
-        const f32 cs = std::clamp(base_cs * var.cs_mul, 0.f, 10.f);
-        const f32 od = std::clamp(base_od * var.ar_od_hp_mul, 0.f, 10.f);
-        const f32 hp = std::clamp(base_hp * var.ar_od_hp_mul, 0.f, 10.f);
+        const f32 ar = Mc::clamp(base_ar * var.ar_od_hp_mul, 0.f, 10.f);
+        const f32 cs = Mc::clamp(base_cs * var.cs_mul, 0.f, 10.f);
+        const f32 od = Mc::clamp(base_od * var.ar_od_hp_mul, 0.f, 10.f);
+        const f32 hp = Mc::clamp(base_hp * var.ar_od_hp_mul, 0.f, 10.f);
 
         if(&var != &VARIANTS[0]) {
             // stacking reads the unscaled times
@@ -609,16 +610,16 @@ void coordinator(const Sync::stop_token& stoken) {
         nb_threads = 1;
     } else {
         const i32 nb_cpus = McThread::get_logical_cpu_count();
-        nb_threads = std::clamp(cv::diffcalc_threads.getInt(), 0, nb_cpus <= 2 ? nb_cpus : nb_cpus - 1);
+        nb_threads = Mc::clamp(cv::diffcalc_threads.getInt(), 0, nb_cpus <= 2 ? nb_cpus : nb_cpus - 1);
         if(nb_threads == 0) {
             // subtract 1 from real number of CPUs because we don't know if hyperthreading is enabled or not
             // if it is, then nb_cpus / 2 would effectively occupy every "real" cpu core with a pretty heavy task, leaving less
             // cpu time for the main thread
-            nb_threads = std::max((nb_cpus - 1) / 2, 1);
+            nb_threads = Mc::max((nb_cpus - 1) / 2, 1);
         }
         // sanity (1000 cpus?)
         if(static_cast<u32>(nb_threads) > initial_workqueue_size) {
-            nb_threads = std::max(static_cast<i32>(initial_workqueue_size), 1);
+            nb_threads = Mc::max(static_cast<i32>(initial_workqueue_size), 1);
         }
     }
 

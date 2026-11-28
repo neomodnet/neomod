@@ -13,8 +13,8 @@
 #include "Image.h"
 #include "UIUserContextMenu.h"
 #include "MakeDelegateWrapper.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 
 UIAvatar::UIAvatar(CBaseUIElement *parent, i32 player_id, float xPos, float yPos, float xSize, float ySize)
@@ -86,7 +86,7 @@ void UIAvatar::draw_avatar(float alpha) {
             const vec2 size = this->getSize();
 
             if(user->speaking) {
-                const f32 border = std::round(std::max(2.f, 3.f * Osu::getUIScale()));
+                const f32 border = std::round(Mc::max(2.f, 3.f * Osu::getUIScale()));
                 g->setColor(Color(0xff2dff7a).setA(alpha));
                 g->fillRectf(pos.x, pos.y, size.x, border);
                 g->fillRectf(pos.x, pos.y + size.y - border, size.x, border);

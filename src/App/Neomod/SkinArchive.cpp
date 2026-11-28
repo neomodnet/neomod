@@ -15,8 +15,8 @@
 #include "SyncMutex.h"
 
 #include "fmt/chrono.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <atomic>
 #include <ctime>
 #include <memory>
@@ -120,7 +120,7 @@ std::string folder_name(std::string dir) {
 
 // one that works on every system, and that makes a skin folder that can be picked (unlike one called "default")
 std::string file_name(std::string name) {
-    std::replace_if(
+    Mc::replace_if(
         name.begin(), name.end(),
         [](char c) -> bool { return (static_cast<u8>(c) < 0x20) || R"(<>:"/\|?*)"sv.contains(c); }, '_');
     if(name.starts_with('.')) name[0] = '_';
@@ -219,7 +219,7 @@ ExportResult run(const Job &job) {
         }
 
         Mc::ranges::sort(left_to_default);
-        left_to_default.erase(std::unique(left_to_default.begin(), left_to_default.end()), left_to_default.end());
+        left_to_default.erase(Mc::unique(left_to_default.begin(), left_to_default.end()), left_to_default.end());
     }
 
     Archive::Writer ar(ARCHIVE_CHARSET);

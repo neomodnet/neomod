@@ -2,6 +2,7 @@
 #include "DiscordInterface.h"
 
 #include "config.h"
+#include "Algorithms.h"
 
 #ifndef MCENGINE_FEATURE_DISCORD
 namespace Discord {
@@ -14,6 +15,7 @@ void on_rich_presence_change() {}
 #else
 
 #include "ConVar.h"
+#include "ContainerRanges.h"
 #include "Environment.h"
 #include "Logging.h"
 #include "Timing.h"
@@ -25,7 +27,6 @@ void on_rich_presence_change() {}
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
-#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <string_view>
@@ -146,7 +147,7 @@ bool ipc_write(const char *data, size_t size) {
 bool ipc_read(std::vector<char> &buf) {
     DWORD avail = 0;
     if(!PeekNamedPipe(pipe, nullptr, 0, nullptr, &avail, nullptr)) return false;
-    avail = std::min<DWORD>(avail, MAX_BUFFERED - buf.size());
+    avail = Mc::min<DWORD>(avail, MAX_BUFFERED - buf.size());
     if(avail == 0) return true;
 
     const size_t old_size = buf.size();
@@ -236,7 +237,7 @@ bool ipc_write(const char *data, size_t size) {
 bool ipc_read(std::vector<char> &buf) {
     char chunk[4096];
     while(buf.size() < MAX_BUFFERED) {
-        const ssize_t n = recv(sock, &chunk[0], std::min(sizeof(chunk), MAX_BUFFERED - buf.size()), 0);
+        const ssize_t n = recv(sock, &chunk[0], Mc::min(sizeof(chunk), MAX_BUFFERED - buf.size()), 0);
         const auto err = errno;
         if(n > 0) {
             buf.insert(buf.end(), &chunk[0], &chunk[0] + n);
@@ -270,7 +271,7 @@ void fail(u64 now) {
     if(state == State::READY) logRaw("[Discord] disconnected");
     disconnect();
     next_tick_ms = now + retry_ms;
-    retry_ms = std::min(retry_ms * 2, MAX_RETRY_MS);
+    retry_ms = Mc::min(retry_ms * 2, MAX_RETRY_MS);
 }
 
 const rapidjson::Value &member(const rapidjson::Value &obj, const char *key) {
@@ -410,7 +411,7 @@ std::string activity_command(const DiscordActivity *activity) {
         const auto valid = [](const DiscordActivity::Button &b) {
             return !b.label.empty() && !b.url.empty() && b.url.size() <= 512;
         };
-        if(std::ranges::any_of(activity->buttons, valid)) {
+        if(Mc::ranges::any_of(activity->buttons, valid)) {
             w.Key("buttons");
             w.StartArray();
             for(const auto &button : activity->buttons) {

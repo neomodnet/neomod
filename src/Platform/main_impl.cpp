@@ -34,8 +34,8 @@
 #include "SingleInstance.h"
 #include "Startup.h"
 #include "i18n.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <iterator>
@@ -530,8 +530,8 @@ static CONSTINIT std::array<char, 512> logBuf{};
 SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
     using namespace flags::operators;
     if(m_bEnvDebug) {
-        if(size_t logsz = std::min(logBuf.size(),
-                                   static_cast<size_t>(SDL_GetEventDescription(event, logBuf.data(), logBuf.size())));
+        if(size_t logsz = Mc::min(logBuf.size(),
+                                  static_cast<size_t>(SDL_GetEventDescription(event, logBuf.data(), logBuf.size())));
            logsz > 0) {
             logRaw("[handleEvent] frame: {}; event: {}", m_engine->getFrameCount(),
                    std::string_view{logBuf.data(), logsz});
@@ -955,7 +955,7 @@ bool SDLMain::createWindow() {
         if(const auto aaArg = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_GL_AA); aaArg && !aaArg->empty()) {
             auto aaSamples = Parsing::strto<u64>(aaArg.value());
             if(aaSamples > 1) {
-                aaSamples = std::clamp(std::bit_floor(aaSamples), (u64)2, (u64)16);
+                aaSamples = Mc::clamp(std::bit_floor(aaSamples), (u64)2, (u64)16);
                 SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
                 SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, static_cast<int>(aaSamples));
             }
@@ -1124,7 +1124,7 @@ bool SDLMain::createWindow() {
             // (CPU-side limiting is completely broken unless its 1*hz or 2*hz)
             cv::fps_max.setDefaultDouble(0.);
         } else {
-            const auto fourxhz = std::round(std::clamp<float>(hz * 4.0f, hz, 1000.0f));
+            const auto fourxhz = std::round(Mc::clamp<float>(hz * 4.0f, hz, 1000.0f));
             cv::fps_max.setDefaultDouble(fourxhz);
         }
         cv::fps_max_menu.setDefaultDouble(hz);
@@ -1172,14 +1172,14 @@ void SDLMain::calibrateDisplayHzWASM() {
             const double avgFrameSecs =
                 static_cast<double>(elapsedNS) / Timing::NS_PER_SECOND / (WASM_HZ_FRAMES_TO_MEASURE - 1);
             if(avgFrameSecs > 0.0) {
-                const auto measuredHz = std::clamp(static_cast<float>(1.0 / avgFrameSecs), 30.0f, 540.0f);
+                const auto measuredHz = Mc::clamp(static_cast<float>(1.0 / avgFrameSecs), 30.0f, 540.0f);
 
                 debugLog("Measured display refresh rate: {:.1f} Hz", measuredHz);
                 m_fDisplayHzSecs = 1.0f / (m_fDisplayHz = measuredHz);
 
                 // update these to the true result
                 const auto hz = std::round(m_fDisplayHz);
-                const auto fourxhz = std::round(std::clamp<float>(hz * 4.0f, hz, 1000.0f));
+                const auto fourxhz = std::round(Mc::clamp<float>(hz * 4.0f, hz, 1000.0f));
 
                 // (what the player has set stays what it is)
                 cv::fps_max.setDefaultDouble(fourxhz);
@@ -1219,7 +1219,7 @@ float SDLMain::queryDisplayHz() {
                (m_fDisplayHz < currentDisplayMode->refresh_rate - 0.01)) {
                 debugLog("Got refresh rate {:.3f} Hz for display {:d}.", currentDisplayMode->refresh_rate, display);
             }
-            const auto refreshRateSanityClamped = std::clamp<float>(currentDisplayMode->refresh_rate, 60.0f, 540.0f);
+            const auto refreshRateSanityClamped = Mc::clamp<float>(currentDisplayMode->refresh_rate, 60.0f, 540.0f);
             return refreshRateSanityClamped;
         } else {
             static int once;
@@ -1228,7 +1228,7 @@ float SDLMain::queryDisplayHz() {
         }
     }
     // if we couldn't get the refresh rate (or in wasm pre-measurement) just return a sane value to use for "vsync"-related calculations
-    return std::clamp<float>(cv::fps_max.getFloat(), 60.0f, 360.0f);
+    return Mc::clamp<float>(cv::fps_max.getFloat(), 60.0f, 360.0f);
 }
 
 void SDLMain::configureEvents() {

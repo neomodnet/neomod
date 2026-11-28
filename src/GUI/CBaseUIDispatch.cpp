@@ -9,10 +9,8 @@
 #include "Mouse.h"
 #include "TextInput.h"
 
-#include <algorithm>
 #include <array>
 #include <optional>
-#include <ranges>
 #include <span>
 #include <utility>
 #include <vector>
@@ -344,7 +342,7 @@ void State::resolveHover(CBaseUIEventCtx &c, Root root) {
     // the cursor's shape is the innermost hovered element's that has one
     if(!set.empty()) {
         this->cursorShape.reset();
-        for(CBaseUIElement *e : set | std::views::reverse) {
+        for(CBaseUIElement *e : Mc::ranges::reversed(set)) {
             if((this->cursorShape = e->getCursorShape())) break;
         }
     }

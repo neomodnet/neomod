@@ -1,8 +1,6 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
 #include "UIUserContextMenu.h"
 
-#include <algorithm>
-
 #include "Bancho.h"
 #include "BanchoNetworking.h"
 #include "BanchoProtocol.h"

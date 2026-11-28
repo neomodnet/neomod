@@ -22,6 +22,7 @@
 #include "TextInput.h"
 
 #include "AppDescriptor.h"
+#include "Algorithms.h"
 
 #if defined(MCENGINE_FEATURE_DIRECTX11)
 #include "DirectX11Interface.h"
@@ -43,7 +44,6 @@
 #include "OpenGLES32Interface.h"
 #endif
 
-#include <algorithm>
 #include <cmath>
 #include <array>
 #include <cassert>
@@ -453,8 +453,7 @@ std::string_view Environment::getUsername() const noexcept {
     std::array<wchar_t, UNLEN + 1> username{};
 
     if(GetUserNameW(username.data(), &username_len)) {
-        m_sUsername =
-            UniString::to_utf8(std::wstring_view{username.data(), (size_t)std::max(0, (int)username_len - 1)});
+        m_sUsername = UniString::to_utf8(std::wstring_view{username.data(), (size_t)Mc::max(0, (int)username_len - 1)});
     }
 #elif defined(__APPLE__) || defined(MCENGINE_PLATFORM_LINUX) || defined(MCENGINE_PLATFORM_WASM)
     std::string user = getEnvVariable("USER");
@@ -1393,7 +1392,7 @@ int Environment::getDPI() const {
 
     float dpi = m_fDisplayScale * 96;
 
-    return std::clamp<int>((int)dpi, 96, 96 * 4);  // sanity clamp
+    return Mc::clamp<int>((int)dpi, 96, 96 * 4);  // sanity clamp
 }
 
 float Environment::getPixelDensity() const {
@@ -1465,7 +1464,7 @@ bool Environment::setNormalCursorImage(const std::vector<CursorImageLayer> &laye
                      (int)std::round(layer.rect.getHeight())};
         SDL_SetSurfaceBlendMode(img, SDL_BLENDMODE_BLEND_PREMULTIPLIED);
         // the premultiplied blend doesn't apply the alpha mod to the colors
-        const auto alpha = (Uint8)std::round(std::clamp(layer.alpha, 0.f, 1.f) * 255.f);
+        const auto alpha = (Uint8)std::round(Mc::clamp(layer.alpha, 0.f, 1.f) * 255.f);
         SDL_SetSurfaceColorMod(img, alpha, alpha, alpha);
         SDL_SetSurfaceAlphaMod(img, alpha);
         anyLoaded |= SDL_BlitSurfaceScaled(img, nullptr, composite, &dst, SDL_SCALEMODE_LINEAR);
@@ -1477,10 +1476,10 @@ bool Environment::setNormalCursorImage(const std::vector<CursorImageLayer> &laye
         f32 pointScale = 1.f / getPixelDensity();
         if constexpr(Env::cfg(OS::WASM)) {
             // browsers ignore css cursors larger than 128x128
-            pointScale = std::min(pointScale, 128.f / (f32)std::max(size.x, size.y));
+            pointScale = Mc::min(pointScale, 128.f / (f32)Mc::max(size.x, size.y));
         }
-        const ivec2 pointSize{std::max(1, (int)std::round(size.x * pointScale)),
-                              std::max(1, (int)std::round(size.y * pointScale))};
+        const ivec2 pointSize{Mc::max(1, (int)std::round(size.x * pointScale)),
+                              Mc::max(1, (int)std::round(size.y * pointScale))};
 
         SDL_Surface *base = composite;
         if(pointSize != size) {
@@ -1495,7 +1494,7 @@ bool Environment::setNormalCursorImage(const std::vector<CursorImageLayer> &laye
                 for(int x = 0; x < surface->w; x++, px += 4) {
                     const u32 a = px[3];
                     if(a == 0 || a == 255) continue;
-                    for(int c = 0; c < 3; c++) px[c] = (u8)std::min<u32>(255, (px[c] * 255 + a / 2) / a);
+                    for(int c = 0; c < 3; c++) px[c] = (u8)Mc::min<u32>(255, (px[c] * 255 + a / 2) / a);
                 }
             }
         };
@@ -1504,8 +1503,8 @@ bool Environment::setNormalCursorImage(const std::vector<CursorImageLayer> &laye
 
         if(base) {
             const vec2 hotspotPos = -bounds.getMin() * pointScale;
-            const ivec2 hotspot{std::clamp((int)std::round(hotspotPos.x), 0, pointSize.x - 1),
-                                std::clamp((int)std::round(hotspotPos.y), 0, pointSize.y - 1)};
+            const ivec2 hotspot{Mc::clamp((int)std::round(hotspotPos.x), 0, pointSize.x - 1),
+                                Mc::clamp((int)std::round(hotspotPos.y), 0, pointSize.y - 1)};
             m_normalCursorImage = SDL_CreateColorCursor(base, hotspot.x, hotspot.y);
             m_normalCursorRect = McRect{-vec2{hotspot}, vec2{pointSize}};
             if(!m_normalCursorImage) debugLog("couldn't create cursor: {}", SDL_GetError());

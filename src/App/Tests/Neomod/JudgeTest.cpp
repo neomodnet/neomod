@@ -29,8 +29,8 @@
 #include "score.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <span>
 #include <cstring>
@@ -152,8 +152,8 @@ void hashState(Hash &frames, Hash &looks, const GameplayJudge &judge, f64 posMS,
 
     // what is on screen around now
     const f32 approach = judge.getApproachTime();
-    const auto from = std::partition_point(objects.clickTimes.begin(), objects.clickTimes.end(),
-                                           [&](i32 clickTime) { return clickTime < posMS - 1000 - maxDurationMS; });
+    const auto from = Mc::partition_point(objects.clickTimes.begin(), objects.clickTimes.end(),
+                                          [&](i32 clickTime) { return clickTime < posMS - 1000 - maxDurationMS; });
     for(uSz i = from - objects.clickTimes.begin(); i < objects.size(); i++) {
         if(objects.clickTimes[i] > posMS + approach) break;
         if(objects.endTimes[i] < posMS - 1000) continue;
@@ -197,7 +197,7 @@ std::string judge(DatabaseBeatmap &map, const Scenario &scenario, const std::vec
     const i32 lastMS = objects.endTimes[judge.getHitObjectsSortedByEndTime().back()];
     i32 maxDurationMS = 0;
     for(uSz i = 0; i < objects.size(); i++) {
-        maxDurationMS = std::max(maxDurationMS, objects.endTimes[i] - objects.clickTimes[i]);
+        maxDurationMS = Mc::max(maxDurationMS, objects.endTimes[i] - objects.clickTimes[i]);
     }
     const f64 frameMS = 1000.0 / 144.0;
     Hash frames, looks;
@@ -206,7 +206,7 @@ std::string judge(DatabaseBeatmap &map, const Scenario &scenario, const std::vec
     u64 numFrames = 0;
     if(replay) {
         judge.replay = *replay;
-        const f64 endMS = (f64)std::max(replay->back().cur_music_pos, lastMS) + 1000.0;
+        const f64 endMS = (f64)Mc::max(replay->back().cur_music_pos, lastMS) + 1000.0;
         for(f64 t = replay->front().cur_music_pos; t < endMS; t += frameMS) {
             judge.simulate_to((i32)std::round(t));
             judge.animate(t);
@@ -329,7 +329,7 @@ class DrawView final : public PlayfieldView {
     DrawView(const Skin *skin, ModFlags mods) : skin(skin), mods(mods) {
         const vec2 screen = engine->getScreenSize();
         const vec2 playfield{GameRules::OSU_COORD_WIDTH, GameRules::OSU_COORD_HEIGHT};
-        this->scale = std::min((screen.x - 80.f) / playfield.x, (screen.y - 80.f) / playfield.y);
+        this->scale = Mc::min((screen.x - 80.f) / playfield.x, (screen.y - 80.f) / playfield.y);
         this->offset = (screen - playfield * this->scale) / 2.0f;
     }
 
@@ -424,7 +424,7 @@ struct JudgeTest::Drawn {
         const bool freezeFrame = flags::has<ModFlags::FreezeFrame>(this->view->mods);
 
         HitObjectDrawing::drawFollowPoints(*this->view, this->judge->getHitObjects(),
-                                           (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
+                                           (uSz)Mc::max(0, this->judge->getPreviousFollowPointObjectIndex()));
 
         this->objectsToDraw.clear();
         i32 mostDistantEndTimeDrawn = 0;
@@ -432,12 +432,12 @@ struct JudgeTest::Drawn {
             const u32 obj = sorted[i];
             if((freezeFrame ? objects.comboStartTimes[obj] : objects.clickTimes[obj]) > curPos + pvs) continue;
             if(objects.finished[obj] && curPos - pvs > objects.endTimes[obj]) break;
-            mostDistantEndTimeDrawn = std::max(mostDistantEndTimeDrawn, objects.endTimes[obj]);
+            mostDistantEndTimeDrawn = Mc::max(mostDistantEndTimeDrawn, objects.endTimes[obj]);
             this->objectsToDraw.push_back(obj);
         }
         HitObjectDrawing::draw(*this->view, objects, this->objectsToDraw, this->sliderRT);
 
-        const f64 mostDistantFutureObjectPVS = std::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
+        const f64 mostDistantFutureObjectPVS = Mc::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
         for(const u32 obj : sorted.subspan(this->judge->getFirstLiveObjectByEndTime(curPos - pvs))) {
             if(objects.finished[obj] && curPos - pvs > objects.endTimes[obj]) continue;
             if(objects.clickTimes[obj] > mostDistantFutureObjectPVS) break;
@@ -518,7 +518,7 @@ void JudgeTest::update() {
     const std::vector<std::string> maps = filesUnder(*mapsDir, ".osu");
 
     if(const auto bench = getTestArg("bench")) {
-        const int rounds = std::max(1, Parsing::strto<i32>(*bench));
+        const int rounds = Mc::max(1, Parsing::strto<i32>(*bench));
         for(const auto &path : maps) {
             auto map = openMap(path);
             Replay::Mods mods;
@@ -529,10 +529,10 @@ void JudgeTest::update() {
                 f64 secs = 0.0;
                 numFrames = 0;
                 judge(*map, {"bench", mods}, nullptr, &secs, &numFrames);
-                best = std::min(best, secs);
+                best = Mc::min(best, secs);
             }
             logRaw("JudgeTest bench: {} objects, {} frames, {:.3f} ms total, {:.3f} us/frame ({})",
-                   map->getNumObjects(), numFrames, best * 1000.0, best * 1e6 / (f64)std::max<u64>(numFrames, 1),
+                   map->getNumObjects(), numFrames, best * 1000.0, best * 1e6 / (f64)Mc::max<u64>(numFrames, 1),
                    std::filesystem::path(path).filename().string());
         }
         engine->shutdown();

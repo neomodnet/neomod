@@ -19,8 +19,8 @@
 #include "UniString.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 
 namespace neomod::mainmenu {
@@ -82,7 +82,7 @@ class NowPlaying::SeekBar final : public CBaseUIElement {
 
    private:
     [[nodiscard]] f32 getCursorPercent() const {
-        return std::clamp((mouse->getPos().x - this->getPos().x) / this->getSize().x, 0.f, 1.f);
+        return Mc::clamp((mouse->getPos().x - this->getPos().x) / this->getSize().x, 0.f, 1.f);
     }
     void seek() const;
 
@@ -216,7 +216,7 @@ void NowPlaying::tick() {
 
     const f64 now = engine->getTime();
     if(this->isMouseInside() || this->seekBar->isActive()) {
-        this->expandedUntil = std::max(this->expandedUntil, now + EXPAND_LINGER);
+        this->expandedUntil = Mc::max(this->expandedUntil, now + EXPAND_LINGER);
     }
     const bool expand = cv::main_menu_music_controls_pinned.getBool() || now < this->expandedUntil;
     if(expand != this->expanded) {
@@ -249,7 +249,7 @@ void NowPlaying::tick() {
 void NowPlaying::updateLayout() {
     const f32 scale = Osu::getUIScale();
     const f32 width =
-        std::min(((f32)osu->getVirtScreenWidth() - (PAD * 2)) * scale, std::round(PANEL_MAX_WIDTH * scale));
+        Mc::min(((f32)osu->getVirtScreenWidth() - (PAD * 2)) * scale, std::round(PANEL_MAX_WIDTH * scale));
     const f32 border = std::round(scale);
     const f32 titleHeight = std::round(TITLE_HEIGHT * scale);
     const f32 buttonHeight = std::round(BUTTON_HEIGHT * scale);
@@ -402,7 +402,7 @@ void NowPlaying::drawTitle() {
     // rather than cutting glyphs off, the edges fade out in steps. on the left only while the title moves, and only
     // as far as it moved (so the start of either copy doesn't pop in or out of the fade)
     const f32 fadeRight = MARQUEE_FADE * scale;
-    const f32 fadeLeft = std::min({fadeRight, offset, period - offset});
+    const f32 fadeLeft = Mc::min({fadeRight, offset, period - offset});
     drawClipped(textX + fadeLeft, right - fadeRight, 1.f);
     for(int i = 0; i < MARQUEE_FADE_STEPS; i++) {
         const f32 alpha = ((f32)i + 0.5f) / MARQUEE_FADE_STEPS;

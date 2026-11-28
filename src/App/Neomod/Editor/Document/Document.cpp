@@ -11,8 +11,8 @@
 #include "crypto.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -101,7 +101,7 @@ std::vector<Gap> gapsOf(std::span<const Span> spans) {
     i64 latest = -OPEN;
     for(const Span &span : spans) {
         gaps.push_back({.from = latest, .to = span.start});
-        latest = std::max(latest, span.end);
+        latest = Mc::max(latest, span.end);
     }
     gaps.push_back({.from = latest, .to = OPEN});
     return gaps;
@@ -114,7 +114,7 @@ uSz gapIndexOf(std::span<const Gap> gaps, const Document::Break &b) {
 
 // the approach time breaks are timed by (the map AR within 0 to 10, whatever the game settings are)
 i64 preemptOf(f32 AR) {
-    return (i64)GameRules::mapDifficultyRange<f64>(std::clamp<f64>(AR, 0.0, 10.0), cv::defaults::approachtime_min,
+    return (i64)GameRules::mapDifficultyRange<f64>(Mc::clamp<f64>(AR, 0.0, 10.0), cv::defaults::approachtime_min,
                                                    cv::defaults::approachtime_mid, cv::defaults::approachtime_max);
 }
 
@@ -320,7 +320,7 @@ void Document::place(const std::vector<Placed<Key>> &entries, const Hash::flat::
     // among the kept ones so far
     Mc::ranges::stable_sort(moved, {}, &Placed<Key>::key);
     std::vector<Key> latest(kept.size());
-    for(uSz k = 0; k < kept.size(); k++) latest[k] = k > 0 ? std::max(latest[k - 1], kept[k].key) : kept[k].key;
+    for(uSz k = 0; k < kept.size(); k++) latest[k] = k > 0 ? Mc::max(latest[k - 1], kept[k].key) : kept[k].key;
     std::vector<uSz> before(moved.size());
     for(uSz i = 0; i < moved.size(); i++) before[i] = Mc::ranges::upper_bound(latest, moved[i].key) - latest.begin();
     // before[] grows with the keys
@@ -336,7 +336,7 @@ void Document::place(const std::vector<Placed<Key>> &entries, const Hash::flat::
     uSz last = 0;
     for(uSz j = 0; j < slots.size(); j++) {
         if(order[j] == slots[j]) continue;
-        first = std::min(first, j);
+        first = Mc::min(first, j);
         last = j;
     }
     if(first == slots.size()) return;
@@ -464,8 +464,8 @@ bool Document::fit(const Hash::flat::set<Id> &changed) {
             const Break now = defaultBreak(gap, preempt);
             const bool movedStart = !was.isOpen() && b.start != wasDefault.start;
             const bool movedEnd = !was.isOpen() && b.end != wasDefault.end;
-            out.start = movedStart ? std::clamp(b.start, now.start, gap.from + MAX_EDGE_MS) : now.start;
-            out.end = movedEnd ? std::clamp(b.end, gap.to - MAX_EDGE_MS, now.end) : now.end;
+            out.start = movedStart ? Mc::clamp(b.start, now.start, gap.from + MAX_EDGE_MS) : now.start;
+            out.end = movedEnd ? Mc::clamp(b.end, gap.to - MAX_EDGE_MS, now.end) : now.end;
             goes = out.end - out.start < MIN_BREAK_MS;
         }
         if(goes) {
@@ -538,7 +538,7 @@ void Document::apply(std::span<const Splice> splices, bool backwards) {
         runs.emplace_back(first, end);
         first = end;
     }
-    if(backwards) std::reverse(runs.begin(), runs.end());
+    if(backwards) Mc::reverse(runs.begin(), runs.end());
     for(const auto &[first, end] : runs) {
         if(end - first == 1) {
             this->apply(splices[first], backwards);
@@ -800,7 +800,7 @@ bool Document::derive() {
         }
     }
     Mc::ranges::sort(this->bookmarks);
-    this->bookmarks.erase(std::unique(this->bookmarks.begin(), this->bookmarks.end()), this->bookmarks.end());
+    this->bookmarks.erase(Mc::unique(this->bookmarks.begin(), this->bookmarks.end()), this->bookmarks.end());
 
     this->breaks.clear();
     this->background.clear();
@@ -830,8 +830,8 @@ bool Document::derive() {
     uSz entries = 0;
     for([[maybe_unused]] const auto line : file.getEntries(Kind::HIT_OBJECTS)) entries++;
     this->objectsInOrder = entries == this->primitives.objects.size() &&
-                           std::is_sorted(this->primitives.objects.begin(), this->primitives.objects.end(),
-                                          [](const auto &a, const auto &b) { return spanOf(a).line < spanOf(b).line; });
+                           Mc::is_sorted(this->primitives.objects.begin(), this->primitives.objects.end(),
+                                         [](const auto &a, const auto &b) { return spanOf(a).line < spanOf(b).line; });
     this->rewritten.clear();
     this->reshaped = false;
     this->patched.reset();
@@ -842,7 +842,7 @@ bool Document::derive() {
 bool Document::patch() {
     if(this->reshaped || !this->objectsInOrder || this->rewritten.empty()) return false;
     Mc::ranges::sort(this->rewritten);
-    this->rewritten.erase(std::unique(this->rewritten.begin(), this->rewritten.end()), this->rewritten.end());
+    this->rewritten.erase(Mc::unique(this->rewritten.begin(), this->rewritten.end()), this->rewritten.end());
 
     // each line now: an object line, read again in its slot (the objects in play order are the object lines in order,
     // so the place a line has among them is the place its object has), or a break line
@@ -913,7 +913,7 @@ bool Document::patch() {
     if(this->patched) {
         for(std::vector<uSz> *indexes : {&this->patched->objects, &this->patched->combos}) {
             Mc::ranges::sort(*indexes);
-            indexes->erase(std::unique(indexes->begin(), indexes->end()), indexes->end());
+            indexes->erase(Mc::unique(indexes->begin(), indexes->end()), indexes->end());
         }
     }
     this->rewritten.clear();
@@ -949,7 +949,7 @@ bool Document::isRequired(const Break &b) const {
     for(const auto &object : this->primitives.objects) {
         const Span span = spanOf(object);
         if(span.start >= middle) return latest != -OPEN && span.start - latest >= FILLED_GAP_MS;
-        latest = std::max(latest, span.end);
+        latest = Mc::max(latest, span.end);
     }
     return false;
 }
@@ -998,7 +998,7 @@ void Document::Change::remove(std::span<const Id> ids) {
     }
     // the last first: each leaves the lines before it where they were (and so they go in one pass)
     Mc::ranges::sort(at, std::greater<>{});
-    at.erase(std::unique(at.begin(), at.end()), at.end());
+    at.erase(Mc::unique(at.begin(), at.end()), at.end());
     std::vector<Splice> splices;
     splices.reserve(at.size());
     for(const uSz i : at) splices.push_back({.at = i, .removed = {d.lines[i]}, .inserted = {}, .reorder = false});
@@ -1068,13 +1068,13 @@ bool Document::Change::moveBreakEdge(Id id, bool end, i64 timeMS) {
     const Break usual = defaultBreak(gap, preemptOf(d.primitives.AR));
     Break b = *it;
     if(end) {
-        const i64 earliest = std::max(gap.to - MAX_EDGE_MS, b.start + MIN_BREAK_MS);
+        const i64 earliest = Mc::max(gap.to - MAX_EDGE_MS, b.start + MIN_BREAK_MS);
         if(earliest > usual.end) return false;
-        b.end = std::clamp(timeMS, earliest, usual.end);
+        b.end = Mc::clamp(timeMS, earliest, usual.end);
     } else {
-        const i64 latest = std::min(gap.from + MAX_EDGE_MS, b.end - MIN_BREAK_MS);
+        const i64 latest = Mc::min(gap.from + MAX_EDGE_MS, b.end - MIN_BREAK_MS);
         if(latest < usual.start) return false;
-        b.start = std::clamp(timeMS, usual.start, latest);
+        b.start = Mc::clamp(timeMS, usual.start, latest);
     }
     this->replace(id, formatBreak(b.start, b.end));
     return true;

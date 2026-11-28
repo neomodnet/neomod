@@ -5,6 +5,7 @@
 // $NoKeywords: $sdlgpuimg
 //===============================================================================//
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_SDLGPU
 
@@ -120,9 +121,9 @@ void SDLGPUImage::initAsync() {
     }
 
     // calculate mip levels: cap to 32px smallest mipmap (same as OpenGL/DX11)
-    const u32 maxDim = (u32)std::max(this->iWidth, this->iHeight);
+    const u32 maxDim = (u32)Mc::max(this->iWidth, this->iHeight);
     const u32 mipLevels =
-        this->bMipmapped ? (u32)std::max(2, (int)std::floor(std::log2(maxDim)) - 4) : 1;  // must be > 1 if mipmapped
+        this->bMipmapped ? (u32)Mc::max(2, (int)std::floor(std::log2(maxDim)) - 4) : 1;  // must be > 1 if mipmapped
 
     // textures have a fixed size, a resized image needs a new one
     if(this->wasResized()) m_gpu->releaseTexture(m_texture);

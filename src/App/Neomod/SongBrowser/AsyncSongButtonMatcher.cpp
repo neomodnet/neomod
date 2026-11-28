@@ -9,8 +9,8 @@
 #include "fmt/format.h"
 
 #include "DatabaseBeatmap.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <cmath>
@@ -267,8 +267,8 @@ bool narrows(const Query &prev, const Query &next) {
 SearchIndex::TextRange append_lower(std::string &out, std::string_view str) {
     const u32 begin = (u32)out.size();
     out.resize(begin + str.size());
-    std::ranges::transform(str, out.begin() + begin,
-                           [](char c) { return (char)SString::ascii_tolower((unsigned char)c); });
+    Mc::transform(str.begin(), str.end(), out.begin() + begin,
+                  [](char c) { return (char)SString::ascii_tolower((unsigned char)c); });
     const u32 end = (u32)out.size();
     out.push_back('\0');
     return {begin, end};

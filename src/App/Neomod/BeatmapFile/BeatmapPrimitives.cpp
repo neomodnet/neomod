@@ -7,8 +7,8 @@
 #include "SString.h"
 #include "SliderCurves.h"
 #include "Vectors.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -27,10 +27,10 @@ TIMINGPOINT toTimingPoint(const BeatmapFile::TimingPoint &tp) {
             .msPerBeat = tp.beatLength,
             .sampleSet = tp.sampleSet,
             .sampleIndex = tp.sampleIndex,
-            .volume = std::clamp(tp.volume, 0, 100),
+            .volume = Mc::clamp(tp.volume, 0, 100),
             .uninherited = tp.uninherited,
             .kiai = (tp.effects & BeatmapFile::TimingPoint::EFFECT_KIAI) != 0,
-            .meter = static_cast<u8>(std::clamp(tp.meter, 1, 0xff)),
+            .meter = static_cast<u8>(Mc::clamp(tp.meter, 1, 0xff)),
             .omitFirstBarline = (tp.effects & BeatmapFile::TimingPoint::EFFECT_OMIT_FIRST_BARLINE) != 0};
 }
 
@@ -47,8 +47,8 @@ template <typename Files>
 bool applyHitSample(const BeatmapFile::HitSample &sample, HITSAMPLE_BITS &samples, Files &sampleFiles) {
     samples.normalSet = sampleSetValue(sample.normalSet);
     samples.additionSet = sampleSetValue(sample.additionSet);
-    samples.volume = static_cast<u8>(std::clamp(sample.volume, 0, 100));  // for some reason this can be negative
-    samples.index = static_cast<u16>(std::clamp(sample.index, 0, 0xffff));
+    samples.volume = static_cast<u8>(Mc::clamp(sample.volume, 0, 100));  // for some reason this can be negative
+    samples.index = static_cast<u16>(Mc::clamp(sample.index, 0, 0xffff));
 
     samples.filename = 0;
     if(sample.filename.empty()) return true;
@@ -128,8 +128,8 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
         const float tickDurationPercentOfSliderLength =
             tickPixelLength / (s.pixelLength == 0.0f ? 1.0f : s.pixelLength);
         const int max_ticks = limits.sliderMaxTicks;
-        const int tickCount = std::min((int)std::ceil(s.pixelLength / tickPixelLength) - 1,
-                                       max_ticks);  // NOTE: hard sanity limit number of ticks per slider
+        const int tickCount = Mc::min((int)std::ceil(s.pixelLength / tickPixelLength) - 1,
+                                      max_ticks);  // NOTE: hard sanity limit number of ticks per slider
 
         if(tickCount > 0) {
             s.ticks.reserve(tickCount);
@@ -158,8 +158,8 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
     const i32 osuSliderEndInsideCheckOffset = limits.sliderEndInsideCheckOffset;
 
     // 1) "skip the head circle"
-    s.scoringTimesForStarCalc.reserve((size_t)std::max(s.repeat - 1, 0) +
-                                      (size_t)std::max(s.repeat, 0) * s.ticks.size() + 1);
+    s.scoringTimesForStarCalc.reserve((size_t)Mc::max(s.repeat - 1, 0) + (size_t)Mc::max(s.repeat, 0) * s.ticks.size() +
+                                      1);
 
     // 2) add repeat times (either at slider begin or end)
     for(int i = 0; i < (s.repeat - 1); i++) {
@@ -187,8 +187,8 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
     // 4) add slider end (potentially before last tick for bullshit sliders, but sorting takes care of that)
     // see https://github.com/ppy/osu/pull/4193#issuecomment-460127543
     const f32 time =
-        std::max(static_cast<f32>(s.time) + s.sliderTime / 2.0f,
-                 (static_cast<f32>(s.time) + s.sliderTime) - static_cast<f32>(osuSliderEndInsideCheckOffset));
+        Mc::max(static_cast<f32>(s.time) + s.sliderTime / 2.0f,
+                (static_cast<f32>(s.time) + s.sliderTime) - static_cast<f32>(osuSliderEndInsideCheckOffset));
     s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
         .time = time,
         .type = SLIDER_SCORING_TIME::TYPE::END,
@@ -251,15 +251,15 @@ LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, Container &c, c
             slider.type = SLIDERCURVETYPE{ho.curveType};
             slider.points.reserve(ho.curvePoints.size() + 1);
             for(const vec2 &point : ho.curvePoints) {
-                slider.points.emplace_back(std::clamp(point.x, -sliderSanityRange, sliderSanityRange),
-                                           std::clamp(point.y, -sliderSanityRange, sliderSanityRange));
+                slider.points.emplace_back(Mc::clamp(point.x, -sliderSanityRange, sliderSanityRange),
+                                           Mc::clamp(point.y, -sliderSanityRange, sliderSanityRange));
             }
 
             // special case: osu! logic for handling the hitobject point vs the controlpoints (since
             // sliders have both, and older beatmaps store the start point inside the control
             // points)
-            vec2 xy = vec2(std::clamp(ho.x, -sliderSanityRange, sliderSanityRange),
-                           std::clamp(ho.y, -sliderSanityRange, sliderSanityRange));
+            vec2 xy = vec2(Mc::clamp(ho.x, -sliderSanityRange, sliderSanityRange),
+                           Mc::clamp(ho.y, -sliderSanityRange, sliderSanityRange));
             if(slider.points.size() > 0) {
                 if(slider.points[0] != xy) slider.points.insert(slider.points.begin(), xy);
             } else {
@@ -279,8 +279,8 @@ LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, Container &c, c
             // edge fields do, and as read by lazer)
             HITSAMPLE_BITS objectEdge = slider.hoverSamples;
             objectEdge.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-            slider.edgeSamples.reserve(std::max<uSz>(std::max(ho.edgeSounds.size(), ho.edgeSets.size()), 2));
-            for(uSz i = 0; i < std::max(ho.edgeSounds.size(), ho.edgeSets.size()); i++) {
+            slider.edgeSamples.reserve(Mc::max<uSz>(Mc::max(ho.edgeSounds.size(), ho.edgeSets.size()), 2));
+            for(uSz i = 0; i < Mc::max(ho.edgeSounds.size(), ho.edgeSets.size()); i++) {
                 HITSAMPLE_BITS samples = objectEdge;
                 if(i < ho.edgeSounds.size()) samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
                 if(i < ho.edgeSets.size()) {
@@ -299,13 +299,13 @@ LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, Container &c, c
             const auto pixelLength = static_cast<f32>(ho.length);
             slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
             slider.y = (f32)(i32)ho.y;
-            slider.repeat = std::clamp(ho.slides, 0, sliderMaxRepeatRange);
+            slider.repeat = Mc::clamp(ho.slides, 0, sliderMaxRepeatRange);
             slider.pixelLength =
-                std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
+                std::isnan(pixelLength) ? 0.f : Mc::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
             if(slider.pixelLength == 0.f) {
                 // without a length: as long as its curve
                 slider.pixelLength =
-                    std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
+                    Mc::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
             }
             slider.line = line;
             // only by timing points: whatever needs slider times checks the map has some
@@ -374,7 +374,7 @@ TIMING_INFO TimingPoints::getTimingInfo(i32 positionMS) const {
     const TIMINGPOINT &audio = this->entries[audioPoint].point;
 
     const f32 mult = (samplePoint > point && sample.msPerBeat < 0)
-                         ? std::clamp<f32>((f32)-sample.msPerBeat, 10.0f, 1000.0f) / 100.0f
+                         ? Mc::clamp<f32>((f32)-sample.msPerBeat, 10.0f, 1000.0f) / 100.0f
                          : 1.f;
 
     TIMING_INFO ti;
@@ -401,14 +401,14 @@ f64 TimingPoints::getBeatLengthMultiplier(i32 positionMS) const {
     const Entry &at = this->entries[this->entryAt(positionMS)];
     const DBType::TIMINGPOINT &sample = this->entries[at.lastInherited].point;
     return at.lastInherited > at.lastUninherited && sample.msPerBeat < 0
-               ? std::clamp(-sample.msPerBeat, 10.0, 1000.0) / 100.0
+               ? Mc::clamp(-sample.msPerBeat, 10.0, 1000.0) / 100.0
                : 1.0;
 }
 
 uSz TimingPoints::entryAt(i32 positionMS) const {
     const Entry *const first = this->entries.data();
-    const Entry *const after = std::upper_bound(first, first + this->entries.size(), positionMS,
-                                                [](i32 time, const Entry &e) { return time < e.point.offset; });
+    const Entry *const after = Mc::upper_bound(first, first + this->entries.size(), positionMS,
+                                               [](i32 time, const Entry &e) { return time < e.point.offset; });
     return after == first ? 0 : (after - first) - 1;
 }
 
@@ -630,7 +630,7 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     for(const auto &section : file.getSections()) {
         if(section.readAs == Kind::HIT_OBJECTS) lines += section.lines;
     }
-    c.objects.reserve(std::min<uSz>(lines, limits.maxHitObjects));
+    c.objects.reserve(Mc::min<uSz>(lines, limits.maxHitObjects));
     bool inTimeOrder = true;
     i32 previousTime = std::numeric_limits<i32>::min();
     for(const auto line : file.getEntries(Kind::HIT_OBJECTS)) {

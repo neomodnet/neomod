@@ -11,8 +11,8 @@
 #include "SoundEngine.h"
 #include "SongBrowser/VolNormalization.h"
 #include "Timing.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <utility>
@@ -224,7 +224,7 @@ void MusicTrack::setVirtualTime(bool on) {
     this->playing = this->stream && this->stream->isPlaying();
     if(!on && std::exchange(this->outsideSong, false)) {
         // the song's own time again: its start before it, its end past it
-        this->time = std::clamp(this->time, 0.0, (f64)this->getLengthMS());
+        this->time = Mc::clamp(this->time, 0.0, (f64)this->getLengthMS());
         this->seeked = true;
     }
 }
@@ -280,7 +280,7 @@ u32 MusicTrack::getRestartPoint() const {
 }
 
 void MusicTrack::setPosition(i32 ms) {
-    if(!this->virtualTime) ms = std::max(ms, 0);
+    if(!this->virtualTime) ms = Mc::max(ms, 0);
     this->time = ms;
     this->seeked = true;
     if(!this->isReady()) {
@@ -311,7 +311,7 @@ void MusicTrack::setRate(f32 speed, bool preservePitch) {
 
 void MusicTrack::setSlowdown(f32 factor) {
     this->slowdown = factor;
-    if(this->stream) this->stream->setFrequency(std::max(this->baseFrequency * factor, 100.f));
+    if(this->stream) this->stream->setFrequency(Mc::max(this->baseFrequency * factor, 100.f));
 }
 
 void MusicTrack::endSlowdown() {
@@ -354,7 +354,7 @@ u32 MusicTrack::getLengthMS() const { return this->stream ? this->stream->getLen
 
 f64 MusicTrack::getPositionPct() const {
     const u32 length = this->getLengthMS();
-    return length > 0 ? std::clamp((f64)this->time / length, 0.0, 1.0) : 0.0;
+    return length > 0 ? Mc::clamp((f64)this->time / length, 0.0, 1.0) : 0.0;
 }
 
 void MusicTrack::onDeviceChangeBefore() {

@@ -14,8 +14,8 @@
 #include "binary_embed.h"
 
 #include "fmt/chrono.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <iterator>
 #include <unordered_set>
 #include <utility>
@@ -71,7 +71,7 @@ void ConVarHandler::remove(ConVar &cvar) {
     assert(this->iChangeDepth == 0 && this->iNotifyDepth == 0 && "a convar can't go away during a change");
 
     // (searched from the back: at exit, the statics go in the reverse order of their registration)
-    if(const auto it = std::find(this->vConVarArray.rbegin(), this->vConVarArray.rend(), &cvar);
+    if(const auto it = Mc::find(this->vConVarArray.rbegin(), this->vConVarArray.rend(), &cvar);
        it != this->vConVarArray.rend()) {
         this->vConVarArray.erase(std::next(it).base());
     }
@@ -424,7 +424,7 @@ void ConVarHandler::ConVarBuiltins::dumpcommands(void) {
     html.append(R"(</section>)");
 
     html.append(fmt::format(R"(<p style="text-align:center">
-        This page was generated on {:%Y-%m-%d} for )" PACKAGE_NAME R"( v{:.2f}.<br>
+        This page was generated on {} for )" PACKAGE_NAME R"( v{:.2f}.<br>
         Use the <code>dumpcommands</code> command to regenerate it yourself.
     </p>)",
                             fmt::gmtime(std::time(nullptr)), cv::version.getDouble()));

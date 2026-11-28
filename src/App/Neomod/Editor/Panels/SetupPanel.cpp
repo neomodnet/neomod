@@ -23,8 +23,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <optional>
 #include <span>
@@ -322,7 +322,7 @@ SetupPanel::SetupPanel(EditorState &state, CBaseUIPopupLayer &popups)
                 played.push_back(rgb(240, 240, 240));
             } else if(const Skin *skin = osu->getSkin(); skin && !skin->c_combo_colors.empty()) {
                 const std::span<const Color> skins{skin->c_combo_colors};
-                played = inPlayOrder(skins.first(std::min(skins.size(), MAX_COLOURS)));
+                played = inPlayOrder(skins.first(Mc::min(skins.size(), MAX_COLOURS)));
             } else {
                 played.push_back(rgb(240, 240, 240));
             }

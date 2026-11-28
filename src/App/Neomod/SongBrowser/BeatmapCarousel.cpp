@@ -2,6 +2,7 @@
 
 #include "BeatmapCarousel.h"
 #include "CBaseUIEventCtx.h"
+#include "ContainerRanges.h"
 #include "CollectionButton.h"
 #include "CarouselButton.h"
 #include "SongButton.h"
@@ -10,8 +11,7 @@
 #include "OptionsOverlay.h"
 #include "Engine.h"
 #include "Mouse.h"
-
-#include <algorithm>
+#include "Algorithms.h"
 
 bool BeatmapCarousel::songButtonComparator(const CBaseUIElement *a, const CBaseUIElement *b) {
     return a->getRelPos().y < b->getRelPos().y;
@@ -109,7 +109,7 @@ void BeatmapCarousel::setRowPositions(std::vector<f32> newRowY) {
     const f64 border = (f64)(i32)(this->getSize().y / 2);
     const dvec2 extent{this->rowY.empty() ? 0. : rowSize.x, this->rowY.empty() ? 0. : this->rowY.back() + rowSize.y};
     this->setScrollSize(extent + dvec2{border, border});
-    if(const f64 lowest = std::min(this->getSize().y - this->getScrollSize().y, 1.); this->getRelPosY() < lowest) {
+    if(const f64 lowest = Mc::min(this->getSize().y - this->getScrollSize().y, 1.); this->getRelPosY() < lowest) {
         this->scrollToY((i32)lowest, false);
     }
 
@@ -117,7 +117,7 @@ void BeatmapCarousel::setRowPositions(std::vector<f32> newRowY) {
 }
 
 size_t BeatmapCarousel::findRow(CarouselNode node) const {
-    return std::ranges::find(this->rows, node) - this->rows.begin();
+    return Mc::ranges::find(this->rows, node) - this->rows.begin();
 }
 
 void BeatmapCarousel::resetAnimations() {
@@ -166,8 +166,8 @@ bool BeatmapCarousel::updateWindow() {
         const f32 slack = this->getSize().y * (CLIPPING_SCALE - 1.f) / 2.f + rowHeight;
         const f32 top = -(f32)this->getRelPosY() - slack;
         const f32 bottom = top + this->getSize().y + 2.f * slack;
-        begin = std::lower_bound(this->rowY.begin(), this->rowY.end(), top - rowHeight) - this->rowY.begin();
-        end = std::lower_bound(this->rowY.begin() + (sSz)begin, this->rowY.end(), bottom) - this->rowY.begin();
+        begin = Mc::lower_bound(this->rowY.begin(), this->rowY.end(), top - rowHeight) - this->rowY.begin();
+        end = Mc::lower_bound(this->rowY.begin() + (sSz)begin, this->rowY.end(), bottom) - this->rowY.begin();
     }
     if(!this->bWindowDirty && begin == this->windowBegin && end == this->windowEnd) return false;
     this->bWindowDirty = false;
@@ -178,7 +178,7 @@ bool BeatmapCarousel::updateWindow() {
     for(size_t i = begin; i < end; i++) {
         const CarouselNode node = this->rows[i];
         CarouselButton *button = nullptr;
-        if(auto it = std::ranges::find(previous, node, &CarouselButton::node); it != previous.end()) {
+        if(auto it = Mc::ranges::find(previous, node, &CarouselButton::node); it != previous.end()) {
             button = *it;
             previous.erase(it);
             button->setTargetRelPosY(this->rowY[i]);
@@ -255,7 +255,7 @@ void BeatmapCarousel::updateInput(CBaseUIEventCtx &c) {
             // map onto the scrollbar's track, the upper/lower bounds of the carousel are hidden behind the bars
             const f64 trackTop = this->getPos().y + this->fScrollbarInsetTop;
             const f64 trackHeight = this->getSize().y - this->fScrollbarInsetTop - this->fScrollbarInsetBottom;
-            const f64 mouseYPct = std::clamp((mouse->getPos().y - 2.0 - trackTop) / trackHeight, 0.0, 1.0);
+            const f64 mouseYPct = Mc::clamp((mouse->getPos().y - 2.0 - trackTop) / trackHeight, 0.0, 1.0);
             this->scrollToY(static_cast<int>(-mouseYPct * this->getScrollSize().y));
         }
     }

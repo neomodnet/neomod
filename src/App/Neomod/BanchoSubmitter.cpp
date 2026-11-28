@@ -22,8 +22,8 @@
 #include "UI.h"
 #include "i18n.h"
 #include "score.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstring>
@@ -111,7 +111,7 @@ void on_submission_response(u64 id, const Mc::Net::Response &response) {
         }
 
         // 5s, 10s, 20s, 40s, then every minute
-        const f64 delay = std::min(5.0 * (1 << std::min(it->failed_attempts, 4u)), 60.0);
+        const f64 delay = Mc::min(5.0 * (1 << Mc::min(it->failed_attempts, 4u)), 60.0);
         it->failed_attempts++;
         it->next_attempt_time = engine->getTime() + delay;
         debugLog("Score submission failed ({}), retrying in {}s", reason, delay);

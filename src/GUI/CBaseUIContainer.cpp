@@ -1,7 +1,7 @@
 // Copyright (c) 2011, PG, All rights reserved.
 #include "CBaseUIContainer.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -114,7 +114,7 @@ CBaseUIContainer *CBaseUIContainer::insertBaseUIElement(CBaseUIElement *element,
     for(ssize_t i = 0; i < this->vElements.size(); i++) {
         if(this->vElements[i] == index) {
             this->vElements.insert(
-                this->vElements.begin() + std::clamp<ssize_t>(i, 0, static_cast<ssize_t>(this->vElements.size())),
+                this->vElements.begin() + Mc::clamp<ssize_t>(i, 0, static_cast<ssize_t>(this->vElements.size())),
                 element);
             return this;
         }
@@ -133,7 +133,7 @@ CBaseUIContainer *CBaseUIContainer::insertBaseUIElementBack(CBaseUIElement *elem
     for(ssize_t i = 0; i < this->vElements.size(); i++) {
         if(this->vElements[i] == index) {
             this->vElements.insert(
-                this->vElements.begin() + std::clamp<ssize_t>(i + 1, 0, static_cast<ssize_t>(this->vElements.size())),
+                this->vElements.begin() + Mc::clamp<ssize_t>(i + 1, 0, static_cast<ssize_t>(this->vElements.size())),
                 element);
             return this;
         }

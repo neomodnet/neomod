@@ -15,8 +15,6 @@
 #include "UI.h"
 #include "Logging.h"
 
-#include <algorithm>
-
 #ifdef MCENGINE_PLATFORM_WASM
 #include <emscripten/emscripten.h>
 

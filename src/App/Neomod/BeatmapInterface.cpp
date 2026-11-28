@@ -1,7 +1,7 @@
 // Copyright (c) 2015, PG, All rights reserved.
 #include "BeatmapInterface.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -219,9 +219,9 @@ void BeatmapInterface::drawBackground() {
         if(cv::background_brightness.getFloat() > 0.0f) {
             const f32 brightness = cv::background_brightness.getFloat();
 
-            const Channel red = std::clamp<float>(brightness * cv::background_color_r.getFloat(), 0.0f, 255.0f);
-            const Channel green = std::clamp<float>(brightness * cv::background_color_g.getFloat(), 0.0f, 255.0f);
-            const Channel blue = std::clamp<float>(brightness * cv::background_color_b.getFloat(), 0.0f, 255.0f);
+            const Channel red = Mc::clamp<float>(brightness * cv::background_color_r.getFloat(), 0.0f, 255.0f);
+            const Channel green = Mc::clamp<float>(brightness * cv::background_color_g.getFloat(), 0.0f, 255.0f);
+            const Channel blue = Mc::clamp<float>(brightness * cv::background_color_b.getFloat(), 0.0f, 255.0f);
             const Channel alpha = 255 * (1.0f - this->fBreakBackgroundFade) *
                                   (cv::mod_fposu.getBool() ? cv::background_alpha.getFloat() : 1.0f);
 
@@ -307,10 +307,10 @@ void BeatmapInterface::skipEmptySection() {
         this->music.setPosition(*this->getStoryboardEnd() + 1);
         this->bWasSeekFrame = true;
     } else if(!cv::end_skip.getBool() && nextHitObjectDelta < 0) {
-        this->music.setPosition(std::max(this->music.getLengthMS(), (u32)1) - 1);
+        this->music.setPosition(Mc::max(this->music.getLengthMS(), (u32)1) - 1);
         this->bWasSeekFrame = true;
     } else {
-        this->music.setPosition(std::max(nextHitObjectTime - (i32)(offset * offsetMultiplier), (i32)0));
+        this->music.setPosition(Mc::max(nextHitObjectTime - (i32)(offset * offsetMultiplier), (i32)0));
         this->bWasSeekFrame = true;
     }
 
@@ -853,8 +853,8 @@ void BeatmapInterface::seekToStart(bool quick) {
     // lead-in
     i32 start_ms = 0;
     if(quick && likely(!hitobjects.empty())) {
-        const i32 retry_time = std::max(0, cv::quick_retry_time.getInt());
-        start_ms = std::max(hitobjects.clickTimes[0] - retry_time, 0);
+        const i32 retry_time = Mc::max(0, cv::quick_retry_time.getInt());
+        start_ms = Mc::max(hitobjects.clickTimes[0] - retry_time, 0);
     }
     if(start_ms == 0 && likely(!hitobjects.empty()) && hitobjects.clickTimes[0] < cv::early_note_time.getInt()) {
         start_ms = -(i32)(cv::early_note_time.getFloat() * this->getSpeedMultiplier());
@@ -862,7 +862,7 @@ void BeatmapInterface::seekToStart(bool quick) {
     // a storyboard starting before that gets its lead-in (not on quick restarts)
     if(const auto span = this->storyboard ? this->storyboard->getTimeSpan() : std::nullopt; span && !quick) {
         const i32 offset = this->music.getOffset(this->beatmap, this->judge->getMapVersion());
-        start_ms = std::min(start_ms, (i32)std::floor(span->first) - offset);
+        start_ms = Mc::min(start_ms, (i32)std::floor(span->first) - offset);
     }
     this->music.setPosition(start_ms);
     this->fCurMusicPos = start_ms;
@@ -1185,7 +1185,7 @@ const std::vector<LiveScore::TimedHitResult> &BeatmapInterface::getTimelineHitre
     return this->kind == PlayKind::REPLAY ? this->replay_hitresults : osu->getScore()->hitresults;
 }
 
-u32 BeatmapInterface::getTime() const { return (u32)std::max(std::round(this->music.getTime()), 0.0); }
+u32 BeatmapInterface::getTime() const { return (u32)Mc::max(std::round(this->music.getTime()), 0.0); }
 
 u32 BeatmapInterface::getStartTimePlayable() const {
     if(this->judge && !this->judge->getHitObjects().empty())
@@ -1221,13 +1221,13 @@ f32 BeatmapInterface::getPercentFinishedPlayable() const {
     if(this->bIsWaiting) {
         // (through the lead-in)
         if(this->iLeadInMS <= 0) return 0.f;
-        return std::clamp(1.f + (f32)this->fCurMusicPos / (f32)this->iLeadInMS, 0.f, 1.f);
+        return Mc::clamp(1.f + (f32)this->fCurMusicPos / (f32)this->iLeadInMS, 0.f, 1.f);
     } else {
         f32 length_playable = this->getLengthPlayable();
         if(length_playable <= 0.f) return 0.f;
 
         f32 time_since_first_object = (f32)this->getTime() - (f32)this->getStartTimePlayable();
-        return std::clamp(time_since_first_object / length_playable, 0.f, 1.f);
+        return Mc::clamp(time_since_first_object / length_playable, 0.f, 1.f);
     }
 }
 
@@ -1410,7 +1410,7 @@ void BeatmapInterface::playSpinnerSpinSound(f32 ratio, DatabaseBeatmapTypes::HIT
         }
         if(skin->o_spinner_frequency_modulate) {
             // same as stable: 20 kHz at the start, +40 kHz per required spin speed, capped at 100 kHz
-            const f32 frequency = std::min(100000.0f, 20000.0f + (i32)(std::max(ratio, 0.0f) * 40000.0f));
+            const f32 frequency = Mc::min(100000.0f, 20000.0f + (i32)(Mc::max(ratio, 0.0f) * 40000.0f));
             spinner_spinsound->setFrequency(frequency);
         } else {
             // sanity reset
@@ -1463,7 +1463,7 @@ Storyboard::View BeatmapInterface::getStoryboardView() const {
         .flipX = cv::playfield_mirror_vertical.getBool(),
         .flipY = cv::playfield_mirror_horizontal.getBool(),
         .rotation = cv::playfield_rotation.getFloat(),
-        .brightness = std::clamp(1.f - cv::background_dim.getFloat() + this->fBreakBackgroundFade * 0.3f, 0.f, 1.f),
+        .brightness = Mc::clamp(1.f - cv::background_dim.getFloat() + this->fBreakBackgroundFade * 0.3f, 0.f, 1.f),
     };
 }
 
@@ -1561,7 +1561,7 @@ void BeatmapInterface::draw() {
     // draw loading circle
     if(this->isLoading()) {
         if(this->is_buffering) {
-            i32 leeway = std::min(this->getSpectatingLeeway(), cv::spec_buffer.getInt());
+            i32 leeway = Mc::min(this->getSpectatingLeeway(), cv::spec_buffer.getInt());
             f32 pct = (f32)leeway / (cv::spec_buffer.getFloat()) * 100.f;
             std::string loadingMessage = _("Buffering ...");
             if(pct > 0.f) {
@@ -1612,7 +1612,7 @@ void BeatmapInterface::draw() {
     // draw followpoints
     if(cv::draw_followpoints.getBool() && !cv::mod_mafham.getBool())
         HitObjectDrawing::drawFollowPoints(*this, this->judge->getHitObjects(),
-                                           (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
+                                           (uSz)Mc::max(0, this->judge->getPreviousFollowPointObjectIndex()));
 
     // draw all hitobjects in reverse
     if(cv::draw_hitobjects.getBool()) this->drawHitObjects();
@@ -1656,7 +1656,7 @@ void BeatmapInterface::drawFlashlight() {
 
     // Update flashlight position
     const double follow_delay = cv::flashlight_follow_delay.getFloat();
-    const double frame_time = std::min(engine->getFrameTime(), follow_delay);
+    const double frame_time = Mc::min(engine->getFrameTime(), follow_delay);
     float t = frame_time / follow_delay;
     t = t * (2.f - t);
     this->flashlight_position += t * (mouse_position - this->flashlight_position);
@@ -1742,7 +1742,7 @@ void BeatmapInterface::drawSmoke() {
         if(active_for >= time_visible) continue;  // avoids division by 0 when (time_visible == time_fully_visible)
 
         // Start fading out when time_fully_visible has passed
-        const f32 alpha = (f32)std::min(fade_time, time_fully_visible - active_for) / (f32)fade_time;
+        const f32 alpha = (f32)Mc::min(fade_time, time_fully_visible - active_for) / (f32)fade_time;
         if(alpha <= 0.f) continue;
 
         g->setColor(argb(alpha, 1.f, 1.f, 1.f));
@@ -1785,7 +1785,7 @@ void BeatmapInterface::drawContinue() {
 
     // pulse animation
     const float cursorAnimPulsePercent =
-        std::clamp<float>(static_cast<float>(std::fmod(engine->getTime(), 1.35)), 0.0f, 1.0f);
+        Mc::clamp<float>(static_cast<float>(std::fmod(engine->getTime(), 1.35)), 0.0f, 1.0f);
     g->setColor(argb((short)(255.0f * (1.0f - cursorAnimPulsePercent)), 255, 153, 51));
     g->pushTransform();
     {
@@ -1847,7 +1847,7 @@ void BeatmapInterface::drawHitObjects() {
         // this avoids PVS culling objects which are overlapped before the end of other objects, like circles appearing before
         // sliders are finished causing the initial slider approach circle to not be drawn
         // e.g.: the first object of https://osu.ppy.sh/beatmapsets/613791#osu/1294898
-        const f64 mostDistantFutureObjectPVS = std::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
+        const f64 mostDistantFutureObjectPVS = Mc::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
 
         // this doesn't need the spinner front-to-back thing because spinners have no draw2
         const uSz firstLive = usePVS ? this->judge->getFirstLiveObjectByEndTime(curPos - pvs) : 0;
@@ -1950,7 +1950,7 @@ void BeatmapInterface::drawHitObjects() {
         // draw followpoints
         if(cv::draw_followpoints.getBool())
             HitObjectDrawing::drawFollowPoints(*this, this->judge->getHitObjects(),
-                                               (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
+                                               (uSz)Mc::max(0, this->judge->getPreviousFollowPointObjectIndex()));
 
         // draw live hitobjects (also, code duplication yay)
         {
@@ -2137,7 +2137,7 @@ void BeatmapInterface::update2() {
         if(likely(!hitobjects.empty()) && this->fCurMusicPos > hitobjects.clickTimes[0]) {
             const f32 percentFinished = ((this->fCurMusicPos - hitobjects.clickTimes[0]) /
                                          (f64)(hitobjects.endTimes.back() - hitobjects.clickTimes[0]));
-            f32 warp_multiplier = std::max(cv::mod_timewarp_multiplier.getFloat(), 1.f);
+            f32 warp_multiplier = Mc::max(cv::mod_timewarp_multiplier.getFloat(), 1.f);
             const f32 speed =
                 this->getSpeedMultiplier() + percentFinished * this->getSpeedMultiplier() * (warp_multiplier - 1.0f);
             this->setMusicSpeed(speed);
@@ -2155,7 +2155,7 @@ void BeatmapInterface::update2() {
             this->bIsPlaying = true;
 
             // (from where the play waited, see seekToStart())
-            this->iLeadInMS = (i32)std::round(-std::min(this->fCurMusicPos, 0.0));
+            this->iLeadInMS = (i32)std::round(-Mc::min(this->fCurMusicPos, 0.0));
             // (without a lead-in the waiting ends with the start)
             this->bIsWaiting = this->iLeadInMS > 0;
 
@@ -2199,7 +2199,7 @@ void BeatmapInterface::update2() {
         const bool isTimePastLastHitObjectPlusLenience =
             !sortedByEndTime.empty() &&
             (this->fCurMusicPos >
-             std::max(hitobjects.endTimes[sortedByEndTime.back()] + (i32)cv::end_delay_time.getInt(), storyboardEnd));
+             Mc::max(hitobjects.endTimes[sortedByEndTime.back()] + (i32)cv::end_delay_time.getInt(), storyboardEnd));
         if(!hasAnyHitObjects || (cv::end_skip.getBool() && isTimePastLastHitObjectPlusLenience) ||
            (!cv::end_skip.getBool() && isMusicFinished && this->fCurMusicPos > storyboardEnd)) {
             if(!this->judge->hasFailed()) {
@@ -2230,7 +2230,7 @@ void BeatmapInterface::update2() {
 
                 // how long after the last music update did this click occur?
                 const u64 clickDeltaSinceLastUpdate = click.timestampNS - lastUpdateTime;
-                const f64 percent = std::clamp((f64)clickDeltaSinceLastUpdate / (f64)timeSinceLastUpdate, 0.0, 1.0);
+                const f64 percent = Mc::clamp((f64)clickDeltaSinceLastUpdate / (f64)timeSinceLastUpdate, 0.0, 1.0);
 
                 // interpolate between the music position when click was captured and current music position
                 // TODO: aim-between-frames
@@ -2283,7 +2283,7 @@ void BeatmapInterface::update2() {
         if(next_frame.milliseconds_since_last_frame > 0) {
             // frames are taken by the rounded time, so the current one can be up to half a ms ahead
             const f64 ms_since_last_frame = this->fCurMusicPosWithOffsets - current_frame.cur_music_pos;
-            percent = std::max(0.f, (f32)(ms_since_last_frame / next_frame.milliseconds_since_last_frame));
+            percent = Mc::max(0.f, (f32)(ms_since_last_frame / next_frame.milliseconds_since_last_frame));
         }
 
         this->interpolatedMousePos = this->replayCoords2Pixels(
@@ -2791,7 +2791,7 @@ const AsyncPPC::pp_res &BeatmapInterface::getWholeMapPPInfo() const {
 
 i32 BeatmapInterface::getSpectatingLeeway() const {
     if(!this->judge || this->judge->replay.empty()) return 0;
-    return std::max(0, this->judge->replay.back().cur_music_pos - this->getJudgeMusicPos());
+    return Mc::max(0, this->judge->replay.back().cur_music_pos - this->getJudgeMusicPos());
 }
 
 bool BeatmapInterface::isLoading() {

@@ -2,8 +2,8 @@
 #include "BeatSnap.h"
 
 #include "ContainerRanges.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <limits>
@@ -14,7 +14,7 @@ bool hasBeats(f64 beatLength) { return beatLength > 0.0 && std::isfinite(beatLen
 
 // a time in whole milliseconds, truncated (within what they can be)
 i32 truncated(f64 time) {
-    return (i32)std::clamp(time, (f64)std::numeric_limits<i32>::min(), (f64)std::numeric_limits<i32>::max());
+    return (i32)Mc::clamp(time, (f64)std::numeric_limits<i32>::min(), (f64)std::numeric_limits<i32>::max());
 }
 }  // namespace
 
@@ -71,13 +71,13 @@ i32 BeatSnap::step(i32 time, i32 ticks, i32 divisor, bool playing) const {
     i32 count = std::abs(ticks);
     if(this->sections.empty() || divisor <= 0) {
         // a beat of 1000 ms, 60 BPM
-        const i32 unit = 1000 / std::max(divisor, 1);
+        const i32 unit = 1000 / Mc::max(divisor, 1);
         const i32 target = time + direction * unit * count;
-        return direction < 0 ? std::max(unit * (target / unit), 0) : unit * (target / unit);
+        return direction < 0 ? Mc::max(unit * (target / unit), 0) : unit * (target / unit);
     }
 
     const f64 beatLength = this->beatLengthAt(time);
-    if(playing) count *= (i32)std::floor(250.0 / std::max(std::trunc(beatLength), 1.0)) + 1;
+    if(playing) count *= (i32)std::floor(250.0 / Mc::max(std::trunc(beatLength), 1.0)) + 1;
     const f64 skip = std::trunc(beatLength / (playing ? 1 : divisor)) * count;
     return this->snap(time + direction * skip, divisor, time);
 }
@@ -95,11 +95,11 @@ f64 BeatSnap::offGrid(f64 time) const {
     // the ticks for every divisor are among the ticks for these two
     for(const f64 divisor : {12.0, 16.0}) {
         const f64 ticks = (time - section.time) / (section.beatLength / divisor);
-        off = std::min(off, std::abs(ticks - std::round(ticks)) * (section.beatLength / divisor));
+        off = Mc::min(off, std::abs(ticks - std::round(ticks)) * (section.beatLength / divisor));
     }
     if(const auto next = Mc::ranges::upper_bound(this->sections, time, {}, &Section::time);
        next != this->sections.end()) {
-        off = std::min(off, next->time - time);
+        off = Mc::min(off, next->time - time);
     }
     return std::isfinite(off) ? off : 0.0;
 }

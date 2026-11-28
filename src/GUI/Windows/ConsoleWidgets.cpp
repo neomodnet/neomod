@@ -12,8 +12,8 @@
 #include "Mouse.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 
 namespace Mc {
@@ -131,16 +131,15 @@ class ConsoleSuggestionButton final : public CBaseUIButton {
                 constexpr std::string_view helpTextSeparator = "-";
                 const int helpTextOffset = std::round(2.0f * this->font->getStringWidth(helpTextSeparator) *
                                                       ((float)this->font->getDPI() / 96.0f));  // NOTE: abusing font dpi
-                const int helpTextSeparatorStringWidth =
-                    std::max(1, (int)this->font->getStringWidth(helpTextSeparator));
-                const int helpTextStringWidth = std::max(1, (int)this->font->getStringWidth(this->sHelpText));
+                const int helpTextSeparatorStringWidth = Mc::max(1, (int)this->font->getStringWidth(helpTextSeparator));
+                const int helpTextStringWidth = Mc::max(1, (int)this->font->getStringWidth(this->sHelpText));
 
                 g->pushTransform();
                 {
-                    const float scale = std::min(
-                        1.0f, (std::max(1.0f, this->list->getSize().x - this->fStringWidth - helpTextOffset * 1.5f -
-                                                  helpTextSeparatorStringWidth * 1.5f)) /
-                                  (float)helpTextStringWidth);
+                    const float scale =
+                        Mc::min(1.0f, (Mc::max(1.0f, this->list->getSize().x - this->fStringWidth -
+                                                         helpTextOffset * 1.5f - helpTextSeparatorStringWidth * 1.5f)) /
+                                          (float)helpTextStringWidth);
 
                     g->scale(scale, scale);
                     g->translate((int)(this->getPos().x + this->fStringWidth + helpTextOffset * scale / 2 +
@@ -176,7 +175,7 @@ ConsoleSuggestionList::ConsoleSuggestionList(float xPos, float yPos, float xSize
 }
 
 float ConsoleSuggestionList::getDPIScale() const {
-    return ((float)std::max(env->getDPI(), engine->getDefaultFont()->getDPI()) / 96.0f);  // NOTE: abusing font dpi
+    return ((float)Mc::max(env->getDPI(), engine->getDefaultFont()->getDPI()) / 96.0f);  // NOTE: abusing font dpi
 }
 
 float ConsoleSuggestionList::getRowHeight() const {
@@ -208,7 +207,7 @@ void ConsoleSuggestionList::rebuild(std::string_view input) {
 
     const int count = static_cast<int>(suggestions.size());
     if(count > 0) {
-        this->setSizeY(std::min(count, 4) * rowHeight + bottomAdd);
+        this->setSizeY(Mc::min(count, 4) * rowHeight + bottomAdd);
         this->setScrollSizeToContent();
         this->scrollToElement(this->container.getElements()[0], 0, 0, false);  // new content, no scroll-in from the old
     }

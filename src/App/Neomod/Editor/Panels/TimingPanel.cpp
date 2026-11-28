@@ -26,8 +26,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <span>
@@ -44,7 +44,7 @@ constexpr Color INHERITED_COLOR{argb(255, 140, 220, 40)};
 // the tempo of an uninherited point, and the slider velocity of an inherited one as taken by the game
 f64 bpmOf(const Point &point) { return point.beatLength > 0.0 ? 60000.0 / point.beatLength : 0.0; }
 f64 velocityOf(const Point &point) {
-    return point.beatLength < 0.0 ? 100.0 / std::clamp(-point.beatLength, 10.0, 1000.0) : 1.0;
+    return point.beatLength < 0.0 ? 100.0 / Mc::clamp(-point.beatLength, 10.0, 1000.0) : 1.0;
 }
 // what's shown has this many decimals: `scale` is ten to their number
 f64 rounded(f64 value, f64 scale) { return std::round(value * scale) / scale; }
@@ -93,7 +93,7 @@ class TimingPanel::Lamps final : public CBaseUIElement {
         if(!beat) return;
         const UIStyle &style = uiStyle();
         const McRect &rect = this->getRect();
-        const i32 count = std::min(beat->meter, MAX_LAMPS);
+        const i32 count = Mc::min(beat->meter, MAX_LAMPS);
         const float gap = style.px(style.metrics.gap);
         const float width = (rect.getWidth() - gap * (float)(count - 1)) / (float)count;
         for(i32 i = 0; i < count; i++) {
@@ -397,7 +397,7 @@ void TimingPanel::nudgeTempo(f64 by) {
     std::vector<Document::Id> targets;
     for(const uSz row : this->summarize().rows) targets.push_back(ids[row]);
     this->retime(targets, Which::UNINHERITED, this->tempoGesture, [by](Point &point) {
-        point.beatLength = Retiming::beatLengthOf(std::clamp(rounded(bpmOf(point) + by, 1000.0), 1.0, 10000.0));
+        point.beatLength = Retiming::beatLengthOf(Mc::clamp(rounded(bpmOf(point) + by, 1000.0), 1.0, 10000.0));
     });
 }
 

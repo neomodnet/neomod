@@ -15,11 +15,11 @@
 #include "Parsing.h"
 #include "Replay.h"
 #include "SString.h"
+#include "Algorithms.h"
 
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <algorithm>
 #include <atomic>
 #include <charconv>
 #include <cmath>
@@ -343,7 +343,7 @@ int runBatch(const std::vector<std::string> &argv) {
     std::ostream &out = outFile.empty() ? std::cout : outStream;
 
     const size_t numMaps = paths.size();
-    jobs = std::max(1U, std::min(jobs, static_cast<unsigned int>(numMaps)));
+    jobs = Mc::max(1U, Mc::min(jobs, static_cast<unsigned int>(numMaps)));
 
     // each worker takes the next unprocessed map; the main thread emits finished blocks strictly
     // in input order, so the output is byte-identical no matter the job count

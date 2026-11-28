@@ -5,6 +5,7 @@
 #include "KeyboardEvent.h"
 #include "Registration.h"
 #include "UIScreen.h"
+#include "Algorithms.h"
 
 #include <memory>
 #include <string_view>
@@ -35,7 +36,7 @@ class ToastElement final : public CBaseUIButton {
     [[nodiscard]] f64 getTimeRemaining() const;
     [[nodiscard]] bool hasTimedOut() const;
 
-    inline void setTimeout(f64 timeout) { this->timeout = std::max(timeout, 0.5); }
+    inline void setTimeout(f64 timeout) { this->timeout = Mc::max(timeout, 0.5); }
     void freezeTimeout();  // stop the timeout at the currently remaining time
     void dismiss();        // times out right away
 

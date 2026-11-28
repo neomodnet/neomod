@@ -1,6 +1,7 @@
 // Copyright (c) 2025, WH, All rights reserved.
 #include "config.h"
 #include "CrashHandler.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_PLATFORM_WASM
 
@@ -344,7 +345,7 @@ void invalid_parameter_handler(const wchar_t *expression, const wchar_t *functio
         errtext += fmt::format(":{}\n", line);
     }
 
-    memcpy(g_userStream.data(), errtext.c_str(), std::min(g_userStream.size() - 1, errtext.length()));
+    memcpy(g_userStream.data(), errtext.c_str(), Mc::min(g_userStream.size() - 1, errtext.length()));
 
     write_crash_dump_internal(&g_exceptionPointers);
 

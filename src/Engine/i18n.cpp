@@ -1,5 +1,6 @@
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include "i18n.h"
+#include "Algorithms.h"
 
 // Stub-mode builds get all their i18n behavior
 // from i18n.h's passthrough branch, so this TU compiles to empty there.
@@ -12,7 +13,6 @@
 #include "Thread.h"
 #include "types.h"
 
-#include <algorithm>  // std::is_sorted, std::ranges::replace
 #include <array>
 #include <utility>  // std::unreachable on gcc
 
@@ -184,7 +184,7 @@ int get_plural(int n) {
 // instead of silently making _() return -1 for valid strings.
 
 // (this is moved to the .cpp to avoid redundantly running is_sorted on all strings in every compilation unit that includes it)
-static_assert(std::is_sorted(std::begin(TRANSLATABLE_STRINGS), std::end(TRANSLATABLE_STRINGS)),
+static_assert(Mc::is_sorted(std::begin(TRANSLATABLE_STRINGS), std::end(TRANSLATABLE_STRINGS)),
               "TRANSLATABLE_STRINGS must be sorted (string_index relies on binary search)");
 
 std::span<const Language> get_available_languages() { return {std::data(LANGUAGES), std::size(LANGUAGES)}; }
@@ -209,7 +209,7 @@ void load(std::string_view locale) {
 
     // en_US.UTF-8 -> en-US -> en + US
     std::string tag{SString::split(locale, '.')[0]};
-    std::ranges::replace(tag, '_', '-');
+    Mc::ranges::replace(tag, '_', '-');
     std::string lang{SString::split(tag, '-')[0]};
 
     // English is the source language; no .mo blob is embedded for it. Re-check after parsing
@@ -228,7 +228,7 @@ void load(std::string_view locale) {
     int best_rank = 0;
     for(const auto& language : LANGUAGES) {
         std::string candidate{language.code};
-        std::ranges::replace(candidate, '_', '-');
+        Mc::ranges::replace(candidate, '_', '-');
         const int rank = candidate == tag ? 3 : candidate == lang ? 2 : candidate.starts_with(lang + '-') ? 1 : 0;
         if(rank > best_rank) {
             match = &language;

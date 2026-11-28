@@ -22,8 +22,8 @@
 #include "SoundEngine.h"
 #include "VertexArrayObject.h"
 #include "crypto.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -186,8 +186,8 @@ struct GroupBuilder : PerProperty<CommandVector> {
     void add(std::vector<Command<T>> &list, Command<T> cmd) {
         if(cmd.end < cmd.start) cmd.end = cmd.start;
         list.push_back(cmd);
-        this->start = std::min(this->start, cmd.start);
-        this->end = std::max(this->end, cmd.end);
+        this->start = Mc::min(this->start, cmd.start);
+        this->end = Mc::max(this->end, cmd.end);
     }
 
     [[nodiscard]] Group build(Lists &lists) {
@@ -199,7 +199,7 @@ struct GroupBuilder : PerProperty<CommandVector> {
                 return a.start != b.start ? a.start < b.start : a.end < b.end;
             });
             f64 reach = -INF;
-            for(auto &cmd : cmds) cmd.reach = reach = std::max(reach, cmd.end);
+            for(auto &cmd : cmds) cmd.reach = reach = Mc::max(reach, cmd.end);
             auto &all = lists.of<Command<T>>();
             range = {.first = (u32)all.size(), .count = (u32)cmds.size()};
             all.insert(all.end(), cmds.begin(), cmds.end());
@@ -258,7 +258,7 @@ struct Pick {
         const f64 local = time - offset;
         const auto started = Mc::ranges::upper_bound(cmds, local, {}, &Command<T>::start);
         if(const auto first =
-               std::lower_bound(cmds.begin(), started, local, [](const Command<T> &c, f64 t) { return c.reach < t; });
+               Mc::lower_bound(cmds.begin(), started, local, [](const Command<T> &c, f64 t) { return c.reach < t; });
            first != started) {
             this->one(*first, offset, time);
         } else if(started != cmds.begin()) {
@@ -758,9 +758,9 @@ void StoryboardParser::eventLine(std::string_view line) {
             this->sb.samples.push_back({.time = time,
                                         .layer = *layer,
                                         .path = cleanPath(fields[3]),
-                                        .volume = std::clamp(volume, 0.f, 100.f) / 100.f});
-            this->sb.spanStart = std::min(this->sb.spanStart, time);
-            this->sb.spanEnd = std::max(this->sb.spanEnd, time);
+                                        .volume = Mc::clamp(volume, 0.f, 100.f) / 100.f});
+            this->sb.spanStart = Mc::min(this->sb.spanStart, time);
+            this->sb.spanEnd = Mc::max(this->sb.spanEnd, time);
         }
         return;
     }
@@ -777,7 +777,7 @@ void StoryboardParser::eventLine(std::string_view line) {
         i32 count;
         if(fields.size() < 3 || !readNumber(fields[1], start) || !Parsing::strto_s(fields[2], count)) return;
         this->endNested();
-        this->nested = Loop{.start = start, .iterations = std::max(count, 1), .cmds = {}};
+        this->nested = Loop{.start = start, .iterations = Mc::max(count, 1), .cmds = {}};
         this->group = &this->nestedCmds;
         return;
     }
@@ -810,8 +810,8 @@ void StoryboardParser::eventLine(std::string_view line) {
     } else if(!readNumber(fields[3], end)) {
         return;
     }
-    this->sb.spanStart = std::min(this->sb.spanStart, start);
-    this->sb.spanEnd = std::max(this->sb.spanEnd, end);
+    this->sb.spanStart = Mc::min(this->sb.spanStart, start);
+    this->sb.spanEnd = Mc::max(this->sb.spanEnd, end);
     const Ease ease = easing >= 0 && easing < (i32)Ease::COUNT ? (Ease)easing : Ease::Linear;
 
     if(type == "P") {
@@ -836,7 +836,7 @@ void StoryboardParser::eventLine(std::string_view line) {
         if(values.size() < arity || !read(values.subspan(0, arity), from)) return;
 
         // https://osu.ppy.sh/wiki/en/Storyboard/Scripting/Shorthand
-        const f64 duration = std::max(end - start, 0.0);
+        const f64 duration = Mc::max(end - start, 0.0);
         const uSz before = list.size();
         const f64 groupStart = group->start, groupEnd = group->end;
         for(uSz i = arity; i + arity <= values.size(); i += arity) {
@@ -893,8 +893,8 @@ void Storyboard::Impl::finish() {
         f64 earliest = sprite.cmds.start;
         f64 end = sprite.cmds.end;
         for(const auto &loop : loops) {
-            earliest = std::min(earliest, loop.start + loop.cmds.start);
-            end = std::max(end, loop.start + loop.cmds.start + loop.duration() * loop.iterations);
+            earliest = Mc::min(earliest, loop.start + loop.cmds.start);
+            end = Mc::max(end, loop.start + loop.cmds.start + loop.duration() * loop.iterations);
         }
         sprite.earliestCommand = earliest;
         sprite.start = earliest;
@@ -920,7 +920,7 @@ void Storyboard::Impl::finish() {
             const auto first = Mc::ranges::min_element(alphas, {}, &std::pair<f64, const Command<f32> *>::first);
             f64 firstVisible = INF;
             for(const auto &[start, cmd] : alphas) {
-                if(visible(cmd->from) || visible(cmd->to)) firstVisible = std::min(firstVisible, start);
+                if(visible(cmd->from) || visible(cmd->to)) firstVisible = Mc::min(firstVisible, start);
             }
             if(!visible(first->second->from) && firstVisible < INF) sprite.start = firstVisible;
         }
@@ -932,13 +932,13 @@ void Storyboard::Impl::finish() {
             const auto add = [&](std::span<const Command<f32>> cmds, f64 offset) {
                 if(cmds.empty()) return;
                 last.sorted(cmds, offset, INF);
-                fadeEnd = std::max(fadeEnd, cmds.back().reach + offset);
+                fadeEnd = Mc::max(fadeEnd, cmds.back().reach + offset);
             };
             add(this->lists[sprite.cmds.alpha], 0.0);
             for(const auto &loop : loops) {
                 add(this->lists[loop.cmds.alpha], loop.start + loop.duration() * (loop.iterations - 1));
             }
-            if(!visible(last.past.cmd->to)) sprite.end = std::min(sprite.end, fadeEnd);
+            if(!visible(last.past.cmd->to)) sprite.end = Mc::min(sprite.end, fadeEnd);
         }
 
         bool s = false, v = false, m = false, xy = false;
@@ -1072,7 +1072,7 @@ void Storyboard::Impl::eachGroup(u32 index, f64 time, f64 firedBy, Fn &&fn) cons
         // command) are on it, the others still on k - 1; before the loop they're all on the first, after it on the last
         const f64 duration = loop.duration();
         const f64 k = duration > 0.0 ? std::floor((time - loop.start - loop.cmds.start) / duration) : 0.0;
-        const f64 iteration = std::clamp(k, 0.0, (f64)(loop.iterations - 1));
+        const f64 iteration = Mc::clamp(k, 0.0, (f64)(loop.iterations - 1));
         const f64 current = loop.start + duration * iteration;
         const f64 split = iteration == k && k > 0.0 ? time - current : INF;
         fn(loop.cmds, [&](auto &pick, const auto &cmds) {
@@ -1125,13 +1125,12 @@ std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 
         this->playTo(index, slots, time);
         slots.play(picks, time);
         pos = slots.pos;
-        scale = slots.vectorScale * std::max(slots.scale, 0.f);
+        scale = slots.vectorScale * Mc::max(slots.scale, 0.f);
     } else {
         const auto move = picks.move.value(time);
         pos =
             move ? *move : vec2{picks.x.value(time).value_or(sprite.pos.x), picks.y.value(time).value_or(sprite.pos.y)};
-        scale =
-            picks.vectorScale.value(time).value_or(vec2{1.f}) * std::max(picks.scale.value(time).value_or(1.f), 0.f);
+        scale = picks.vectorScale.value(time).value_or(vec2{1.f}) * Mc::max(picks.scale.value(time).value_or(1.f), 0.f);
     }
 
     SpriteState state{
@@ -1151,7 +1150,7 @@ std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 
         const auto frame = (i64)std::floor(since / sprite.frameDelay);
         const auto count = (i64)sprite.frameCount;
         state.frame =
-            (u32)(sprite.loopForever ? ((frame % count) + count) % count : std::clamp<i64>(frame, 0, count - 1));
+            (u32)(sprite.loopForever ? ((frame % count) + count) % count : Mc::clamp<i64>(frame, 0, count - 1));
     }
     return state;
 }
@@ -1327,7 +1326,7 @@ void Storyboard::load(bool visualsOnly) {
     // on the leaderboard.
     std::vector<std::pair<std::string, std::string>> used = std::move(sb.used);
     Mc::ranges::sort(used);
-    used.erase(std::unique(used.begin(), used.end()), used.end());
+    used.erase(Mc::unique(used.begin(), used.end()), used.end());
     sb.hashing = Async::submit(
         [folder = sb.folder, used = std::move(used), osb = sb.hasOsb ? std::optional{sb.osbHash} : std::nullopt]() {
             std::string manifest = fmt::format("osb\t{}\n", osb ? osb->to_chars().string() : "-");
@@ -1370,7 +1369,7 @@ void Storyboard::update(f64 time, bool passing, bool seeked) {
         // (a sample more than 400 ms late is left out: after a hitch they'd all play at once)
         for(auto it = sb.sounds.empty()
                           ? sb.samples.end()
-                          : Mc::ranges::upper_bound(sb.samples, std::max(sb.time, time - 400.0), {}, &Sample::time);
+                          : Mc::ranges::upper_bound(sb.samples, Mc::max(sb.time, time - 400.0), {}, &Sample::time);
             it != sb.samples.end() && it->time <= time; ++it) {
             if((it->layer == Layer::FAIL && passing) || (it->layer == Layer::PASS && !passing)) continue;
             if(Sound *sound = sb.sounds[it->sound]; sound && sound->isReady()) {
@@ -1396,8 +1395,8 @@ void Storyboard::update(f64 time, bool passing, bool seeked) {
     for(uSz layer = 0; layer < sb.live.size(); layer++) {
         auto &live = sb.live[layer];
         const auto joined = live.begin() + (sSz)before[layer];
-        std::sort(joined, live.end());
-        std::inplace_merge(live.begin(), joined, live.end());
+        Mc::sort(joined, live.end());
+        Mc::inplace_merge(live.begin(), joined, live.end());
         std::erase_if(live, [&](u32 index) { return sb.sprites[index].end < time; });
         for(const u32 index : live) {
             if(const u32 slots = sb.sprites[index].slots; slots != NO_INDEX) sb.playTo(index, sb.slots[slots], time);

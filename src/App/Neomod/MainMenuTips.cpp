@@ -11,6 +11,7 @@
 #include "Bancho.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
 #include <array>
 #include <memory>
@@ -148,9 +149,9 @@ std::string getCurrentTip() {
 void cycleTip(int addIndex) {
     assert(getAllTips().size() > 0);
     if(addIndex > 0) {
-        addIndex = std::min(addIndex, static_cast<int>(getAllTips().size() - 1));
+        addIndex = Mc::min(addIndex, static_cast<int>(getAllTips().size() - 1));
     } else if(addIndex < 0) {
-        addIndex = -std::min(-addIndex, static_cast<int>(getAllTips().size() - 1));
+        addIndex = -Mc::min(-addIndex, static_cast<int>(getAllTips().size() - 1));
     }
     if(addIndex == 0) {
         return;

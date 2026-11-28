@@ -1,13 +1,14 @@
 #pragma once
 // Copyright (c) 2014, PG, All rights reserved.
 
+#include "noinclude.h"
 #include "types.h"
 #include "Resource.h"
+#include "Algorithms.h"
 
 #include <unordered_map>
 #include <cmath>
 #include <memory>
-#include <algorithm>
 
 #define SOUND_TYPE(ClassName, TypeID, ParentClass)                      \
     static constexpr TypeId TYPE_ID = TypeID;                           \
@@ -59,7 +60,7 @@ class Sound : public Resource {
     void setBaseVolume(float volume);
     [[nodiscard]] constexpr float getBaseVolume() const { return this->fBaseVolume; }
 
-    [[nodiscard]] f64 getPositionPct() const { return std::clamp<f64>(getPositionS() / getLengthS(), 0.0f, 1.0f); }
+    [[nodiscard]] f64 getPositionPct() const { return Mc::clamp<f64>(getPositionS() / getLengthS(), 0.0f, 1.0f); }
 
     // as the backend last reported it, which moves in steps of its output buffer (smoothing is up to the caller)
     virtual u64 getPositionUS() const = 0;

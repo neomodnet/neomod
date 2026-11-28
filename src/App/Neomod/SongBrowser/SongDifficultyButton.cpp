@@ -16,6 +16,7 @@
 #include "Osu.h"
 #include "Skin.h"
 #include "score.h"
+#include "Algorithms.h"
 
 using namespace neomod::sbr;
 
@@ -39,7 +40,7 @@ void SongDifficultyButton::draw() {
     const vec2 size = this->getActualSize();
 
     // delay requesting the image itself a bit
-    if(this->fVisibleFor >= ((std::clamp<f32>(cv::songbrowser_thumbnail_delay.getFloat(), 0.f, 2.f)) / 4.f)) {
+    if(this->fVisibleFor >= ((Mc::clamp<f32>(cv::songbrowser_thumbnail_delay.getFloat(), 0.f, 2.f)) / 4.f)) {
         // draw background image
         this->drawBeatmapBackgroundThumbnail(osu->getBackgroundImageHandler()->getLoadBackgroundImage(map));
     }
@@ -73,16 +74,16 @@ void SongDifficultyButton::draw() {
         const float starOffsetY = (size.y * 0.85);
         const float starWidth = (size.y * 0.2);
         const float starScale = starWidth / skin->i_star.getHeight();
-        const int numFullStars = std::clamp<int>((int)stars, 0, 25);
+        const int numFullStars = Mc::clamp<int>((int)stars, 0, 25);
         const float partialStarScale =
-            std::max(0.5f, std::clamp<float>(stars - numFullStars, 0.0f, 1.0f));  // at least 0.5x
+            Mc::max(0.5f, Mc::clamp<float>(stars - numFullStars, 0.0f, 1.0f));  // at least 0.5x
 
         g->setColor(selected ? skin->c_song_select_active_text : skin->c_song_select_inactive_text);
 
         // full stars
         for(int i = 0; i < numFullStars; i++) {
             const float scale =
-                std::min(starScale * 1.175f, starScale + i * 0.015f);  // more stars = getting bigger, up to a limit
+                Mc::min(starScale * 1.175f, starScale + i * 0.015f);  // more stars = getting bigger, up to a limit
 
             g->pushTransform();
             {

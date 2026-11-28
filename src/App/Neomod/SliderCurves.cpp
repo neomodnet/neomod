@@ -2,8 +2,8 @@
 #include "SliderCurves.h"
 #include "noinclude.h"
 #include "types.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <array>
 #include <optional>
@@ -124,7 +124,7 @@ class SCEDMBuilder final {
         m_poolStack.clear();
 
         u32 initialIdx = acquireCurve();
-        std::copy_n(controlPoints, m_bezierCount, m_curvePool[initialIdx].begin());
+        Mc::copy_n(controlPoints, m_bezierCount, m_curvePool[initialIdx].begin());
         m_poolStack.push_back(initialIdx);
 
         while(!m_poolStack.empty()) {
@@ -142,7 +142,7 @@ class SCEDMBuilder final {
 
             subdivide(parent, m_leftChild.data(), right);
 
-            std::copy_n(m_leftChild.data(), m_bezierCount, parent);
+            Mc::copy_n(m_leftChild.data(), m_bezierCount, parent);
 
             m_poolStack.push_back(rightIdx);
             m_poolStack.push_back(parentIdx);
@@ -307,7 +307,7 @@ void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curve
 
     if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
     g_curveBuilder.extendTo(m_pixelLength);
-    m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
+    m_NCurve = Mc::min((u32)(m_pixelLength / Mc::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
 
     if(g_curveBuilder.hasPoints()) {
         g_curveBuilder.build(m_curvePoints, m_startAngle, m_endAngle, m_NCurve, m_pixelLength);
@@ -341,7 +341,7 @@ void SliderCurve::constructCatmull(std::span<const vec2> controlPoints, f32 curv
 
     if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
     g_curveBuilder.extendTo(m_pixelLength);
-    m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
+    m_NCurve = Mc::min((u32)(m_pixelLength / Mc::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
 
     if(g_curveBuilder.hasPoints()) {
         g_curveBuilder.build(m_curvePoints, m_startAngle, m_endAngle, m_NCurve, m_pixelLength);
@@ -461,8 +461,8 @@ void SliderCurve::constructCircular(const CircularArc &arc, f32 curvePointsSepar
         const i32 amountPoints =
             (2.f * radius <= CIRC_ARC_TOLERANCE)
                 ? 2
-                : std::max(2, (i32)std::ceil(naturalArcAngle /
-                                             (2.0 * std::acos(1.0 - (f64)CIRC_ARC_TOLERANCE / (f64)radius))));
+                : Mc::max(2, (i32)std::ceil(naturalArcAngle /
+                                            (2.0 * std::acos(1.0 - (f64)CIRC_ARC_TOLERANCE / (f64)radius))));
 
         g_curveBuilder.reset();
         auto &arcPoints = g_curveBuilder.getPoints();
@@ -491,8 +491,7 @@ void SliderCurve::constructCircular(const CircularArc &arc, f32 curvePointsSepar
         }
 
         // equal-distance resample via SCEDMBuilder
-        m_NCurve =
-            std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), (u32)maxPoints);
+        m_NCurve = Mc::min((u32)(m_pixelLength / Mc::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), (u32)maxPoints);
 
         if(!arcPoints.empty()) {
             g_curveBuilder.build(m_curvePoints, m_startAngle, m_endAngle, m_NCurve, m_pixelLength);
@@ -516,11 +515,11 @@ void SliderCurve::constructCircular(const CircularArc &arc, f32 curvePointsSepar
                              180.0f / PI_F);
 
         // calculate points
-        const f32 steps = std::min(m_pixelLength / (std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), maxPoints);
+        const f32 steps = Mc::min(m_pixelLength / (Mc::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), maxPoints);
         const i32 intSteps = (i32)std::round(steps) + 2;  // must guarantee an int range of 0 to steps!
         if(intSteps > 0) m_curvePoints.reserve(intSteps);
         for(i32 i = 0; i < intSteps; i++) {
-            f32 t = std::clamp<f32>((f32)i / steps, 0.0f, 1.0f);
+            f32 t = Mc::clamp<f32>((f32)i / steps, 0.0f, 1.0f);
             m_curvePoints.push_back(pointAt(t));
 
             if(t >= 1.0f)  // early break if we've already reached the end
@@ -610,8 +609,8 @@ vec2 SliderCurve::pointAt(f32 t) const {
             SLIDER_CURVE_MAX_LENGTH;  // NOTE: added to fix some aspire problems (endless drawFollowPoints and star calc etc.)
         const f32 ang = std::lerp(m_circStartAngle, m_circEndAngle, t);
 
-        return {std::clamp<f32>(std::cos(ang) * m_circRadius + m_circCenterX, -sanityRange, sanityRange),
-                std::clamp<f32>(std::sin(ang) * m_circRadius + m_circCenterY, -sanityRange, sanityRange)};
+        return {Mc::clamp<f32>(std::cos(ang) * m_circRadius + m_circCenterX, -sanityRange, sanityRange),
+                Mc::clamp<f32>(std::sin(ang) * m_circRadius + m_circCenterY, -sanityRange, sanityRange)};
     }
 }
 

@@ -30,8 +30,8 @@
 #include "UniString.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -677,7 +677,7 @@ void ToolUITest::testLists() {
     rows.asked.clear();
     list.draw();
     Mc::ranges::sort(rows.asked);
-    rows.asked.erase(std::unique(rows.asked.begin(), rows.asked.end()), rows.asked.end());
+    rows.asked.erase(Mc::unique(rows.asked.begin(), rows.asked.end()), rows.asked.end());
     TEST_ASSERT(rows.asked == std::vector<uSz>({46, 47, 48, 49, 50}), "only the rows in view are asked for their text");
     list.onWheel({.delta = 120, .ticks = 1}, {});
     TEST_ASSERT_EQ(list.getRowsInView().first, 43u, "the wheel scrolls by three rows");

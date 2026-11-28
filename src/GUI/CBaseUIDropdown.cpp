@@ -7,8 +7,8 @@
 #include "UIStyle.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <utility>
 
 CBaseUIDropdown::CBaseUIDropdown(CBaseUIPopupLayer &layer, std::vector<std::string> options, std::string name)
@@ -75,7 +75,7 @@ void CBaseUIDropdown::draw() {
 vec2 CBaseUIDropdown::getNaturalSize() {
     const UIStyle &style = uiStyle();
     float widest = 0.f;
-    for(const std::string &option : this->options) widest = std::max(widest, style.font()->getStringWidth(option));
+    for(const std::string &option : this->options) widest = Mc::max(widest, style.font()->getStringWidth(option));
     return {widest + style.px(style.metrics.controlPadding) + style.px(style.metrics.markWidth),
             style.px(style.metrics.controlHeight)};
 }

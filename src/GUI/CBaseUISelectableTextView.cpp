@@ -8,10 +8,9 @@
 #include "Font.h"
 #include "Graphics.h"
 #include "Mouse.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
-#include <ranges>
 #include <utility>
 
 vec2 CBaseUISelectableTextView::getContentOrigin() const {
@@ -31,7 +30,7 @@ CBaseUISelectableTextView::TextPos CBaseUISelectableTextView::hitTest(vec2 pos) 
     if(count == 0) return {};
 
     const vec2 origin = this->getContentOrigin();
-    const auto indices = std::views::iota(size_t{0}, count);
+    const Mc::ranges::iota indices(size_t{0}, count);
 
     // the row under pos: the last run starting above it and the runs sharing its y (above the first row: its start)
     const auto next =
@@ -61,13 +60,13 @@ CBaseUISelectableTextView::TextPos CBaseUISelectableTextView::hitTest(vec2 pos) 
 std::string CBaseUISelectableTextView::getSelectedText() const {
     if(!this->hasSelection()) return {};
 
-    const auto [from, to] = std::minmax(this->selAnchor, this->selHead);
+    const auto [from, to] = Mc::minmax(this->selAnchor, this->selHead);
     std::string out;
     for(size_t i = from.run; i <= to.run && i < this->getRunCount(); i++) {
         const TextRun run = this->getRun(i);
         if(i > from.run) out += run.separator;
-        const size_t b0 = std::min((i == from.run) ? from.byte : 0, run.text.size());
-        const size_t b1 = std::min((i == to.run) ? to.byte : run.text.size(), run.text.size());
+        const size_t b0 = Mc::min((i == from.run) ? from.byte : 0, run.text.size());
+        const size_t b1 = Mc::min((i == to.run) ? to.byte : run.text.size(), run.text.size());
         if(b1 > b0) out += run.text.substr(b0, b1 - b0);
     }
     return out;
@@ -77,14 +76,14 @@ void CBaseUISelectableTextView::drawSelection() const {
     if(!this->hasSelection()) return;
 
     const size_t count = this->getRunCount();
-    const auto [from, to] = std::minmax(this->selAnchor, this->selHead);
+    const auto [from, to] = Mc::minmax(this->selAnchor, this->selHead);
     if(from.run >= count) return;
 
     const vec2 origin = this->getContentOrigin();
     const McRect clip = this->getClipRect();
 
     // only the runs inside the view (reading order: a run's bottom edge is never above the previous one's)
-    const auto indices = std::views::iota(from.run, std::min(to.run + 1, count));
+    const Mc::ranges::iota indices(from.run, Mc::min(to.run + 1, count));
     auto it = Mc::ranges::lower_bound(indices, clip.getY(), {}, [&](size_t i) {
         const TextRun run = this->getRun(i);
         return origin.y + run.pos.y + run.height;
@@ -167,8 +166,7 @@ void CBaseUISelectableTextView::onCapturedMouseMove() {
     this->selHead = this->hitTest(pos);
 
     // dragging past the top/bottom edge scrolls the text along (a row per 1/30 s), no further than the content
-    const int step =
-        std::max(1, (int)std::round(engine->getFrameTime() * 30. * this->getRun(this->selHead.run).height));
+    const int step = Mc::max(1, (int)std::round(engine->getFrameTime() * 30. * this->getRun(this->selHead.run).height));
     if(pos.y < this->getPos().y)
         this->scrollToY((int)std::round(this->vScrollPos.y) + step, false);
     else if(pos.y > this->getPos().y + this->getSize().y)
@@ -196,7 +194,7 @@ void CBaseUISelectableTextView::onCapturedMoveThrough() {
     }
 
     const vec2 pull = vec::abs(pos - this->vPressPos);
-    if(std::max(pull.x, pull.y) > (float)this->iScrollResistance && this->stealCapture()) {
+    if(Mc::max(pull.x, pull.y) > (float)this->iScrollResistance && this->stealCapture()) {
         this->beginSelection(this->vPressPos);
         this->selHead = this->hitTest(pos);
     }

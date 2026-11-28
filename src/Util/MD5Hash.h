@@ -1,7 +1,6 @@
 #ifndef UTIL_MD5HASH_H
 #define UTIL_MD5HASH_H
 
-#include <algorithm>
 #include <cstring>
 #include <array>
 #include <string_view>
@@ -94,7 +93,11 @@ struct ALIGNED_TO(sizeof(void *) * 2) MD5Hash final : public std::array<MD5Byte,
 
     // this is just a fast heuristic check, a better one would be to check if there's a sequence of contiguous
     // zero memory over a certain length instead of the absolute number of zeros, but that's much slower
-    [[nodiscard]] inline bool is_suspicious() const { return std::count(this->begin(), this->end(), 0) >= 10; }
+    [[nodiscard]] inline bool is_suspicious() const {
+        int zeroes = 0;
+        for(const MD5Byte byte : *this) zeroes += byte == 0;
+        return zeroes >= 10;
+    }
 
     static const MD5Hash sentinel;
 };

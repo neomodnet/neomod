@@ -24,8 +24,8 @@
 #include "i18n.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <cctype>
 #include <optional>
@@ -43,7 +43,7 @@ std::optional<MD5Hash> parse_md5(std::string_view str) {
     if(str.size() != md5.size() || !Mc::ranges::all_of(str, [](unsigned char c) { return std::isxdigit(c) != 0; })) {
         return std::nullopt;
     }
-    std::copy(str.begin(), str.end(), md5.begin());
+    Mc::copy(str.begin(), str.end(), md5.begin());
     return MD5Hash{md5};
 }
 

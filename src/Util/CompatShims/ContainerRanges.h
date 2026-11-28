@@ -7,8 +7,8 @@
 #endif
 
 #include "noinclude.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -66,7 +66,7 @@ constexpr forceinline auto projected(Comp comp, Proj proj) {
 template <typename R, typename T, typename Proj = std::identity>
 constexpr forceinline auto find(R& r, const T& val, Proj proj = {}) {
     if constexpr(std::is_same_v<Proj, std::identity>) {
-        return std::find(std::begin(r), std::end(r), val);
+        return Mc::find(std::begin(r), std::end(r), val);
     } else {
         auto it = std::begin(r);
         for(const auto end = std::end(r); it != end; ++it) {
@@ -123,7 +123,7 @@ constexpr forceinline std::ptrdiff_t count_if(R&& r, Pred pred, Proj proj = {}) 
 template <typename R, typename T, typename Proj = std::identity>
 constexpr forceinline std::ptrdiff_t count(R&& r, const T& val, Proj proj = {}) {
     if constexpr(std::is_same_v<Proj, std::identity>) {
-        return std::count(std::begin(r), std::end(r), val);
+        return Mc::count(std::begin(r), std::end(r), val);
     } else {
         return Mc::ranges::count_if(r, [&val](const auto& e) -> bool { return e == val; }, proj);
     }
@@ -131,47 +131,80 @@ constexpr forceinline std::ptrdiff_t count(R&& r, const T& val, Proj proj = {}) 
 
 template <typename R1, typename R2, typename Pred = std::equal_to<>>
 constexpr forceinline bool equal(const R1& r1, const R2& r2, Pred pred = {}) {
-    return std::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2), pred);
+    return Mc::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2), pred);
 }
 
 template <typename R, typename T>
 constexpr forceinline void replace(R&& r, const T& old_value, const T& new_value) {
-    std::replace(std::begin(r), std::end(r), old_value, new_value);
+    Mc::replace(std::begin(r), std::end(r), old_value, new_value);
 }
 
 template <typename R, typename Comp = std::less<>, typename Proj = std::identity>
 constexpr forceinline void sort(R&& r, Comp comp = {}, Proj proj = {}) {
-    std::sort(std::begin(r), std::end(r), detail::projected(comp, proj));
+    Mc::sort(std::begin(r), std::end(r), detail::projected(comp, proj));
 }
 
 template <typename R, typename Comp = std::less<>, typename Proj = std::identity>
 constexpr forceinline void stable_sort(R&& r, Comp comp = {}, Proj proj = {}) {
-    std::stable_sort(std::begin(r), std::end(r), detail::projected(comp, proj));
+    Mc::stable_sort(std::begin(r), std::end(r), detail::projected(comp, proj));
 }
 
 template <typename R, typename Comp = std::less<>, typename Proj = std::identity>
 constexpr forceinline auto min_element(R& r, Comp comp = {}, Proj proj = {}) {
-    return std::min_element(std::begin(r), std::end(r), detail::projected(comp, proj));
+    return Mc::min_element(std::begin(r), std::end(r), detail::projected(comp, proj));
 }
 
 template <typename R, typename Comp = std::less<>, typename Proj = std::identity>
 constexpr forceinline auto max_element(R& r, Comp comp = {}, Proj proj = {}) {
-    return std::max_element(std::begin(r), std::end(r), detail::projected(comp, proj));
+    return Mc::max_element(std::begin(r), std::end(r), detail::projected(comp, proj));
 }
 
 template <typename R, typename T, typename Comp = std::less<>, typename Proj = std::identity>
 constexpr forceinline auto lower_bound(R& r, const T& val, Comp comp = {}, Proj proj = {}) {
-    return std::lower_bound(std::begin(r), std::end(r), val, [comp, proj](auto&& e, const T& v) -> bool {
+    return Mc::lower_bound(std::begin(r), std::end(r), val, [comp, proj](auto&& e, const T& v) -> bool {
         return std::invoke(comp, std::invoke(proj, e), v);
     });
 }
 
 template <typename R, typename T, typename Comp = std::less<>, typename Proj = std::identity>
 constexpr forceinline auto upper_bound(R& r, const T& val, Comp comp = {}, Proj proj = {}) {
-    return std::upper_bound(std::begin(r), std::end(r), val, [comp, proj](const T& v, auto&& e) -> bool {
+    return Mc::upper_bound(std::begin(r), std::end(r), val, [comp, proj](const T& v, auto&& e) -> bool {
         return std::invoke(comp, v, std::invoke(proj, e));
     });
 }
+
+// iterates an lvalue range backwards, like std::views::reverse
+template <typename R>
+struct reversed {
+    R& r;
+    constexpr auto begin() const { return std::rbegin(r); }
+    constexpr auto end() const { return std::rend(r); }
+};
+template <typename R>
+reversed(R&) -> reversed<R>;
+
+// the integers in [first, last), like std::views::iota
+template <typename T>
+struct iota {
+    struct iterator {
+        T value;
+        constexpr T operator*() const { return value; }
+        constexpr iterator& operator++() {
+            ++value;
+            return *this;
+        }
+        constexpr iterator operator+(std::ptrdiff_t n) const { return {static_cast<T>(value + n)}; }
+        constexpr std::ptrdiff_t operator-(iterator other) const {
+            return static_cast<std::ptrdiff_t>(value - other.value);
+        }
+        constexpr bool operator==(const iterator&) const = default;
+    };
+
+    T first, last;
+    constexpr iota(T first, T last) : first(first), last(last) {}
+    constexpr iterator begin() const { return {first}; }
+    constexpr iterator end() const { return {last}; }
+};
 
 // NOLINTEND(cppcoreguidelines-missing-std-forward)
 

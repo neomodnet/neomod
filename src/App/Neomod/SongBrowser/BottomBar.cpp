@@ -21,6 +21,7 @@
 #include "Font.h"
 #include "SyncMutex.h"
 #include "Graphics.h"
+#include "Algorithms.h"
 
 #include <atomic>
 #include <cassert>
@@ -85,7 +86,7 @@ f32 get_height() {
         }
     }
 
-    return std::max(get_min_height(), max);
+    return Mc::max(get_min_height(), max);
 }
 
 void tick() {

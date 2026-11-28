@@ -14,8 +14,8 @@
 #include "Graphics.h"
 #include "Matrices.h"
 #include "Rect.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
@@ -62,8 +62,8 @@ bool debug_drawn(const Body &b) {
 // [first, last) of the points the body draws
 std::pair<uSz, uSz> drawn_points(const Body &b) {
     const uSz n = b.points.size();
-    return {std::clamp<uSz>((uSz)std::round((f64)n * b.from), 0UZ, n),
-            std::clamp<uSz>((uSz)std::round((f64)n * b.to), 0UZ, n)};
+    return {Mc::clamp<uSz>((uSz)std::round((f64)n * b.from), 0UZ, n),
+            Mc::clamp<uSz>((uSz)std::round((f64)n * b.to), 0UZ, n)};
 }
 
 // fuck oob sliders
@@ -92,10 +92,10 @@ McIRect composite_area(const Body &b, vec2 target) {
     for(const vec2 point : b.alwaysPoints) addDisc(point);
 
     const f32 pixelFudge = 2.0f;
-    const i32 minX = (i32)std::floor(std::clamp(lo.x - pixelFudge, 0.0f, target.x));
-    const i32 minY = (i32)std::floor(std::clamp(lo.y - pixelFudge, 0.0f, target.y));
-    const i32 maxX = (i32)std::ceil(std::clamp(hi.x + pixelFudge, 0.0f, target.x));
-    const i32 maxY = (i32)std::ceil(std::clamp(hi.y + pixelFudge, 0.0f, target.y));
+    const i32 minX = (i32)std::floor(Mc::clamp(lo.x - pixelFudge, 0.0f, target.x));
+    const i32 minY = (i32)std::floor(Mc::clamp(lo.y - pixelFudge, 0.0f, target.y));
+    const i32 maxX = (i32)std::ceil(Mc::clamp(hi.x + pixelFudge, 0.0f, target.x));
+    const i32 maxY = (i32)std::ceil(Mc::clamp(hi.y + pixelFudge, 0.0f, target.y));
     return {minX, minY, maxX - minX, maxY - minY};
 }
 
@@ -263,8 +263,8 @@ FieldEncoding field_encoding() {
     constexpr f32 shadowSize = 0.08f, borderSize = 0.11f, transitionSize = 0.011f;
     constexpr f32 baseSlope = 168.0f / 255.0f;  // per radial; leaves the body ~134 of the levels
     const f32 feather = cv::slider_border_feather.getFloat();
-    const f32 border = std::max((borderSize + feather) * cv::slider_border_size_multiplier.getFloat(), 0.0f);
-    const f32 transition = std::max(transitionSize + feather, 0.0f);
+    const f32 border = Mc::max((borderSize + feather) * cv::slider_border_size_multiplier.getFloat(), 0.0f);
+    const f32 transition = Mc::max(transitionSize + feather, 0.0f);
 
     // where each ramp runs from 0 to 1, in radial, and the region it shades
     const std::array<vec2, 4> ramps{{{0.0f, shadowSize - transition},
@@ -275,13 +275,13 @@ FieldEncoding field_encoding() {
 
     // a thin border's transitions overlap, the border -> body one wins
     const f32 bodyTransition = ramps[2].x;
-    const std::array<f32, 4> starts{std::min(ramps[1].x, bodyTransition), std::min(ramps[1].y, bodyTransition),
+    const std::array<f32, 4> starts{Mc::min(ramps[1].x, bodyTransition), Mc::min(ramps[1].y, bodyTransition),
                                     bodyTransition, ramps[2].y};
 
     // the regions' bounds in radial, 0 to 1
     std::array<f32, 6> knots{};
     knots[5] = 1.0f;
-    for(int i = 0; i < 4; ++i) knots[i + 1] = std::clamp(starts[i], knots[i], 1.0f);
+    for(int i = 0; i < 4; ++i) knots[i + 1] = Mc::clamp(starts[i], knots[i], 1.0f);
 
     FieldEncoding enc{};
     const std::array<bool, 2> transitions{knots[2] > knots[1], knots[4] > knots[3]};
@@ -295,14 +295,14 @@ FieldEncoding field_encoding() {
     std::array<f32, 6> levels{};
     for(int i = 0; i < 6; ++i)
         for(const vec3 &piece : enc.pieces)
-            levels[i] += piece.z * std::clamp((knots[i] - piece.x) / std::max(piece.y - piece.x, 1e-6f), 0.0f, 1.0f);
+            levels[i] += piece.z * Mc::clamp((knots[i] - piece.x) / Mc::max(piece.y - piece.x, 1e-6f), 0.0f, 1.0f);
     for(int i = 0; i < 4; ++i) enc.regionEnds[i] = knots[i + 1] < 1.0f ? levels[i + 1] : 2.0f;
 
     for(int i = 0; i < 4; ++i) {
         const int r = rampRegions[i];
         // radial = knots[r] + (field - levels[r]) * slope within the region
-        const f32 slope = (knots[r + 1] - knots[r]) / std::max(levels[r + 1] - levels[r], 1e-6f);
-        const f32 length = std::max(ramps[i].y - ramps[i].x, 1e-6f);
+        const f32 slope = (knots[r + 1] - knots[r]) / Mc::max(levels[r + 1] - levels[r], 1e-6f);
+        const f32 length = Mc::max(ramps[i].y - ramps[i].x, 1e-6f);
         enc.rampScale[i] = slope / length;
         enc.rampBias[i] = (knots[r] - levels[r] * slope - ramps[i].x) / length;
     }
@@ -316,7 +316,7 @@ void set_field_encoding_uniforms(Shader *shader, const FieldEncoding &enc, bool 
     for(int i = 0; i < 3; ++i) {
         const vec3 piece = !linear ? enc.pieces[i] : i == 0 ? vec3{0.0f, 1.0f, 1.0f} : vec3{0.0f};
         // (1 - d - from) / (to - from)
-        const f32 width = std::max(piece.y - piece.x, 1e-6f);
+        const f32 width = Mc::max(piece.y - piece.x, 1e-6f);
         scale[i] = -1.0f / width;
         bias[i] = (1.0f - piece.x) / width;
         rise[i] = piece.z;
@@ -402,9 +402,9 @@ void set_shader_channel_uniform(Shader *shader, u8 channel) {
 // a body added to the active batch, its points copied to the batch (see body_of())
 struct Entry {
     u32 id;
-    u8 channel{0};          // the render target channel its field goes into
-    bool debug;             // drawn without a field, so it has no area or channel
-    Body body;  // without its spans
+    u8 channel{0};  // the render target channel its field goes into
+    bool debug;     // drawn without a field, so it has no area or channel
+    Body body;      // without its spans
     uSz pointsAt;
     uSz numPoints;
     uSz numAlwaysPoints;
@@ -575,8 +575,8 @@ Mesh generateMesh(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDi
     mesh.bounds = {(std::numeric_limits<f32>::max)(), (std::numeric_limits<f32>::max)(),
                    std::numeric_limits<f32>::lowest(), std::numeric_limits<f32>::lowest()};
     for(const vec2 point : points) {
-        mesh.bounds = {std::min(mesh.bounds.x, point.x - radius), std::min(mesh.bounds.y, point.y - radius),
-                       std::max(mesh.bounds.z, point.x + radius), std::max(mesh.bounds.w, point.y + radius)};
+        mesh.bounds = {Mc::min(mesh.bounds.x, point.x - radius), Mc::min(mesh.bounds.y, point.y - radius),
+                       Mc::max(mesh.bounds.z, point.x + radius), Mc::max(mesh.bounds.w, point.y + radius)};
     }
 
     const vec4 bounds{
@@ -628,7 +628,7 @@ Mesh generateMesh(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDi
         // primitives that abut without shared vertices leave 1px rasterization cracks (T-junctions), which the
         // max union shows as holes; so every slab/fan overlaps 1-2px into its neighbors. the union is
         // idempotent, so the overlap never widens the silhouette.
-        const f32 seamMargin = std::min(2.0f / r, 0.5f);  // fan over-sweep, ~2px of rim arc in radians
+        const f32 seamMargin = Mc::min(2.0f / r, 0.5f);  // fan over-sweep, ~2px of rim arc in radians
 
         // duplicated consecutive points (bezier piece anchors) yield segments too short for a usable direction,
         // so every point takes its in/out direction from the nearest DISTINCT point instead ({0,0} if that side
@@ -757,7 +757,7 @@ Mesh generateMesh(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDi
                 // the bisector stays well-conditioned at reversals (retraced lines fold with cross == fp noise)
                 // and only degenerates near-collinear, where either side works because the slabs overlap.
                 const vec2 dIn = dirIn[i], dOut = dirOut[i];
-                const f32 turn = std::acos(std::clamp(vec::dot(dIn, dOut), -1.0f, 1.0f));
+                const f32 turn = std::acos(Mc::clamp(vec::dot(dIn, dOut), -1.0f, 1.0f));
                 vec2 bisector = dIn - dOut;
                 if(const f32 l = vec::length(bisector); l > 1e-3f)
                     bisector /= l;

@@ -9,7 +9,6 @@
 #include "Timing.h"
 #include "UniString.h"
 
-#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>

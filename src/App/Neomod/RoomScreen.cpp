@@ -1,7 +1,7 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
 #include "RoomScreen.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <sstream>
@@ -1102,11 +1102,11 @@ void RoomScreen::onClientScoreChange(bool force) {
         } else if(BanchoState::room.win_condition == WinCondition::CURRENT_COMBO) {
             metric = frame.current_combo;
         } else if(BanchoState::room.win_condition == WinCondition::PP) {
-            metric = (u16)std::clamp(osu->getMapInterface()->live_pp() * 10.f, 0.f, 65535.f);
+            metric = (u16)Mc::clamp(osu->getMapInterface()->live_pp() * 10.f, 0.f, 65535.f);
         }
 
         packet.id = OUTP_MATCH_SCORE;
-        packet.write<u32>((u32)std::max(frame.total_score, 0));
+        packet.write<u32>((u32)Mc::max(frame.total_score, 0));
         packet.write<u16>(frame.max_combo);
         packet.write<u16>(metric);
         packet.write<u8>((frame.current_hp == 0 ? MATCH_SCORE_DEAD : 0) |

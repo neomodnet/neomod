@@ -5,6 +5,7 @@
 // $NoKeywords: $dx11i
 //===============================================================================//
 #include "config.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_DIRECTX11
 #include "DirectX11Interface.h"
@@ -34,7 +35,6 @@
 
 #include "binary_embed.h"
 
-#include <algorithm>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -549,14 +549,14 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
             this->vertices[i].pos = finalVertices[i];
 
             if(hasColors) {
-                const Color clr = finalColors[std::min(i, maxColorIndex)];
+                const Color clr = finalColors[Mc::min(i, maxColorIndex)];
                 this->vertices[i].col = vec4(clr.Rf(), clr.Gf(), clr.Bf(), clr.Af());
             } else {
                 this->vertices[i].col = color;
             }
 
             // TODO: multitexturing
-            if(hasTexcoords0) this->vertices[i].tex = finalTexcoords[std::clamp<size_t>(i, 0, maxTexcoords0Index)];
+            if(hasTexcoords0) this->vertices[i].tex = finalTexcoords[Mc::clamp<size_t>(i, 0, maxTexcoords0Index)];
         }
     }
 
@@ -1098,7 +1098,7 @@ void DirectX11Interface::uploadAndDrawVertexBatch(D3D_PRIMITIVE_TOPOLOGY topolog
     size_t vertexOffset = 0;
 
     while(verticesRemaining > 0) {
-        const size_t batchSize = std::min(verticesRemaining, MAX_VERTEX_BUFFER_VERTS);
+        const size_t batchSize = Mc::min(verticesRemaining, MAX_VERTEX_BUFFER_VERTS);
         size_t numVertexOffset = 0;
         bool uploadedSuccessfully = true;
 
@@ -1162,7 +1162,7 @@ void DirectX11Interface::onSyncBehaviorChanged(const float newValue) {
 
 void DirectX11Interface::onFramecountNumChanged(const float newValue) {
     if(!this->dxgiDevice1) return;
-    auto newLatency = std::clamp<UINT>(static_cast<UINT>(newValue), 1U, 3U);
+    auto newLatency = Mc::clamp<UINT>(static_cast<UINT>(newValue), 1U, 3U);
     if(newLatency != this->iMaxFrameLatency) {
         this->iMaxFrameLatency = newLatency;
         if(!this->bFrameLatencyDisabled) {

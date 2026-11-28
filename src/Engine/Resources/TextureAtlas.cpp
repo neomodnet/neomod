@@ -1,14 +1,13 @@
 // Copyright (c) 2017, PG, All rights reserved.
 #include "TextureAtlas.h"
 
-#include <algorithm>
-
 #include "Engine.h"
 #include "ResourceManager.h"
 #include "ContainerRanges.h"
 #include "Logging.h"
 #include "Image.h"
 #include "Graphics.h"
+#include "Algorithms.h"
 
 TextureAtlas::TextureAtlas(int width, int height, bool filtering) : Resource(TEXTUREATLAS) {
     this->iWidth = width;
@@ -99,7 +98,7 @@ bool TextureAtlas::packRects(std::vector<PackRect> &rects, int width, int height
             int currentX = skylines[i].x;
 
             for(size_t j = i; j < skylines.size() && currentX < skylines[i].x + rectWidth; ++j) {
-                maxY = std::max(maxY, skylines[j].y);
+                maxY = Mc::max(maxY, skylines[j].y);
                 currentX += skylines[j].width;
             }
 

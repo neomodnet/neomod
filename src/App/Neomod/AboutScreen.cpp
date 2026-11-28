@@ -21,8 +21,7 @@
 
 #include "binary_embed.h"
 #include "build_timestamp.h"
-
-#include <algorithm>
+#include "Algorithms.h"
 
 namespace {
 constexpr const Color HIGHLIGHT_COLOR = argb(255, 0, 255, 0);
@@ -314,9 +313,9 @@ void AboutScreen::updateLayout() {
     for(TabPage &page : this->tabs) {
         page.button->onResized();  // HACKHACK: framework, setWidthToContent() does not update string metrics
         page.button->setWidthToContent(static_cast<int>(20 * dpiScale));
-        tabWidth = std::max(tabWidth, page.button->getSize().x);
+        tabWidth = Mc::max(tabWidth, page.button->getSize().x);
     }
-    tabWidth = std::min(tabWidth, (this->getSize().x - 2 * margin) / static_cast<f32>(NUM_TABS));
+    tabWidth = Mc::min(tabWidth, (this->getSize().x - 2 * margin) / static_cast<f32>(NUM_TABS));
 
     for(size_t i = 0; i < NUM_TABS; i++) {
         this->tabs[i].button->setSize(tabWidth - 1, stripHeight);
@@ -368,7 +367,7 @@ void AboutScreen::layoutTab(Tab tab) {
 
     // bottom scroll padding: always leave enough room to scroll the last line clear of the back
     // button, which is drawn over the bottom of the page
-    page.spacer->setSizeY(std::max(240.0f * dpiScale, this->backButton->getSize().y + 40.0f * dpiScale));
+    page.spacer->setSizeY(Mc::max(240.0f * dpiScale, this->backButton->getSize().y + 40.0f * dpiScale));
     page.spacer->setRelPos(0, yCounter);
 
     page.view->setScrollSizeToContent(15 * dpiScale);

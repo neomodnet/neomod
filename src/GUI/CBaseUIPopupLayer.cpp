@@ -8,7 +8,6 @@
 #include "KeyboardEvent.h"
 #include "Mouse.h"
 
-#include <algorithm>
 #include <utility>
 
 CBaseUIPopupLayer::CBaseUIPopupLayer(std::string name) : CBaseUIContainer(0, 0, 0, 0, std::move(name)) {

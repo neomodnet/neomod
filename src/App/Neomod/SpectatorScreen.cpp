@@ -35,6 +35,7 @@
 #include "UIIconButton.h"
 #include "UserCard.h"
 #include "Engine.h"
+#include "Algorithms.h"
 
 using namespace Spectating;
 
@@ -168,7 +169,7 @@ void SpectatorScreen::controlClientState() {
         if(!map_iface->judge->replay.empty()) last_music_pos = map_iface->judge->replay.back().cur_music_pos;
 
         auto it =
-            std::find_if(this->player_updates.begin(), this->player_updates.end(), [&](const RemotePlayerUpdate &u) {
+            Mc::find_if(this->player_updates.begin(), this->player_updates.end(), [&](const RemotePlayerUpdate &u) {
                 return u.music_pos < last_music_pos || u.map_md5 != map_iface->beatmap->getMD5() ||
                        u.action != LiveReplayAction::NONE;
             });
@@ -218,12 +219,12 @@ void SpectatorScreen::controlClientState() {
         // make sure we're not too far behind the liveplay
         if(!map_iface->judge->replay.empty()) {
             if(leeway > 2 * cv::spec_buffer.getInt()) {
-                i32 target = std::max(map_iface->judge->replay.front().cur_music_pos,
-                                      map_iface->judge->replay.back().cur_music_pos - cv::spec_buffer.getInt());
+                i32 target = Mc::max(map_iface->judge->replay.front().cur_music_pos,
+                                     map_iface->judge->replay.back().cur_music_pos - cv::spec_buffer.getInt());
                 debugLog("We're {:d}ms behind, seeking to catch up to player...",
                          target - map_iface->getJudgeMusicPos());
                 map_iface->judge->bTempSeekNF = true;
-                map_iface->seekMS(std::max(0, target));
+                map_iface->seekMS(Mc::max(0, target));
                 return;
             }
         }
@@ -236,8 +237,8 @@ void SpectatorScreen::controlClientState() {
     // clear all frames that aren't from the remote player's current map
     // (so we can be sure that user_info->map_md5 is our target)
     UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
-    auto it = std::find_if(this->player_updates.begin(), this->player_updates.end(),
-                           [&](const RemotePlayerUpdate &u) { return u.map_md5 == user_info->map_md5; });
+    auto it = Mc::find_if(this->player_updates.begin(), this->player_updates.end(),
+                          [&](const RemotePlayerUpdate &u) { return u.map_md5 == user_info->map_md5; });
     this->player_updates.erase(this->player_updates.begin(), it);
 
     // check if we need to switch map
@@ -485,7 +486,7 @@ void SpectatorScreen::handleFrameBundle(PacketReader &packet) {
 
     // fix milliseconds_since_last_frame and update.music_pos
     for(auto &frame : update.replay_frames) {
-        frame.milliseconds_since_last_frame = std::max(0, frame.cur_music_pos - update.music_pos);
+        frame.milliseconds_since_last_frame = Mc::max(0, frame.cur_music_pos - update.music_pos);
         update.music_pos = frame.cur_music_pos;
     }
 

@@ -13,8 +13,8 @@
 #include "crypto.h"
 
 #include "fmt/format.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <string>
 #include <utility>
@@ -77,7 +77,7 @@ EditorSession EditorSession::read(std::span<const u8> bytes) {
         good = readLocation(in, view.location);
         view.time = in.read<i32>();
         if(const f32 zoom = in.read<u8>() != 0 ? in.read<f32>() : 0.f; std::isfinite(zoom) && zoom > 0.f) {
-            view.zoom = std::clamp(zoom, 0.1f, 8.f);
+            view.zoom = Mc::clamp(zoom, 0.1f, 8.f);
         }
         if(const u8 divisor = in.read<u8>() != 0 ? in.read<u8>() : 0; divisor > 0) {
             view.divisor = BeatSnap::clampDivisor(divisor);

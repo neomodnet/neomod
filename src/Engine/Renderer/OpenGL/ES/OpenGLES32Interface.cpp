@@ -28,8 +28,8 @@
 #include "SDLGLInterface.h"
 
 #include "binary_embed.h"
+#include "ContainerRanges.h"
 
-#include <algorithm>
 #include <span>
 #include <vector>
 
@@ -356,7 +356,7 @@ void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
     std::vector<Color> swappedColors;
     std::span<const Color> colors = vcolors;
     // check if any color needs conversion (only R and B are swapped)
-    if(std::ranges::any_of(vcolors, [](Color color) { return color.r != color.b; })) {
+    if(Mc::ranges::any_of(vcolors, [](Color color) { return color.r != color.b; })) {
         swappedColors.reserve(vcolors.size());
         MC_UNROLL
         for(auto color : vcolors) {

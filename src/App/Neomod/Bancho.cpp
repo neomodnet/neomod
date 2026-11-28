@@ -1,6 +1,5 @@
 // Copyright (c) 2023, kiwec, All rights reserved.
 
-#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -42,6 +41,7 @@
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "RichPresence.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
 
@@ -110,7 +110,7 @@ bool BanchoState::nonsubmittable_notification_clicked{false};
 
 bool BanchoState::is_in_a_multi_room() { return room.nb_players > 0; }
 
-i64 BanchoState::get_silence_seconds_left() { return std::max<i64>(std::ceil(silence_end - engine->getTime()), 0); }
+i64 BanchoState::get_silence_seconds_left() { return Mc::max<i64>(std::ceil(silence_end - engine->getTime()), 0); }
 
 void BanchoState::set_uid(i32 new_uid) {
     const i32 old_uid = get_uid();

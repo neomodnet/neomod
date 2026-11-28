@@ -522,6 +522,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/Engine/Sound/BASS/BassSoundEngine.cpp \
 	src/Engine/Resources/FFmpegInterop/FFmpegLoader.cpp \
 	src/Engine/Resources/FFmpegInterop/ImageFFmpeg.cpp \
+	src/App/Tests/AlgorithmsTest.cpp \
 	src/App/Tests/AsyncPoolTest.cpp \
 	src/App/Tests/AudioTester/AudioTester.cpp \
 	src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp \
@@ -613,7 +614,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 am__objects_10 =
 @USE_FFMPEG_TRUE@am__objects_11 = src/Engine/Resources/FFmpegInterop/neomod-FFmpegLoader.$(OBJEXT) \
 @USE_FFMPEG_TRUE@	src/Engine/Resources/FFmpegInterop/neomod-ImageFFmpeg.$(OBJEXT)
-@BUILD_TESTS_TRUE@am__objects_12 = src/App/Tests/neomod-AsyncPoolTest.$(OBJEXT) \
+@BUILD_TESTS_TRUE@am__objects_12 = src/App/Tests/neomod-AlgorithmsTest.$(OBJEXT) \
+@BUILD_TESTS_TRUE@	src/App/Tests/neomod-AsyncPoolTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/AudioTester/neomod-AudioTester.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/BaseFrameworkTest/neomod-BaseFrameworkTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/neomod-ConVarTest.$(OBJEXT) \
@@ -1144,6 +1146,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po \
 	src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po \
 	src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po \
+	src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-ConVarTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po \
@@ -1800,6 +1803,7 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @WIN_PLATFORM_TRUE@	$(NULL)
 
 @BUILD_TESTS_TRUE@TEST_SOURCES := \
+@BUILD_TESTS_TRUE@	src/App/Tests/AlgorithmsTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/AsyncPoolTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/AudioTester/AudioTester.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp \
@@ -3738,6 +3742,9 @@ src/App/Tests/$(am__dirstamp):
 src/App/Tests/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/App/Tests/$(DEPDIR)
 	@: >>src/App/Tests/$(DEPDIR)/$(am__dirstamp)
+src/App/Tests/neomod-AlgorithmsTest.$(OBJEXT):  \
+	src/App/Tests/$(am__dirstamp) \
+	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
 src/App/Tests/neomod-AsyncPoolTest.$(OBJEXT):  \
 	src/App/Tests/$(am__dirstamp) \
 	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
@@ -4223,6 +4230,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-ConVarTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po@am__quote@ # am--include-marker
@@ -8643,6 +8651,20 @@ src/Engine/Resources/FFmpegInterop/neomod-ImageFFmpeg.obj: src/Engine/Resources/
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Engine/Resources/FFmpegInterop/neomod-ImageFFmpeg.obj `if test -f 'src/Engine/Resources/FFmpegInterop/ImageFFmpeg.cpp'; then $(CYGPATH_W) 'src/Engine/Resources/FFmpegInterop/ImageFFmpeg.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Engine/Resources/FFmpegInterop/ImageFFmpeg.cpp'; fi`
 
+src/App/Tests/neomod-AlgorithmsTest.o: src/App/Tests/AlgorithmsTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-AlgorithmsTest.o -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Tpo -c -o src/App/Tests/neomod-AlgorithmsTest.o `test -f 'src/App/Tests/AlgorithmsTest.cpp' || echo '$(srcdir)/'`src/App/Tests/AlgorithmsTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Tpo src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/Tests/AlgorithmsTest.cpp' object='src/App/Tests/neomod-AlgorithmsTest.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-AlgorithmsTest.o `test -f 'src/App/Tests/AlgorithmsTest.cpp' || echo '$(srcdir)/'`src/App/Tests/AlgorithmsTest.cpp
+
+src/App/Tests/neomod-AlgorithmsTest.obj: src/App/Tests/AlgorithmsTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-AlgorithmsTest.obj -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Tpo -c -o src/App/Tests/neomod-AlgorithmsTest.obj `if test -f 'src/App/Tests/AlgorithmsTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/AlgorithmsTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/AlgorithmsTest.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Tpo src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_JOBSERVER)$(AM_V_CXX)source='src/App/Tests/AlgorithmsTest.cpp' object='src/App/Tests/neomod-AlgorithmsTest.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_JOBSERVER@am__nodep@)$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-AlgorithmsTest.obj `if test -f 'src/App/Tests/AlgorithmsTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/AlgorithmsTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/AlgorithmsTest.cpp'; fi`
+
 src/App/Tests/neomod-AsyncPoolTest.o: src/App/Tests/AsyncPoolTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_JOBSERVER)$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-AsyncPoolTest.o -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Tpo -c -o src/App/Tests/neomod-AsyncPoolTest.o `test -f 'src/App/Tests/AsyncPoolTest.cpp' || echo '$(srcdir)/'`src/App/Tests/AsyncPoolTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Tpo src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po
@@ -10170,6 +10192,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-ConVarTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
@@ -10580,6 +10603,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-AlgorithmsTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-ConVarTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po

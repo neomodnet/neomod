@@ -17,6 +17,7 @@
 #include "ContainerRanges.h"
 #include "Hashing.h"
 #include "UniString.h"
+#include "Algorithms.h"
 
 #ifdef MCENGINE_FEATURE_BASS
 #include "BassManager.h"
@@ -386,7 +387,7 @@ void start_calc(std::span<DatabaseBeatmap *const> maps_to_calc) {
     i32 nb_threads = cv::loudness_calc_threads.getInt();
     if(nb_threads <= 0) {
         // dividing by 2 still burns cpu if hyperthreading is enabled, let's keep it at a sane amount of threads
-        nb_threads = std::max(McThread::get_logical_cpu_count() / 3, 1);
+        nb_threads = Mc::max(McThread::get_logical_cpu_count() / 3, 1);
     }
     const i32 nb_groups = static_cast<int>(groups.size());
     if(groups.size() < nb_threads) nb_threads = nb_groups;

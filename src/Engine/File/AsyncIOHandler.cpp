@@ -6,7 +6,6 @@
 #include "Timing.h"
 #include "File.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <string>

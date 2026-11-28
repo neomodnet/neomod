@@ -1,6 +1,6 @@
 #include "GameplayJudge.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -89,16 +89,16 @@ Primitives::LoadError GameplayJudge::load(std::shared_ptr<const std::vector<u8>>
     this->numSlidersBefore.assign(numObjects + 1, 0);
     for(uSz i = 0; i < numObjects; i++) {
         const u32 byEnd = this->hitobjectsSortedByEndTime[i];
-        this->latestTimeBefore[i + 1] = std::max({this->latestTimeBefore[i], objs.clickTimes[i], objs.endTimes[i]});
+        this->latestTimeBefore[i + 1] = Mc::max({this->latestTimeBefore[i], objs.clickTimes[i], objs.endTimes[i]});
         this->latestTimeBeforeByEndTime[i + 1] =
-            std::max({this->latestTimeBeforeByEndTime[i], objs.clickTimes[byEnd], objs.endTimes[byEnd]});
+            Mc::max({this->latestTimeBeforeByEndTime[i], objs.clickTimes[byEnd], objs.endTimes[byEnd]});
         this->numCirclesBefore[i + 1] = this->numCirclesBefore[i] + (objs.types[i] == HitObjectType::CIRCLE ? 1 : 0);
         this->numSlidersBefore[i + 1] = this->numSlidersBefore[i] + (objs.types[i] == HitObjectType::SLIDER ? 1 : 0);
     }
     this->earliestStartFrom.assign(numObjects + 1, std::numeric_limits<i32>::max());
     for(uSz i = numObjects; i-- > 0;) {
         this->earliestStartFrom[i] =
-            std::min(this->earliestStartFrom[i + 1], objs.comboStartTimes[this->hitobjectsSortedByEndTime[i]]);
+            Mc::min(this->earliestStartFrom[i + 1], objs.comboStartTimes[this->hitobjectsSortedByEndTime[i]]);
     }
 
     // after the hitobjects have been loaded we can calculate the stacks
@@ -140,7 +140,7 @@ void GameplayJudge::reset(i32 curPos, bool leaveOutStarted) {
     for(uSz i = 0; i < this->hitobjects.size(); i++) {
         // (past its end, it's done)
         const i32 pos = leaveOutStarted && this->hitobjects.clickTimes[i] <= curPos
-                            ? std::max(curPos, this->hitobjects.endTimes[i] + 1)
+                            ? Mc::max(curPos, this->hitobjects.endTimes[i] + 1)
                             : curPos;
         this->resetObject((u32)i, pos);
         HitObjectDrawing::animate(this->hitobjects, i, pos, this->lookTiming);
@@ -352,7 +352,7 @@ void GameplayJudge::showHitResult(u32 i, LiveHitResult result, i32 delta, vec2 p
         hitresultanim.result = result;
         hitresultanim.rawPos = posRaw;
         hitresultanim.deltaMS = delta;
-        hitresultanim.deltaRangePercent = std::clamp<f32>((f32)delta / this->getHitWindow50(), -1.0f, 1.0f);
+        hitresultanim.deltaRangePercent = Mc::clamp<f32>((f32)delta / this->getHitWindow50(), -1.0f, 1.0f);
         hitresultanim.timeSecs = engine->getTime();
         hitresultanim.addObjectDurationToSkinAnimationTimeStartOffset = addObjectDurationToSkinAnimationTimeStartOffset;
     }
@@ -611,7 +611,7 @@ void GameplayJudge::updateSlider(u32 i, i32 curPosMS) {
         const bool hadTailCheck = s.heldTillEndForLenienceHackCheck;
         const i32 offsetMS = (i32)cv::slider_end_inside_check_offset.getInt();
         const i32 lenienceHackEndTimeMS =
-            std::max(objs.clickTimes[i] + (objs.endTimes[i] - objs.clickTimes[i]) / 2, (objs.endTimes[i]) - offsetMS);
+            Mc::max(objs.clickTimes[i] + (objs.endTimes[i] - objs.clickTimes[i]) / 2, (objs.endTimes[i]) - offsetMS);
         const bool isTrackingCorrectly =
             (this->isSliderHeld(i) || (flags::has<ModFlags::Relax>(curIFaceMods))) && s.cursorInside;
 
@@ -1285,7 +1285,7 @@ void GameplayJudge::updateSpinner(u32 i, i32 curPosMS, f64 frameTimeSecs) {
             // velocities are per real ms, capped at 0.05 rad/ms (477 RPM).
             constexpr f32 STEP_MS = 1000.0f / 60.0f;
             const f32 maxAccel =
-                0.00008f + std::max(0.0f, (5000.0f - (f32)(objs.endTimes[i] - objs.clickTimes[i])) / 2000000.0f);
+                0.00008f + Mc::max(0.0f, (5000.0f - (f32)(objs.endTimes[i] - objs.clickTimes[i])) / 2000000.0f);
             while(s.deltaOverflowMS >= STEP_MS) {
                 const f32 stepAngle = s.deltaAngleOverflow * STEP_MS / s.deltaOverflowMS;
                 s.deltaAngleOverflow -= stepAngle;
@@ -1305,9 +1305,9 @@ void GameplayJudge::updateSpinner(u32 i, i32 curPosMS, f64 frameTimeSecs) {
                     // relax turns around 4x slower
                     const bool turning = s.theoreticalVelocity > s.velocity ? s.velocity < 0.0f : s.velocity > 0.0f;
                     const f32 accel = maxAccel * STEP_MS / (turning && flags::has<ModFlags::Relax>(mods) ? 4.0f : 1.0f);
-                    s.velocity += std::clamp(s.theoreticalVelocity - s.velocity, -accel, accel);
+                    s.velocity += Mc::clamp(s.theoreticalVelocity - s.velocity, -accel, accel);
                 }
-                s.velocity = std::clamp(s.velocity, -0.05f, 0.05f);
+                s.velocity = Mc::clamp(s.velocity, -0.05f, 0.05f);
 
                 s.RPM = s.RPM * 0.9f + 0.1f * std::abs(s.velocity) * 1000.0f / (2.0f * PI_F) * 60.0f;
             }
@@ -1467,7 +1467,7 @@ const Replay::Mods &GameplayJudge::getMods() const { return this->score.mods; }
 f32 GameplayJudge::getRawAR() const {
     const auto &mods = this->getMods();
     const f32 multiplier = mods.has(ModFlags::HardRock) ? 1.4f : mods.has(ModFlags::Easy) ? 0.5f : 1.0f;
-    return std::clamp<f32>(this->getMapAR() * multiplier, 0.0f, 10.0f);
+    return Mc::clamp<f32>(this->getMapAR() * multiplier, 0.0f, 10.0f);
 }
 
 f32 GameplayJudge::getAR() const {
@@ -1497,7 +1497,7 @@ f32 GameplayJudge::getCS() const {
     const auto &mods = this->getMods();
     const f32 multiplier = mods.has(ModFlags::HardRock) ? 1.3f : mods.has(ModFlags::Easy) ? 0.5f : 1.0f;
 
-    f32 CS = std::clamp<f32>(this->getMapCS() * multiplier, 0.0f, 10.0f);
+    f32 CS = Mc::clamp<f32>(this->getMapCS() * multiplier, 0.0f, 10.0f);
     if(mods.cs_override >= 0.0f) CS = mods.cs_override;
     if(mods.cs_overridenegative < 0.0f) CS = mods.cs_overridenegative;
 
@@ -1508,7 +1508,7 @@ f32 GameplayJudge::getCS() const {
         CS *= percent;
     }
 
-    if(cv::cs_cap_sanity.getBool()) CS = std::min(CS, 12.1429f);
+    if(cv::cs_cap_sanity.getBool()) CS = Mc::min(CS, 12.1429f);
 
     return CS;
 }
@@ -1517,7 +1517,7 @@ f32 GameplayJudge::getHP() const {
     const auto &mods = this->getMods();
     const f32 multiplier = mods.has(ModFlags::HardRock) ? 1.4f : mods.has(ModFlags::Easy) ? 0.5f : 1.0f;
 
-    f32 HP = std::clamp<f32>(this->getMapHP() * multiplier, 0.0f, 10.0f);
+    f32 HP = Mc::clamp<f32>(this->getMapHP() * multiplier, 0.0f, 10.0f);
     if(mods.hp_override >= 0.0f) HP = mods.hp_override;
 
     return HP;
@@ -1526,7 +1526,7 @@ f32 GameplayJudge::getHP() const {
 f32 GameplayJudge::getRawOD() const {
     const auto &mods = this->getMods();
     const f32 multiplier = mods.has(ModFlags::HardRock) ? 1.4f : mods.has(ModFlags::Easy) ? 0.5f : 1.0f;
-    return std::clamp<f32>(this->getMapOD() * multiplier, 0.0f, 10.0f);
+    return Mc::clamp<f32>(this->getMapOD() * multiplier, 0.0f, 10.0f);
 }
 
 f32 GameplayJudge::getOD() const {
@@ -1620,9 +1620,9 @@ u32 GameplayJudge::getScoreV1DifficultyMultiplier() const {
     //       Since this multiplier is only used for ScoreV1
     u32 breakTimeMS = this->getBreakDurationTotal();
     f32 drainLength =
-        std::max(this->getLengthPlayable() - std::min(breakTimeMS, this->getLengthPlayable()), (u32)1000) / 1000;
+        Mc::max(this->getLengthPlayable() - Mc::min(breakTimeMS, this->getLengthPlayable()), (u32)1000) / 1000;
     return std::round((this->beatmap->getCS() + this->beatmap->getHP() + this->beatmap->getOD() +
-                       std::clamp<f32>((f32)this->nb_hitobjects / drainLength * 8.0f, 0.0f, 16.0f)) /
+                       Mc::clamp<f32>((f32)this->nb_hitobjects / drainLength * 8.0f, 0.0f, 16.0f)) /
                       38.0f * 5.0f);
 }
 
@@ -1751,8 +1751,8 @@ vec2 GameplayJudge::osuCoords2Pixels(vec2 coords) const {
 
     // if wobble, clamp coordinates
     if(mods.has(ModFlags::Wobble1) || mods.has(ModFlags::Wobble2)) {
-        coords.x = std::clamp<f32>(coords.x, 0.0f, GameRules::OSU_COORD_WIDTH);
-        coords.y = std::clamp<f32>(coords.y, 0.0f, GameRules::OSU_COORD_HEIGHT);
+        coords.x = Mc::clamp<f32>(coords.x, 0.0f, GameRules::OSU_COORD_WIDTH);
+        coords.y = Mc::clamp<f32>(coords.y, 0.0f, GameRules::OSU_COORD_HEIGHT);
     }
 
     return coords;
@@ -1898,7 +1898,7 @@ void GameplayJudge::addHealth(f64 percent, bool isFromHitResult) {
 
     if(isFromHitResult && percent > 0.0 && this->listener) this->listener->onHealthGain(this->fHealth);
 
-    this->fHealth = std::clamp<f64>(this->fHealth + percent, 0.0, 1.0);
+    this->fHealth = Mc::clamp<f64>(this->fHealth + percent, 0.0, 1.0);
 
     // handle generic fail state (2)
     const bool isDead = this->fHealth < 0.001;
@@ -1961,8 +1961,8 @@ void GameplayJudge::update(f64 frameTimeSecs) {
         const i32 pvs = [&]() -> i32 {
             if(mods.has(ModFlags::Mafham)) {
                 const i32 objIdx =
-                    std::clamp<i32>(this->iCurrentHitObjectIndex + cv::mod_mafham_render_livesize.getInt() + 1, 0,
-                                    (i32)this->hitobjects.size() - 1);
+                    Mc::clamp<i32>(this->iCurrentHitObjectIndex + cv::mod_mafham_render_livesize.getInt() + 1, 0,
+                                   (i32)this->hitobjects.size() - 1);
                 return objs.clickTimes[objIdx] - this->iCurMusicPos + 1500;
             }
 
@@ -1978,7 +1978,7 @@ void GameplayJudge::update(f64 frameTimeSecs) {
 
         const i32 followPointFadeTime = (i32)cv::followpoints_prevfadetime.getFloat();
         const uSz firstLive =
-            usePVS ? this->getFirstLiveObject(std::min(this->iCurMusicPos - pvs, this->iCurMusicPos)) : 0;
+            usePVS ? this->getFirstLiveObject(Mc::min(this->iCurMusicPos - pvs, this->iCurMusicPos)) : 0;
         if(firstLive > 0) {
             this->currentHitObject = (i32)firstLive - 1;
             this->iPreviousHitObjectTime = objs.endTimes[firstLive - 1];
@@ -2496,13 +2496,13 @@ void GameplayJudge::updateAutoCursorPos() {
         else
             percent = (f32)((i32)curMusicPos - prevTime) / (f32)(nextTime - prevTime);
 
-        percent = std::clamp<f32>(percent, 0.0f, 1.0f);
+        percent = Mc::clamp<f32>(percent, 0.0f, 1.0f);
 
         // osu!px, like the diameter
         f32 distance = vec::length((nextPos - prevPos));
         if(distance > this->fHitcircleDiameter * 1.05f)  // snap only if not in a stream (heuristic)
         {
-            int numIterations = std::clamp<int>(
+            int numIterations = Mc::clamp<int>(
                 autopilot ? cv::autopilot_snapping_strength.getInt() : cv::auto_snapping_strength.getInt(), 0, 42);
             for(int i = 0; i < numIterations; i++) {
                 percent = (-percent) * (percent - 2.0f);
@@ -2669,7 +2669,7 @@ void GameplayJudge::computeDrainRate() {
 
                 if(testPlayer.health > lowestHpEver) {
                     const f64 longObjectDrop = testDrop * (f64)duration;
-                    const f64 maxLongObjectDrop = std::max(0.0, longObjectDrop - testPlayer.health);
+                    const f64 maxLongObjectDrop = Mc::max(0.0, longObjectDrop - testPlayer.health);
 
                     testPlayer.decreaseHealth(longObjectDrop);
 

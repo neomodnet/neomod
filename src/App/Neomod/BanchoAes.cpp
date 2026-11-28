@@ -6,9 +6,9 @@
 #include "noinclude.h"
 #include "BanchoNetworking.h"
 #include "BanchoAes.h"
+#include "Algorithms.h"
 
 #include <array>
-#include <algorithm>
 #include <cstring>
 
 namespace {  // static
@@ -235,7 +235,7 @@ std::vector<u8> encrypt(std::span<const u8, 32> iv, std::string_view msg) {
     while(keep_going) {
         u8 block[32]{};
 
-        const size_t nb = std::min<size_t>(msg.size() - offset, 32);
+        const size_t nb = Mc::min<size_t>(msg.size() - offset, 32);
         if(nb > 0) memcpy(block, msg.data() + offset, nb);
         if(nb < 32) {
             memset(block + nb, padding, padding);

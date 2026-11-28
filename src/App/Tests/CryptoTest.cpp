@@ -1,5 +1,6 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "CryptoTest.h"
+#include "File.h"
 
 #include "ContainerRanges.h"
 #include "TestMacros.h"
@@ -8,7 +9,6 @@
 #include "MD5Hash.h"
 #include "crypto.h"
 
-#include <algorithm>
 #include <array>
 #include <fstream>
 #include <span>

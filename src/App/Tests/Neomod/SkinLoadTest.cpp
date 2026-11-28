@@ -11,8 +11,8 @@
 #include "Resource.h"
 #include "ResourceManager.h"
 #include "crypto.h"
+#include "Algorithms.h"
 
-#include <algorithm>
 #include <iterator>
 #include <map>
 #include "Skin.h"
@@ -991,10 +991,10 @@ void SkinLoadTest::checkImportedSkin() {
     const Look look = loadedLook(*m_skin);
     const auto byContents = [](const auto &a, const auto &b) { return a.first < b.first; };
     Look lost, gained;
-    std::set_difference(m_original_look.begin(), m_original_look.end(), look.begin(), look.end(),
-                        std::inserter(lost, lost.end()), byContents);
-    std::set_difference(look.begin(), look.end(), m_original_look.begin(), m_original_look.end(),
-                        std::inserter(gained, gained.end()), byContents);
+    Mc::set_difference(m_original_look.begin(), m_original_look.end(), look.begin(), look.end(),
+                       std::inserter(lost, lost.end()), byContents);
+    Mc::set_difference(look.begin(), look.end(), m_original_look.begin(), m_original_look.end(),
+                       std::inserter(gained, gained.end()), byContents);
     if(rt.kind != RoundTrip::Kind::FixtureWithDefault) {
         std::erase_if(lost, [this](const auto &element) { return m_original_default.contains(element.first); });
     }

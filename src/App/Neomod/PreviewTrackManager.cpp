@@ -24,7 +24,6 @@
 
 #include "fmt/format.h"
 
-#include <algorithm>
 #include <charconv>
 #include <cstdint>
 #include <memory>

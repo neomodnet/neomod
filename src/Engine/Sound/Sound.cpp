@@ -9,10 +9,10 @@
 #include "SoundEngine.h"
 #include "SString.h"
 #include "Logging.h"
+#include "Algorithms.h"
 
 #include <memory>
 #include <utility>
-#include <algorithm>
 
 struct Sound::RebuildInfo {
     Sync::mutex changeMutex;
@@ -86,7 +86,7 @@ bool Sound::isValidAudioFile(std::string_view filePath, std::string_view fileExt
     size_t fileSize = testFile.getFileSize();
 
     // account for larger flac header
-    size_t minSize = fileExt == "flac" ? std::max<size_t>(cv::snd_file_min_size.getVal<size_t>(), 96)
+    size_t minSize = fileExt == "flac" ? Mc::max<size_t>(cv::snd_file_min_size.getVal<size_t>(), 96)
                                        : cv::snd_file_min_size.getVal<size_t>();
 
     if(fileExt == "wav" || fileExt == "mp3" || fileExt == "ogg" || fileExt == "flac") {
@@ -108,7 +108,7 @@ void Sound::addActiveInstance(SOUNDHANDLE handle, PlaybackParams instance) {
 }
 
 void Sound::setBaseVolume(float volume) {
-    this->fBaseVolume = std::clamp<float>(volume, 0.0f, 2.0f);
+    this->fBaseVolume = Mc::clamp<float>(volume, 0.0f, 2.0f);
 
     // propagate the changed volume to the active voice handles
     for(const auto& [handle, instance] : this->getActiveHandles()) {

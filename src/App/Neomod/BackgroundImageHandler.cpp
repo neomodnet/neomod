@@ -20,6 +20,7 @@
 #include "Skin.h"
 
 #include "demoji.h"
+#include "Algorithms.h"
 
 #include <span>
 #include <vector>
@@ -188,15 +189,15 @@ struct BGImageHandlerImpl final {
 
     // store convars as callbacks to avoid convar overhead
     inline void cacheSizeCB(f32 new_value) {
-        u32 new_u32 = std::clamp<u32>(static_cast<u32>(std::round(new_value)), 0, 128);
+        u32 new_u32 = Mc::clamp<u32>(static_cast<u32>(std::round(new_value)), 0, 128);
         this->max_cache_size = new_u32;
     }
     inline void evictionDelayCB(f32 new_value) {
-        u32 new_u32 = std::clamp<u32>(static_cast<u32>(std::round(new_value)), 0, 1024);
+        u32 new_u32 = Mc::clamp<u32>(static_cast<u32>(std::round(new_value)), 0, 1024);
         this->eviction_delay_frames = new_u32;
     }
     inline void loadingDelayCB(f32 new_value) {
-        f32 new_delay = std::clamp<f32>(new_value, 0.f, 2.f);
+        f32 new_delay = Mc::clamp<f32>(new_value, 0.f, 2.f);
         this->image_loading_delay = new_delay;
     }
     inline void enableToggleCB(f32 new_value) {
@@ -220,14 +221,14 @@ struct BGImageHandlerImpl final {
 // public
 BGImageHandlerImpl::BGImageHandlerImpl() {
     this->max_cache_size =
-        std::clamp<u32>(static_cast<u32>(std::round(cv::background_image_cache_size.getFloat())), 0, 128);
+        Mc::clamp<u32>(static_cast<u32>(std::round(cv::background_image_cache_size.getFloat())), 0, 128);
     cv::background_image_cache_size.setCallback(SA::MakeDelegate<&BGImageHandlerImpl::cacheSizeCB>(this));
 
-    this->eviction_delay_frames = std::clamp<u32>(cv::background_image_eviction_delay_frames.getVal<u32>(), 0, 1024);
+    this->eviction_delay_frames = Mc::clamp<u32>(cv::background_image_eviction_delay_frames.getVal<u32>(), 0, 1024);
     cv::background_image_eviction_delay_frames.setCallback(
         SA::MakeDelegate<&BGImageHandlerImpl::evictionDelayCB>(this));
 
-    this->image_loading_delay = std::clamp<f32>(cv::background_image_loading_delay.getFloat(), 0.f, 2.f);
+    this->image_loading_delay = Mc::clamp<f32>(cv::background_image_loading_delay.getFloat(), 0.f, 2.f);
     cv::background_image_loading_delay.setCallback(SA::MakeDelegate<&BGImageHandlerImpl::loadingDelayCB>(this));
 
     this->disabled = !cv::load_beatmap_background_images.getBool();
@@ -548,7 +549,7 @@ u32 BGImageHandlerImpl::getMaxEvictions() const {
         ret += static_cast<u32>(
             std::round(std::log2<u32>(static_cast<u32>(this->shared_images.size() - this->max_cache_size)) * 2u));
     }
-    ret = std::clamp<u32>(ret, 0u, this->shared_images.size() / 2u);
+    ret = Mc::clamp<u32>(ret, 0u, this->shared_images.size() / 2u);
     return ret;
 }
 
