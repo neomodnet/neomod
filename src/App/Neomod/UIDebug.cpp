@@ -27,6 +27,7 @@
 #include "Environment.h"
 #include "Osu.h"
 #include "Skin.h"
+#include "SongBrowser.h"
 #include "BeatmapInterface.h"
 #include "GameplayJudge.h"
 #include "HitObjects.h"
@@ -153,6 +154,7 @@ void UIDebug::debugAssert(std::string_view args) {
     // ui_assert clipboard <expected>
     // ui_assert map <file|root|md5|offset|background> <expected>
     // ui_assert sets <count>
+    // ui_assert carousel <rows>
     // ui_assert play finished <count>
     // ui_assert skin samples <count>
     // ui_assert text_target <name|none>
@@ -212,6 +214,35 @@ void UIDebug::debugAssert(std::string_view args) {
         const auto expected = Parsing::strto<i32>(parts[1]);
         const auto actual = db->isFinished() ? (i32)db->getBeatmapSets().size() : -1;
         logRaw("UITEST {} sets expected={} actual={}", actual == expected ? "OK" : "FAIL", expected, actual);
+        return;
+    }
+
+    if(!parts.empty() && SString::to_lower(parts[0]) == "carousel"sv) {
+        // the song browser's rows in order with " | " between them (the rest of the line): "<name>" for a group,
+        // "title[n]" for n collapsed difficulties of a set, "title:version" for a difficulty; "*" before the open
+        // group and the selected difficulty, "+" before the other difficulties shown as part of its set
+        std::string expected{parts.size() > 1 ? args.substr(parts[1].data() - args.data()) : ""sv};
+        SString::trim_inplace(expected);
+        std::string actual;
+        if(const SongBrowser *browser = neomod::sbr::g_songbrowser) {
+            for(const CarouselNode row : browser->getRows()) {
+                if(!actual.empty()) actual += " | ";
+                const DatabaseBeatmap *map = browser->getBeatmap(row);
+                if(row.isGroup()) {
+                    actual += fmt::format("<{}{}>", browser->isSelected(row) ? "*" : "",
+                                          browser->getCarouselData().groups[row.idx].name);
+                } else if(row.isSet()) {
+                    actual += fmt::format("{}[{}]", map->getTitle(), browser->getNeighbours(row.idx).size());
+                } else {
+                    actual += fmt::format("{}{}:{}",
+                                          browser->isSelected(row)          ? "*"
+                                          : browser->isIndependentDiff(row) ? ""
+                                                                            : "+",
+                                          map->getTitle(), map->getDifficultyName());
+                }
+            }
+        }
+        logRaw("UITEST {} carousel expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", expected, actual);
         return;
     }
 

@@ -1,0 +1,98 @@
+# the carousel is difficulties in sort order, and the ones of a set that end up next to each other collapse into
+# one set row: all of them in artist sort, only a4 and a5 (2.1 and 2.5 stars, with nothing of the other set between
+# them) in difficulty sort. a selected set shows every difficulty where the order puts it. a set row is entered at
+# its top difficulty coming from above and at its bottom one otherwise, and Left/Right skip the selected set. F2
+# picks a set, not a row, and takes its last row: always a8 from Beta, whatever Alpha is split into. the
+# same inside a group: "2 stars" has a4 and a5 (the mouse stays off the left edge there, which would scroll back to
+# the selected difficulty and open its group again). the database load selects a random difficulty: the search
+# for Beta and Down end on b6 from any of them. the sleeps give the star ratings time to be worked out.
+# uitest-datadir: fresh
+# uitest-file: cfg/engine.cfg|language en
+# uitest-diffs: carousel alpha|Alpha|a1:1 a4:4 a5:5 a8:8
+# uitest-diffs: carousel beta|Beta|b2:2 b6:6
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+songbrowser_sortingtype 4
+set_active_ui_screen songbrowser
+@wait 300
+@sleep 1500
+@wait 20
+@sleep 500
+@wait 20
+ui_assert sets 2
+sendtext Beta
+@wait 60
+sendkey Down
+@wait 5
+ui_assert carousel +Beta:b2 | *Beta:b6
+sendkey Escape
+@wait 10
+ui_assert carousel Alpha:a1 | +Beta:b2 | Alpha[2] | *Beta:b6 | Alpha:a8
+sendkey Up
+@wait 5
+ui_assert carousel +Alpha:a1 | Beta:b2 | +Alpha:a4 | *Alpha:a5 | Beta:b6 | +Alpha:a8
+sendkey Down
+@wait 5
+ui_assert carousel Alpha:a1 | +Beta:b2 | Alpha[2] | *Beta:b6 | Alpha:a8
+sendkey Right
+@wait 5
+ui_assert carousel +Alpha:a1 | Beta:b2 | +Alpha:a4 | +Alpha:a5 | Beta:b6 | *Alpha:a8
+sendkey Left
+@wait 5
+ui_assert carousel Alpha:a1 | +Beta:b2 | Alpha[2] | *Beta:b6 | Alpha:a8
+sendkey F2
+@wait 5
+ui_assert carousel +Alpha:a1 | Beta:b2 | +Alpha:a4 | +Alpha:a5 | Beta:b6 | *Alpha:a8
+sendkey Left
+@wait 5
+ui_assert carousel Alpha:a1 | +Beta:b2 | Alpha[2] | *Beta:b6 | Alpha:a8
+mouse_to 1173 19
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 5
+mouse_to 1173 29
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 10
+mouse_to 10 10
+@wait 5
+ui_assert carousel Alpha[4] | +Beta:b2 | *Beta:b6
+sendkey Up
+@wait 5
+sendkey Up
+@wait 5
+ui_assert carousel +Alpha:a1 | +Alpha:a4 | +Alpha:a5 | *Alpha:a8 | Beta[2]
+sendkey Down
+@wait 5
+ui_assert carousel Alpha[4] | *Beta:b2 | +Beta:b6
+mouse_to 1035 59
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 10
+mouse_to 10 10
+@wait 30
+ui_assert carousel <Below 1 star> | <*1 star> | *Beta:b2 | <2 stars> | <3 stars> | <4 stars> | <5 stars> | <6 stars> | <7 stars> | <8 stars> | <9 stars> | <10 stars> | <Above 10 stars>
+mouse_to 1000 468
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+ui_assert carousel <Below 1 star> | <1 star> | <*2 stars> | Alpha[2] | <3 stars> | <4 stars> | <5 stars> | <6 stars> | <7 stars> | <8 stars> | <9 stars> | <10 stars> | <Above 10 stars>
+sendkey Down
+@wait 5
+ui_assert carousel <Below 1 star> | <1 star> | <*2 stars> | *Alpha:a4 | +Alpha:a5 | <3 stars> | <4 stars> | <5 stars> | <6 stars> | <7 stars> | <8 stars> | <9 stars> | <10 stars> | <Above 10 stars>
+exit

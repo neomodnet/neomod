@@ -400,6 +400,7 @@ void AboutScreen::buildChangelog() {
     v45_02.title = "45.02 (" CHANGELOG_TIMESTAMP ")";
     v45_02.changes = {
         R"(- Allowed binding multiple gameplay actions to the same key (e.g. Left Click and Smoke))",
+        R"(- Improved beatmap difficulty grouping behavior in the song browser)",
     };
     changelogs.push_back(std::move(v45_02));
 

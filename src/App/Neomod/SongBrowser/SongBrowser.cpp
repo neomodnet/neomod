@@ -81,6 +81,8 @@
 #include <charconv>
 #include <cstring>
 #include <limits>
+#include <span>
+#include <tuple>
 #include <unordered_set>
 #include <utility>
 
@@ -182,60 +184,28 @@ struct SortString {
     u32 offset{0}, len{0};
 };
 
-struct SortKey {
-    SortString str1, str2;
-    i64 num{0};
+// what a difficulty is sorted by, then by stars among the ones of its set with the same key
+struct DiffKey {
+    std::string_view str1, str2;
+    f64 num{0.};
     f32 stars{0.f};
     f32 diff{0.f};
-    bool missing{false};
+    u32 idx{0};
+};
+
+// the difficulties of one set with the same key. they stay together, so they are sorted as one
+struct SortUnit {
+    SortString str1, str2;
+    f64 num{0.};
+    // sets with equal keys go by their hardest difficulty
+    f32 setStars{0.f};
+    u32 set{0};
+    u32 begin{0}, count{0};
 };
 
 struct SortKeys {
     std::string strings;
-    std::vector<SortKey> keys;
-
-    void add(const DatabaseBeatmap *map, ScoreGrade grade, SortTypes::type method) {
-        SortKey &key = this->keys.emplace_back();
-        if(map == nullptr) {
-            key.missing = true;
-            return;
-        }
-
-        key.stars = map->getStarRating(StarPrecalc::active_idx);
-        key.diff = (map->getAR() + 1) * (map->getCS() + 1) * (map->getHP() + 1) * (map->getOD() + 1) *
-                   ((f32)std::max(map->getMostCommonBPM(), 1));
-        switch(method) {
-            using enum SortTypes::type;
-            case ARTIST:
-                key.str1 = this->addString(map->getArtistLatin());
-                key.str2 = this->addString(map->getTitleLatin());
-                break;
-            case BPM:
-                key.num = map->getMostCommonBPM();
-                break;
-            case CREATOR:
-                key.str1 = this->addString(map->getCreator());
-                break;
-            case DATEADDED:
-                key.num = -map->last_modification_time;
-                break;
-            case DIFFICULTY:
-            case MAX:
-                break;
-            case LENGTH:
-                key.num = map->getLengthMS();
-                break;
-            case TITLE:
-                key.str1 = this->addString(map->getTitleLatin());
-                break;
-            case RANKACHIEVED:
-                key.num = (i64)grade;
-                break;
-            case DATEPLAYED:
-                key.num = -map->getLastPlayTime();
-                break;
-        }
-    }
+    std::vector<SortUnit> units;
 
     SortString addString(std::string_view str) {
         SortString out{.headBytes = 0, .offset = (u32)this->strings.size(), .len = (u32)str.size()};
@@ -252,42 +222,149 @@ struct SortKeys {
 
     [[nodiscard]] int compare(SortString a, SortString b) const {
         if(a.headBytes != b.headBytes) return a.headBytes < b.headBytes ? -1 : 1;
-        const int cmp =
-            std::memcmp(this->strings.data() + a.offset, this->strings.data() + b.offset, std::min(a.len, b.len));
-        if(cmp != 0) return cmp;
+        // the first 8 bytes are equal: strings of up to 8 bytes only differ in length
+        if(a.len > 8 && b.len > 8) {
+            const int cmp = std::memcmp(this->strings.data() + a.offset + 8, this->strings.data() + b.offset + 8,
+                                        std::min(a.len, b.len) - 8);
+            if(cmp != 0) return cmp;
+        }
         return a.len == b.len ? 0 : (a.len < b.len ? -1 : 1);
     }
 
-    [[nodiscard]] bool less(u32 a, u32 b) const {
-        const SortKey &ka = this->keys[a];
-        const SortKey &kb = this->keys[b];
-        if(ka.missing || kb.missing) return ka.missing < kb.missing;
-        if(const int cmp = this->compare(ka.str1, kb.str1); cmp != 0) return cmp < 0;
-        if(const int cmp = this->compare(ka.str2, kb.str2); cmp != 0) return cmp < 0;
-        if(ka.num != kb.num) return ka.num < kb.num;
-        if(ka.stars != kb.stars) return ka.stars < kb.stars;
-        if(ka.diff == kb.diff) return false;
-        return ka.diff < kb.diff;
+    [[nodiscard]] bool less(const SortUnit &a, const SortUnit &b) const {
+        if(const int cmp = this->compare(a.str1, b.str1); cmp != 0) return cmp < 0;
+        if(const int cmp = this->compare(a.str2, b.str2); cmp != 0) return cmp < 0;
+        if(a.num != b.num) return a.num < b.num;
+        if(a.setStars != b.setStars) return a.setStars < b.setStars;
+        if(a.set != b.set) return a.set < b.set;
+        return a.begin < b.begin;
     }
 };
 
-template <typename T, typename KeyOf>
-void sort_by_keys(std::vector<T> &items, SortTypes::type method, KeyOf keyOf) {
+// every difficulty in the order of a sort method
+std::vector<u32> sorted_diffs(SortTypes::type method, const CarouselData &data) {
     SortKeys keys;
-    keys.keys.reserve(items.size());
-    for(const T &item : items) {
-        const auto [map, grade] = keyOf(item);
-        keys.add(map, grade, method);
+    std::vector<DiffKey> children;
+    children.reserve(data.diffMap.size());
+
+    for(u32 set = 0; set < data.setMap.size(); set++) {
+        const BeatmapSet *mapset = data.setMap[set];
+        if(!mapset) continue;
+
+        const size_t first = children.size();
+        f32 setStars = 0.f;
+        for(const u32 diff : data.setChildren(set)) {
+            const DatabaseBeatmap *map = data.diffMap[diff];
+            DiffKey &key = children.emplace_back();
+            key.idx = diff;
+            key.stars = map->getStarRating(StarPrecalc::active_idx);
+            key.diff = (map->getAR() + 1) * (map->getCS() + 1) * (map->getHP() + 1) * (map->getOD() + 1) *
+                       ((f32)std::max(map->getMostCommonBPM(), 1));
+            setStars = std::max(setStars, key.stars);
+            switch(method) {
+                using enum SortTypes::type;
+                case ARTIST:
+                    key.str1 = map->getArtistLatin();
+                    key.str2 = map->getTitleLatin();
+                    break;
+                case BPM:
+                    key.num = map->getMostCommonBPM();
+                    break;
+                case CREATOR:
+                    key.str1 = map->getCreator();
+                    break;
+                // the set as a whole: its difficulties rarely share a file time or end on the same object
+                case DATEADDED:
+                    key.num = (f64)-mapset->last_modification_time;
+                    break;
+                case LENGTH:
+                    key.num = mapset->getLengthMS();
+                    break;
+                case DIFFICULTY:
+                    key.num = key.stars;
+                    break;
+                case TITLE:
+                    key.str1 = map->getTitleLatin();
+                    break;
+                case RANKACHIEVED:
+                    key.num = (f64)data.diffGrade[diff];
+                    break;
+                case DATEPLAYED:
+                    key.num = (f64)-map->getLastPlayTime();
+                    break;
+                case MAX:
+                    break;
+            }
+        }
+
+        Mc::ranges::sort(std::span{children}.subspan(first), [](const DiffKey &a, const DiffKey &b) {
+            return std::tie(a.str1, a.str2, a.num, a.stars, a.diff) < std::tie(b.str1, b.str2, b.num, b.stars, b.diff);
+        });
+        const auto sameKey = [](const DiffKey &a, const DiffKey &b) {
+            return std::tie(a.str1, a.str2, a.num) == std::tie(b.str1, b.str2, b.num);
+        };
+        for(size_t i = first; i < children.size(); i++) {
+            const DiffKey &key = children[i];
+            if(i == first || !sameKey(key, children[i - 1])) {
+                keys.units.push_back({.str1 = keys.addString(key.str1),
+                                      .str2 = keys.addString(key.str2),
+                                      .num = key.num,
+                                      .setStars = setStars,
+                                      .set = set,
+                                      .begin = (u32)i});
+            }
+            keys.units.back().count++;
+        }
     }
 
-    std::vector<u32> order(items.size());
-    for(u32 i = 0; i < order.size(); i++) order[i] = i;
-    Mc::ranges::sort(order, [&keys](u32 a, u32 b) { return keys.less(a, b); });
+    Mc::ranges::sort(keys.units, [&keys](const SortUnit &a, const SortUnit &b) { return keys.less(a, b); });
 
-    std::vector<T> sorted;
-    sorted.reserve(items.size());
-    for(const u32 i : order) sorted.push_back(items[i]);
-    items = std::move(sorted);
+    std::vector<u32> diffs;
+    diffs.reserve(children.size());
+    for(const SortUnit &unit : keys.units) {
+        for(u32 i = unit.begin; i < unit.begin + unit.count; i++) diffs.push_back(children[i].idx);
+    }
+    return diffs;
+}
+
+// which of the 0-9, A-Z, Other groups a name goes into
+size_t alphanum_group(std::string_view name) {
+    const char firstChar = name.empty() ? '#' : name[0];
+    if(firstChar >= '0' && firstChar <= '9') return 0;
+    if(firstChar >= 'a' && firstChar <= 'z') return 1 + (firstChar - 'a');
+    if(firstChar >= 'A' && firstChar <= 'Z') return 1 + (firstChar - 'A');
+    return 27;
+}
+
+// which group of a grouping a difficulty goes into (see initializeGroupingButtons())
+size_t group_index(GroupTypes::type grouping, const DatabaseBeatmap &diff) {
+    switch(grouping) {
+        using enum GroupTypes::type;
+        case ARTIST:
+            return alphanum_group(diff.getArtistLatin());
+        case CREATOR:
+            return alphanum_group(diff.getCreator());
+        case TITLE:
+            return alphanum_group(diff.getTitleLatin());
+        case DIFFICULTY: {
+            const f32 stars = diff.getStarRating(StarPrecalc::active_idx);
+            return std::isfinite(stars) ? (size_t)std::clamp(stars, 0.f, 11.f) : 0;
+        }
+        case BPM: {
+            const int bpm = diff.getMostCommonBPM();
+            return bpm < 60 ? 0 : bpm < 120 ? 1 : bpm < 180 ? 2 : bpm < 240 ? 3 : bpm < 300 ? 4 : 5;
+        }
+        case LENGTH: {
+            const u32 minutes = (diff.getLengthMS() + 1000 * 60 - 1) / (1000 * 60);
+            return minutes <= 1 ? 0 : minutes <= 5 ? minutes - 1 : minutes <= 10 ? 5 : 6;
+        }
+        case DATEADDED:
+        case COLLECTIONS:
+        case NO_GROUPING:
+        case MAX:
+            break;
+    }
+    return 0;
 }
 }  // namespace
 
@@ -750,72 +827,65 @@ CarouselNode SongBrowser::getDiffNodeByHash(const MD5Hash &diff_hash) const {
     return {};
 }
 
-CarouselNode SongBrowser::getSelectedSet() const {
-    return this->selectedDiff ? CarouselNode::set(this->data.diffSet[this->selectedDiff.idx]) : CarouselNode{};
+bool SongBrowser::isSetSelected(u32 set) const {
+    return this->selectedDiff && this->data.diffSet[this->selectedDiff.idx] == set;
 }
 
+// never a set row: a selected set shows all of its difficulties
 bool SongBrowser::isSelected(CarouselNode node) const {
-    return node && (node == this->selectedDiff || node == this->openGroup || node == this->getSelectedSet());
+    return node && (node == this->selectedDiff || node == this->openGroup);
 }
 
 bool SongBrowser::isSearchMatch(CarouselNode node) const { return !node.isDiff() || this->data.diffMatch[node.idx]; }
 
-bool SongBrowser::isDiffShown(u32 diff) const {
-    return this->data.diffMatch[diff] && (this->curGroup != GroupType::COLLECTIONS || !this->openGroup ||
-                                          this->data.groups[this->openGroup.idx].lists(diff));
+size_t SongBrowser::findDiff(std::span<const u32> diffs, u32 diff) const {
+    const auto it =
+        Mc::ranges::lower_bound(diffs, this->diffRank[diff], {}, [this](u32 d) { return this->diffRank[d]; });
+    return it != diffs.end() && *it == diff ? (size_t)(it - diffs.begin()) : diffs.size();
 }
+
+bool SongBrowser::isDiffShown(u32 diff) const {
+    return this->findDiff(this->shownDiffs, diff) < this->shownDiffs.size();
+}
+
+std::span<const u32> SongBrowser::getNeighbours(u32 diff) const {
+    const std::span<const u32> shown{this->shownDiffs};
+    size_t begin = this->findDiff(shown, diff);
+    if(begin == shown.size()) return {};
+
+    const u32 set = this->data.diffSet[diff];
+    size_t end = begin + 1;
+    while(begin > 0 && this->data.diffSet[shown[begin - 1]] == set) begin--;
+    while(end < shown.size() && this->data.diffSet[shown[end]] == set) end++;
+    return shown.subspan(begin, end - begin);
+}
+
+const std::vector<CarouselNode> &SongBrowser::getRows() const { return this->carousel->getRows(); }
 
 DatabaseBeatmap *SongBrowser::getBeatmap(CarouselNode node) const {
-    if(node.isSet()) {
-        DatabaseBeatmap *representative = this->data.setRepresentative[node.idx];
-        return representative ? representative : this->data.setMap[node.idx];
-    }
-    if(node.isDiff()) return this->data.diffMap[node.idx];
-    return nullptr;
+    return node.isSong() ? this->data.diffMap[node.idx] : nullptr;
 }
 
+// a set row shows the best grade of its difficulties
 ScoreGrade SongBrowser::getGrade(CarouselNode node) const {
-    if(node.isSet()) return this->data.setGrade[node.idx];
     if(node.isDiff()) return this->data.diffGrade[node.idx];
-    return ScoreGrade::N;
+    ScoreGrade best = ScoreGrade::N;
+    if(node.isSet()) {
+        for(const u32 diff : this->getNeighbours(node.idx)) best = std::min(best, this->data.diffGrade[diff]);
+    }
+    return best;
 }
 
 bool SongBrowser::isIndependentDiff(CarouselNode node) const {
     if(!node.isDiff()) return true;
     const u32 set = this->data.diffSet[node.idx];
-    if(this->getSelectedSet() != CarouselNode::set(set)) return true;
-    return this->getSetVisibility(set) == SetVisibility::SINGLE_CHILD;
-}
-
-bool SongBrowser::sortSetChildren(u32 set) {
-    if(this->data.setDiffsSortedForStarIdx[set] == StarPrecalc::active_idx) return false;
-    this->data.setDiffsSortedForStarIdx[set] = StarPrecalc::active_idx;
-
-    const auto children = this->data.setChildren(set);
-    std::vector<u32> sorted{children.begin(), children.end()};
-    sort_by_keys(sorted, SortTypes::DIFFICULTY,
-                 [this](u32 diff) { return std::pair{this->data.diffMap[diff], this->data.diffGrade[diff]}; });
-    std::ranges::copy(sorted, children.begin());
-    return true;
-}
-
-void SongBrowser::updateSetRepresentative(u32 set) {
-    if(this->data.setDiffCount[set] == 0) return;
-
-    this->sortSetChildren(set);
-
-    // use the bottom child (hardest diff, assuming default sorting, and respecting the current search matches)
-    const auto children = this->data.setChildren(set);
-    for(sSz i = static_cast<sSz>(children.size()) - 1; i >= 0; --i) {
-        // NOTE: if no search is active, then all search matches return true by default
-        if(!this->data.diffMatch[children[i]]) continue;
-        this->data.setRepresentative[set] = this->data.diffMap[children[i]];
-        return;
+    if(!this->isSetSelected(set)) return true;
+    // the only shown difficulty of the selected set
+    u32 shown = 0;
+    for(const u32 diff : this->data.setChildren(set)) {
+        if(this->isDiffShown(diff) && ++shown == 2) return false;
     }
-}
-
-void SongBrowser::updateSetRepresentatives() {
-    for(const u32 set : this->setOrder) this->updateSetRepresentative(set);
+    return true;
 }
 
 void SongBrowser::maybeUpdateGrade(u32 diff) {
@@ -852,16 +922,17 @@ void SongBrowser::updateGrade(u32 diff) {
     }
 
     this->data.diffGrade[diff] = maxGrade;
-    ScoreGrade &setGrade = this->data.setGrade[this->data.diffSet[diff]];
-    if(setGrade > maxGrade) setGrade = maxGrade;
 }
 
 void SongBrowser::select(CarouselNode node) { this->select(node, {}); }
 
 void SongBrowser::select(CarouselNode node, SelOpts opts) {
     switch(node.kind) {
-        case CarouselNode::Kind::SET:
-            return this->selectSet(node.idx, opts);
+        case CarouselNode::Kind::SET: {
+            // the bottom one of its difficulties (the hardest, assuming default sorting), or the top one
+            const std::span<const u32> diffs = this->getNeighbours(node.idx);
+            return this->selectDiff(opts.topChild && !diffs.empty() ? diffs.front() : node.idx, opts);
+        }
         case CarouselNode::Kind::DIFF:
             return this->selectDiff(node.idx, opts);
         case CarouselNode::Kind::GROUP:
@@ -871,28 +942,10 @@ void SongBrowser::select(CarouselNode node, SelOpts opts) {
     }
 }
 
-void SongBrowser::selectSet(u32 set, SelOpts opts) {
-    // resort children (since they might have been updated in the meantime)
-    this->sortSetChildren(set);
-
-    // update grade on children if necessary
-    this->maybeUpdateSetGrades(set);
-
-    // now, automatically select the bottom child (hardest diff, assuming default sorting, and respecting the current
-    // search matches)
-    const auto children = this->data.setChildren(set);
-    for(size_t i = 0; i < children.size(); i++) {
-        const u32 child = children[opts.topChild ? i : children.size() - 1 - i];
-        // NOTE: if no search is active, then all search matches return true by default
-        if(this->isDiffShown(child)) return this->selectDiff(child, opts);
-    }
-}
-
 void SongBrowser::selectDiff(u32 diff, SelOpts opts) {
     const CarouselNode node = CarouselNode::diff(diff);
-    const CarouselNode set = CarouselNode::set(this->data.diffSet[diff]);
-    const CarouselNode oldSet = this->getSelectedSet();
     const bool wasSelected = this->selectedDiff == node;
+    const bool wasExpanded = this->isSetSelected(this->data.diffSet[diff]);
 
     this->updateGrade(diff);
     this->contextMenu->setVisible2(false);
@@ -904,10 +957,8 @@ void SongBrowser::selectDiff(u32 diff, SelOpts opts) {
         if(opts.anchorEnd) return (f32)this->carousel->getScrollSize().y;
         return this->getNodeY(node);
     };
-    const bool wasExpanded = oldSet == set && this->getSetVisibility(set.idx) == SetVisibility::SHOW_PARENT;
     const std::optional<f32> anchorBefore = wasExpanded ? std::nullopt : anchorY();
 
-    if(oldSet != set) this->sortSetChildren(set.idx);
     this->selectedDiff = node;
 
     this->rebuildSongButtons();
@@ -932,6 +983,7 @@ void SongBrowser::toggleGroup(u32 group) {
     // work)
     this->openGroup = this->openGroup == node ? CarouselNode{} : node;
 
+    this->rebuildVisibleSongButtons();
     this->rebuildSongButtons();
     this->scrollToSongButton(node, true);
 }
@@ -939,7 +991,12 @@ void SongBrowser::toggleGroup(u32 group) {
 std::optional<f32> SongBrowser::getNodeY(CarouselNode node) const {
     const size_t numRows = this->carousel->getRows().size();
     size_t row = this->carousel->findRow(node);
-    if(row == numRows && node.isDiff()) row = this->carousel->findRow(CarouselNode::set(this->data.diffSet[node.idx]));
+    if(row == numRows && node.isDiff()) {
+        // collapsed into a set row
+        if(const std::span<const u32> diffs = this->getNeighbours(node.idx); !diffs.empty()) {
+            row = this->carousel->findRow(CarouselNode::set(diffs.back()));
+        }
+    }
     if(row == numRows) return std::nullopt;
     return this->carousel->getRowY(row);
 }
@@ -989,7 +1046,6 @@ void SongBrowser::tick() {
             if(BatchDiffCalc::did_actual_work()) {
                 // force re-sort with final ratings
                 this->lastDiffSortModIndex = 0xFF;
-                std::ranges::fill(this->data.setDiffsSortedForStarIdx, 0xFF);
                 this->searchIndex = std::make_shared<AsyncSongButtonMatcher::SearchIndex>();
                 this->searchIndexedDiffs = 0;
             }
@@ -1015,7 +1071,6 @@ void SongBrowser::tick() {
 
     // handle changed mods resort
     if(this->lastDiffSortModIndex != StarPrecalc::active_idx) {
-        this->updateSetRepresentatives();
         this->onSortChange("", cv::songbrowser_sortingtype.getInt());
         this->lastDiffSortModIndex = StarPrecalc::active_idx;
     }
@@ -1097,7 +1152,6 @@ void SongBrowser::tick() {
             this->data.diffMatch[this->lastSearch->index->ids[i]] = this->lastSearch->matches[i];
         }
         this->shownSearch = this->lastSearch;
-        this->updateSetRepresentatives();
         this->rebuildSearchResults(!rerun);
     }
     if(this->bInitializedBeatmaps && this->bInSearch && !this->searchHandle.valid() &&
@@ -1305,7 +1359,7 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
     if(visible == this->bVisible) return this;
 
     // Load DB if we haven't attempted yet
-    if(visible && this->setOrder.empty() && !db->isFinished()) {
+    if(visible && this->diffOrder.empty() && !db->isFinished()) {
         this->refreshBeatmaps(this);
         return this;
     }
@@ -1561,7 +1615,8 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
 
     this->hashToDiffButton->clear();
     this->data.clear();
-    this->setOrder.clear();
+    this->diffOrder.clear();
+    this->diffRank.clear();
 
     this->collectionButtons.clear();
 
@@ -1573,7 +1628,8 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     this->lengthCollectionButtons.clear();
     this->titleCollectionButtons.clear();
 
-    this->visibleSongButtons.clear();
+    this->visibleGroups.clear();
+    this->shownDiffs.clear();
     this->previousRandomBeatmaps.clear();
 
     // the score buttons point at maps of the database being reloaded too, and nothing rebuilds them when the
@@ -1615,35 +1671,6 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     ui->pushOverlay(std::move(loading_screen));
 }
 
-namespace {
-void add_mapset_to_alphanum_group(CarouselNode set, CarouselData &data, const SongBrowser::GroupList &group,
-                                  std::string_view name) {
-    if(group.size() != 28) {
-        debugLog("Alphanumeric group wasn't initialized!");
-        return;
-    }
-
-    const char firstChar = name.length() == 0 ? '#' : name[0];
-    const bool isNumber = (firstChar >= '0' && firstChar <= '9');
-    const bool isLowerCase = (firstChar >= 'a' && firstChar <= 'z');
-    const bool isUpperCase = (firstChar >= 'A' && firstChar <= 'Z');
-
-    u32 cbtn = 0;
-    if(isNumber) {
-        cbtn = group[0];
-    } else if(isLowerCase || isUpperCase) {
-        const int index = 1 + (25 - (isLowerCase ? 'z' - firstChar : 'Z' - firstChar));
-        cbtn = group[index];
-    } else {
-        cbtn = group[27];
-    }
-
-    logIfCV(debug_osu, "Inserting {:s}", name);
-
-    data.groups[cbtn].children.push_back(set);
-}
-}  // namespace
-
 // this is an insane hack to be calling from places that don't even use songbrowser
 void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad) {
     if(!this->bInitializedBeatmaps && !initialSongBrowserLoad) {
@@ -1654,161 +1681,61 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
     // NOTE: BeatmapSets must always be created with at least itself as a difficulty.
     assert(!mapset->getDifficulties().empty());
 
-    // some invariants are assumed to be true if we are loading for the first time
-    if(initialSongBrowserLoad) {
-        assert(this->difficultyCollectionButtons.size() == 12);
-        assert(this->bpmCollectionButtons.size() == 6);
-        assert(this->lengthCollectionButtons.size() == 7);
-    } else {
-        this->bSongButtonsNeedSorting = true;
-    }
+    if(!initialSongBrowserLoad) this->bSongButtonsNeedSorting = true;
 
-    const bool doDiffCollBtns = initialSongBrowserLoad || likely(this->difficultyCollectionButtons.size() == 12);
-    const bool doBPMCollBtns = initialSongBrowserLoad || likely(this->bpmCollectionButtons.size() == 6);
-    const bool doLengthCollBtns = initialSongBrowserLoad || likely(this->lengthCollectionButtons.size() == 7);
-
-    // always create parent button for the set
     const u32 set = (u32)this->data.setMap.size();
     this->data.setMap.push_back(mapset);
-    this->data.setRepresentative.push_back(nullptr);
     this->data.setDiffBegin.push_back((u32)this->data.setDiffs.size());
     this->data.setDiffCount.push_back((u32)mapset->getDifficulties().size());
-    this->data.setGrade.push_back(ScoreGrade::N);
-    this->data.setDiffsSortedForStarIdx.push_back(0xFF);
     for(const auto &diff : mapset->getDifficulties()) {
         // must exist and be a difficulty
         assert(diff && diff->getDifficulties().empty());
-        this->data.setDiffs.push_back((u32)this->data.diffMap.size());
+        const u32 diff_idx = (u32)this->data.diffMap.size();
+        this->data.setDiffs.push_back(diff_idx);
         this->data.diffMap.push_back(diff.get());
         this->data.diffSet.push_back(set);
         this->data.diffGrade.push_back(ScoreGrade::N);
         this->data.diffGradeScheduled.push_back(true);
         this->data.diffMatch.push_back(true);
-    }
-    if(this->curSortMethod == SortType::RANKACHIEVED) {
-        for(const u32 diff : this->data.setChildren(set)) this->updateGrade(diff);
-    }
-    this->updateSetRepresentative(set);
-    this->setOrder.push_back(set);
 
-    // add mapset to all necessary groups
-
-    add_mapset_to_alphanum_group(CarouselNode::set(set), this->data, this->artistCollectionButtons,
-                                 mapset->getArtistLatin());
-    add_mapset_to_alphanum_group(CarouselNode::set(set), this->data, this->creatorCollectionButtons,
-                                 mapset->getCreator());
-    add_mapset_to_alphanum_group(CarouselNode::set(set), this->data, this->titleCollectionButtons,
-                                 mapset->getTitleLatin());
-
-    // use parent's children for grouping
-    for(const u32 diff_idx : this->data.setChildren(set)) {
-        const DatabaseBeatmap *diff = this->data.diffMap[diff_idx];
-        const CarouselNode diff_btn = CarouselNode::diff(diff_idx);
+        // at the end until the next sort, which also puts it into its groups
+        this->diffOrder.push_back(diff_idx);
+        this->diffRank.push_back(std::numeric_limits<u32>::max());
 
         // map each difficulty hash to its button
         this->hashToDiffButton->emplace(diff->getMD5(), diff_idx);
-
-        if(doDiffCollBtns) {
-            const float stars_tmp = diff->getStarRating(StarPrecalc::active_idx);
-            const int index = std::clamp<int>(
-                (std::isfinite(stars_tmp) && stars_tmp >= static_cast<float>(std::numeric_limits<int>::min()) &&
-                 stars_tmp <= static_cast<float>(std::numeric_limits<int>::max()))
-                    ? static_cast<int>(stars_tmp)
-                    : 0,
-                0, 11);
-            this->data.groups[this->difficultyCollectionButtons[index]].children.push_back(diff_btn);
-        }
-
-        if(doBPMCollBtns) {
-            const int bpm = diff->getMostCommonBPM();
-            int index = 0;
-            if(bpm < 60) {
-                index = 0;
-            } else if(bpm < 120) {
-                index = 1;
-            } else if(bpm < 180) {
-                index = 2;
-            } else if(bpm < 240) {
-                index = 3;
-            } else if(bpm < 300) {
-                index = 4;
-            } else {
-                index = 5;
-            }
-
-            this->data.groups[this->bpmCollectionButtons[index]].children.push_back(diff_btn);
-        }
-
-        // dateadded
-        {
-            // TODO: extremely annoying
-        }
-
-        if(doLengthCollBtns) {
-            const u32 lengthMS = diff->getLengthMS();
-            int btnIdx = 0;
-
-            if(lengthMS <= 1000 * 60) {
-                btnIdx = 0;
-            } else if(lengthMS <= 1000 * 60 * 2) {
-                btnIdx = 1;
-            } else if(lengthMS <= 1000 * 60 * 3) {
-                btnIdx = 2;
-            } else if(lengthMS <= 1000 * 60 * 4) {
-                btnIdx = 3;
-            } else if(lengthMS <= 1000 * 60 * 5) {
-                btnIdx = 4;
-            } else if(lengthMS <= 1000 * 60 * 10) {
-                btnIdx = 5;
-            } else {
-                btnIdx = 6;
-            }
-
-            this->data.groups[this->lengthCollectionButtons[btnIdx]].children.push_back(diff_btn);
-        }
     }
 }
 
 void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
-    auto btn_it = Mc::ranges::find_if(this->setOrder, [this, set](u32 s) { return this->data.setMap[s] == set; });
-    if(btn_it == this->setOrder.end()) return;
-    const CarouselNode btn = CarouselNode::set(*btn_it);
+    const auto set_it = Mc::ranges::find(this->data.setMap, set);
+    if(set_it == this->data.setMap.end()) return;
+    const u32 idx = (u32)(set_it - this->data.setMap.begin());
 
     this->checkHandleKillBackgroundSearchMatcher();
     this->contextMenu->setVisible2(false);
 
-    auto forget = [](CarouselNode &node, CarouselNode b) {
-        if(node == b) node = {};
-    };
-    auto unlink = [this](const GroupList &group, CarouselNode b) {
-        for(const u32 cbtn : group) std::erase(this->data.groups[cbtn].children, b);
-    };
+    const auto inSet = [this, idx](u32 diff) { return this->data.diffSet[diff] == idx; };
+    std::erase_if(this->diffOrder, inSet);
+    std::erase_if(this->shownDiffs, inSet);
+    if(const GroupList *groups = this->getCollectionButtonsForGroup(this->curGroup)) {
+        for(const u32 group : *groups) std::erase_if(this->data.groups[group].diffs, inSet);
+    }
 
-    // the alphanumeric groups hold the parent, the difficulty/bpm/length groups hold the diffs
-    unlink(this->artistCollectionButtons, btn);
-    unlink(this->creatorCollectionButtons, btn);
-    unlink(this->titleCollectionButtons, btn);
-    std::erase(this->visibleSongButtons, btn);
-
-    for(const u32 diff : this->data.setChildren(btn.idx)) {
-        const CarouselNode child = CarouselNode::diff(diff);
-        forget(this->selectedDiff, child);
+    for(const u32 diff : this->data.setChildren(idx)) {
+        if(this->selectedDiff == CarouselNode::diff(diff)) this->selectedDiff = {};
         this->hashToDiffButton->erase(this->data.diffMap[diff]->getMD5());
         this->data.diffMap[diff] = nullptr;
-        unlink(this->difficultyCollectionButtons, child);
-        unlink(this->bpmCollectionButtons, child);
-        unlink(this->lengthCollectionButtons, child);
-        std::erase(this->visibleSongButtons, child);
     }
+    *set_it = nullptr;
     std::erase_if(this->previousRandomBeatmaps,
                   [set](const DatabaseBeatmap *m) { return m == set || m->getParentSet() == set; });
 
-    this->setOrder.erase(btn_it);
     this->carousel->clearRows();
 }
 
 // after a set's buttons were added/removed at runtime: user collections are derived from hashToDiffButton and
-// the visible list/carousel/difficulty buckets from the containers, so rebuild them (keeping the open collection)
+// the order, groups and rows from the difficulties, so rebuild them (keeping the open collection)
 void SongBrowser::rebuildAfterSetChange() {
     this->recreateCollectionsButtons();
     this->bSongButtonsNeedSorting = true;
@@ -1917,11 +1844,9 @@ bool SongBrowser::scrollToBestButton(bool animated) {
     if(!this->isSearchMatch(best)) return false;
 
     if(const GroupList *groups = this->getCollectionButtonsForGroup(this->curGroup); groups && best.isDiff()) {
-        const CarouselNode set = CarouselNode::set(this->data.diffSet[best.idx]);
         const auto shows = [&](u32 group) {
-            const CarouselGroup &g = this->data.groups[group];
-            return g.lists(best.idx) &&
-                   (Mc::ranges::contains(g.children, best) || Mc::ranges::contains(g.children, set));
+            const std::vector<u32> &diffs = this->data.groups[group].diffs;
+            return this->findDiff(diffs, best.idx) < diffs.size();
         };
 
         // XXX: special cases for collection grouping (same beatmap can be under multiple collection buttons!)
@@ -1962,32 +1887,31 @@ bool SongBrowser::scrollToSongButton(CarouselNode songButton, bool alignOnTop, b
 
 bool SongBrowser::rebuildSongButtons() {
     std::vector<CarouselNode> rows;
-    rows.reserve(this->visibleSongButtons.size());
+    rows.reserve(this->visibleGroups.size() + this->shownDiffs.size());
 
-    const auto addSong = [&](CarouselNode node) {
-        if(!node.isSet()) {
-            if(this->isSearchMatch(node)) rows.push_back(node);
-            return;
-        }
-        if(!this->isSelected(node) && this->getSetVisibility(node.idx) == SetVisibility::SHOW_PARENT) {
-            rows.push_back(node);
-            return;
-        }
-        for(const u32 diff : this->data.setChildren(node.idx)) {
-            if(this->isDiffShown(diff)) rows.push_back(CarouselNode::diff(diff));
+    // difficulties of one set that are next to each other collapse into a set row, unless the set is selected
+    const auto addShown = [&] {
+        const std::vector<u32> &shown = this->shownDiffs;
+        for(size_t i = 0; i < shown.size();) {
+            const u32 set = this->data.diffSet[shown[i]];
+            size_t end = i + 1;
+            while(end < shown.size() && this->data.diffSet[shown[end]] == set) end++;
+
+            if(end - i > 1 && !this->isSetSelected(set)) {
+                rows.push_back(CarouselNode::set(shown[end - 1]));
+                i = end;
+            }
+            for(; i < end; i++) rows.push_back(CarouselNode::diff(shown[i]));
         }
     };
 
-    // NOTE: currently supports 3 depth layers (collection > beatmap > diffs)
-    for(const CarouselNode node : this->visibleSongButtons) {
-        if(!node.isGroup()) {
-            addSong(node);
-            continue;
+    if(this->getCollectionButtonsForGroup(this->curGroup)) {
+        for(const u32 group : this->visibleGroups) {
+            rows.push_back(CarouselNode::group(group));
+            if(this->openGroup == rows.back()) addShown();
         }
-        rows.push_back(node);
-        if(this->isSelected(node)) {
-            for(const CarouselNode child : this->data.groups[node.idx].children) addSong(child);
-        }
+    } else {
+        addShown();
     }
 
     std::vector<f32> rowY = this->layoutRows(rows);
@@ -2041,21 +1965,6 @@ std::vector<f32> SongBrowser::layoutRows(const std::vector<CarouselNode> &rows) 
 void SongBrowser::updateSongButtonLayout() {
     // this rebuilds the entire songButton layout (songButtons in relation to others)
     this->carousel->setRowPositions(this->layoutRows(this->carousel->getRows()));
-}
-
-SongBrowser::SetVisibility SongBrowser::getSetVisibility(u32 set) const {
-    // count visible children
-    int visibleCount = 0;
-    for(const u32 child : this->data.setChildren(set)) {
-        if(this->isDiffShown(child)) {
-            visibleCount++;
-        }
-        if(visibleCount > 1) break;  // break early
-    }
-
-    if(visibleCount == 0) return SetVisibility::HIDDEN;
-    if(visibleCount == 1) return SetVisibility::SINGLE_CHILD;
-    return SetVisibility::SHOW_PARENT;
 }
 
 void SongBrowser::updateLayout() {
@@ -2262,9 +2171,7 @@ void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) {
 }
 
 void SongBrowser::refreshGrades() {
-    for(const auto &[md5, diff] : *this->hashToDiffButton)
-        this->data.setGrade[this->data.diffSet[diff]] = ScoreGrade::N;
-    for(const auto &[md5, diff] : *this->hashToDiffButton) this->updateGrade(diff);
+    for(const u32 diff : this->diffOrder) this->updateGrade(diff);
 }
 
 void SongBrowser::rebuildScoreButtons() {
@@ -2531,7 +2438,8 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
         for(const auto &mapset : db->getBeatmapSets()) {
             numDiffs += mapset->getDifficulties().size();
         }
-        this->setOrder.reserve(numSets);
+        this->diffOrder.reserve(numDiffs);
+        this->diffRank.reserve(numDiffs);
         this->data.reserve(numSets, numDiffs);
         this->hashToDiffButton->reserve(numDiffs);
         for(const auto &mapset : db->getBeatmapSets()) {
@@ -2650,14 +2558,12 @@ void SongBrowser::onSearchUpdate() {
         // stop potentially running async search
         this->checkHandleKillBackgroundSearchMatcher();
 
-        // reset container and visible buttons list
+        // reset container
         this->carousel->clearRows();
-        this->visibleSongButtons.clear();
 
         // reset all search flags
         std::ranges::fill(this->data.diffMatch, true);
         this->shownSearch = this->lastSearch;
-        this->updateSetRepresentatives();
 
         // this also rebuilds the visible buttons list
         this->rebuildAfterGroupOrSortChange(this->curGroup);
@@ -2691,63 +2597,34 @@ void SongBrowser::submitSearch() {
 }
 
 void SongBrowser::rebuildVisibleSongButtons() {
-    this->visibleSongButtons.clear();
+    this->visibleGroups.clear();
+    this->shownDiffs.clear();
     this->currentVisibleSearchMatches = 0;
-    const bool countMatches = this->bInSearch;
 
-    // use flagged search matches to rebuild visible song buttons
-    if(this->curGroup == GroupType::NO_GROUPING) {
-        this->visibleSongButtons.reserve(this->setOrder.size());
-        for(const u32 parentButton : this->setOrder) {
-            switch(this->getSetVisibility(parentButton)) {
-                case SetVisibility::HIDDEN:
-                    // don't add to carousel
-                    break;
-
-                case SetVisibility::SINGLE_CHILD:
-                    // add only the visible child
-                    for(const u32 child : this->data.setChildren(parentButton)) {
-                        if(this->data.diffMatch[child]) {
-                            if(countMatches) this->currentVisibleSearchMatches++;
-                            this->visibleSongButtons.push_back(CarouselNode::diff(child));
-                            break;  // only one visible child
-                        }
-                    }
-                    break;
-
-                case SetVisibility::SHOW_PARENT:
-                    // add parent (which will expand to show children if selected)
-                    if(countMatches) {
-                        for(const u32 child : this->data.setChildren(parentButton)) {
-                            if(this->data.diffMatch[child]) {
-                                this->currentVisibleSearchMatches++;
-                            }
-                        }
-                    }
-                    this->visibleSongButtons.push_back(CarouselNode::set(parentButton));
-                    break;
-            }
+    // use flagged search matches to rebuild what the carousel shows
+    const auto show = [this](const std::vector<u32> &diffs) {
+        for(const u32 diff : diffs) {
+            if(this->data.diffMatch[diff]) this->shownDiffs.push_back(diff);
         }
-    } else if(auto *groupButtons = this->getCollectionButtonsForGroup(this->curGroup); !!groupButtons) {
-        this->visibleSongButtons.reserve(groupButtons->size());
-        for(const u32 groupButton : *groupButtons) {
-            CarouselGroup &group = this->data.groups[groupButton];
-            group.numVisibleChildren = 0;
-            for(const CarouselNode c : group.children) {
-                if(!c.isSet()) {
-                    group.numVisibleChildren += this->isSearchMatch(c);
-                    continue;
-                }
-                for(const u32 diff : this->data.setChildren(c.idx)) {
-                    group.numVisibleChildren += this->data.diffMatch[diff] && group.lists(diff);
-                }
-            }
-            if(countMatches) {
-                if(group.numVisibleChildren == 0) continue;
-                this->currentVisibleSearchMatches += group.numVisibleChildren;
-            }
-            this->visibleSongButtons.push_back(CarouselNode::group(groupButton));
+    };
+
+    const GroupList *groups = this->getCollectionButtonsForGroup(this->curGroup);
+    if(!groups) {
+        show(this->diffOrder);
+        if(this->bInSearch) this->currentVisibleSearchMatches = (i32)this->shownDiffs.size();
+        return;
+    }
+
+    for(const u32 groupButton : *groups) {
+        CarouselGroup &group = this->data.groups[groupButton];
+        group.numVisibleChildren =
+            (i32)Mc::ranges::count_if(group.diffs, [this](u32 diff) { return this->data.diffMatch[diff]; });
+        if(this->bInSearch) {
+            if(group.numVisibleChildren == 0) continue;
+            this->currentVisibleSearchMatches += group.numVisibleChildren;
         }
+        this->visibleGroups.push_back(groupButton);
+        if(this->openGroup == CarouselNode::group(groupButton)) show(group.diffs);
     }
 }
 
@@ -2757,14 +2634,14 @@ void SongBrowser::rebuildSearchResults(bool scrollToTop) {
     if(!this->rebuildSongButtons()) return;
 
     // scroll to top search result, or auto select the only result (a held selection stays)
-    if(scrollToTop && !this->visibleSongButtons.empty()) {
-        if(this->visibleSongButtons.size() == 1 && !this->isSelected(this->visibleSongButtons[0]) &&
-           !osu->getMusicTrack()->isHeld()) {
-            this->scrollToSongButton(this->visibleSongButtons[0], false, false);
-            this->selectSongButton(this->visibleSongButtons[0]);
+    if(const std::vector<CarouselNode> &rows = this->carousel->getRows(); scrollToTop && !rows.empty()) {
+        if(const CarouselNode only = rows[0];
+           rows.size() == 1 && !this->isSelected(only) && !osu->getMusicTrack()->isHeld()) {
+            this->scrollToSongButton(only, false, false);
+            this->selectSongButton(only);
         } else if(!this->scrollToBestButton(false)) {
             // scroll to the currently selected button if it's a search match, otherwise the first one
-            this->scrollToSongButton(this->visibleSongButtons[0], false, false);
+            this->scrollToSongButton(rows[0], false, false);
         }
     }
 }
@@ -2967,83 +2844,67 @@ void SongBrowser::onSortChange(std::string_view /*text*/, int id) {
     }
 }
 
-void SongBrowser::rebucketDifficultyCollections() {
-    if(this->difficultyCollectionButtons.size() != 12) return;
-
-    for(const u32 btn : this->difficultyCollectionButtons) this->data.groups[btn].children.clear();
-
-    for(const u32 parentBtn : this->setOrder) {
-        for(const u32 child : this->data.setChildren(parentBtn)) {
-            const DatabaseBeatmap *diff = this->data.diffMap[child];
-            const float stars = diff->getStarRating(StarPrecalc::active_idx);
-            const int idx =
-                std::clamp<int>((std::isfinite(stars) && stars >= static_cast<float>(std::numeric_limits<int>::min()) &&
-                                 stars <= static_cast<float>(std::numeric_limits<int>::max()))
-                                    ? static_cast<int>(stars)
-                                    : 0,
-                                0, 11);
-            this->data.groups[this->difficultyCollectionButtons[idx]].children.push_back(CarouselNode::diff(child));
-        }
-    }
-}
-
 void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::optional<SortType> &sortMethod) {
     // TODO: with "No Grouping", some sorting methods randomly fail...?
     const SortType newSortMethod = sortMethod.value_or(this->curSortMethod);
     const bool sortingChanged = this->curSortMethod != newSortMethod;
     const bool groupingChanged = this->curGroup != group;
 
-    const bool diffSortChanged = (newSortMethod == SortType::DIFFICULTY || group == GroupType::DIFFICULTY) &&
-                                 this->lastDiffSortModIndex != StarPrecalc::active_idx;
+    // stars order the difficulties of a set in every sort, and move rows around in one by difficulty
+    const bool starsChanged = this->lastDiffSortModIndex != StarPrecalc::active_idx;
+    const bool resort = this->bSongButtonsNeedSorting || sortingChanged || starsChanged;
+    const bool rowsMoved = this->bSongButtonsNeedSorting || sortingChanged || groupingChanged ||
+                           this->carousel->getRows().empty() ||
+                           (starsChanged && (newSortMethod == SortType::DIFFICULTY || group == GroupType::DIFFICULTY));
+    if(!resort && !rowsMoved) return;
 
-    if(!this->bSongButtonsNeedSorting && !sortingChanged && !groupingChanged && !diffSortChanged &&
-       !this->visibleSongButtons.empty()) {
-        return;
+    // only the shown grouping keeps its difficulties, collections are what they list
+    if(const GroupList *oldGroups = this->getCollectionButtonsForGroup(this->curGroup);
+       oldGroups && groupingChanged && this->curGroup != GroupType::COLLECTIONS) {
+        for(const u32 button : *oldGroups) this->data.groups[button].diffs = {};
     }
 
     this->curGroup = group;
     this->curSortMethod = newSortMethod;
     this->lastDiffSortModIndex = StarPrecalc::active_idx;
-    const bool forceSort = this->bSongButtonsNeedSorting;
 
-    if(forceSort || sortingChanged || diffSortChanged) {
+    if(resort) {
         // lazy update grade
         if(this->curSortMethod == SortType::RANKACHIEVED) {
-            for(const u32 set : this->setOrder) this->maybeUpdateSetGrades(set);
+            for(const u32 diff : this->diffOrder) this->maybeUpdateGrade(diff);
         }
-        // the master button list should be sorted for all groupings
-        sort_by_keys(this->setOrder, this->curSortMethod, [this](u32 set) {
-            return std::pair{this->getBeatmap(CarouselNode::set(set)), this->data.setGrade[set]};
-        });
+        this->diffOrder = sorted_diffs(this->curSortMethod, this->data);
+        for(u32 i = 0; i < this->diffOrder.size(); i++) this->diffRank[this->diffOrder[i]] = i;
         this->bSongButtonsNeedSorting = false;
     }
 
-    if(forceSort || groupingChanged || sortingChanged || diffSortChanged) {
-        if(auto *collBtns = this->getCollectionButtonsForGroup(group); !!collBtns) {
-            // rebucketing puts each set's difficulties next to each other, only the sort below orders them again
-            if(group == GroupType::DIFFICULTY) {
-                this->rebucketDifficultyCollections();
-            }
-
+    if(const GroupList *collBtns = this->getCollectionButtonsForGroup(group); collBtns && (resort || groupingChanged)) {
+        if(group == GroupType::COLLECTIONS) {
             for(const u32 button : *collBtns) {
-                auto &children = this->data.groups[button].children;
-                if(!children.empty()) {
-                    sort_by_keys(children, this->curSortMethod, [this](CarouselNode node) {
-                        return std::pair<const DatabaseBeatmap *, ScoreGrade>{this->getBeatmap(node),
-                                                                              this->getGrade(node)};
-                    });
-                }
+                Mc::ranges::sort(this->data.groups[button].diffs, {},
+                                 [this](u32 diff) { return this->diffRank[diff]; });
+            }
+        } else {
+            for(const u32 button : *collBtns) this->data.groups[button].diffs.clear();
+            for(const u32 diff : this->diffOrder) {
+                const size_t index = group_index(group, *this->data.diffMap[diff]);
+                assert(index < collBtns->size());
+                this->data.groups[(*collBtns)[index]].diffs.push_back(diff);
             }
         }
     }
+
+    // the shown difficulties follow the new order at once, a running search only holds back the rows
+    this->rebuildVisibleSongButtons();
 
     // keep search state consistent between tab changes
     if(this->bInSearch) {
         this->onSearchUpdate();
     } else {
-        this->rebuildVisibleSongButtons();
         this->rebuildSongButtons();
     }
+
+    if(!rowsMoved) return;
 
     if(this->bVisible && !this->bInSearch) {
         this->scrollToBestButton(false);
@@ -3135,7 +2996,7 @@ void SongBrowser::openSongContextMenu(vec2 pos) {
             cmenu->addButtonJustified(fmt::format("[=] {}", _("Edit")), TEXT_JUSTIFICATION::LEFT, 8)
                 ->setClickCallback(SA::MakeDelegate<&SongBrowser::onEditClicked>(this));
 
-        if(map != nullptr && map->getDifficulties().size() < 1)
+        if(map && this->contextMenuNode.isDiff())
             cmenu->addButtonJustified("[+] Add to Collection", TEXT_JUSTIFICATION::LEFT, 1);
 
         cmenu->addButtonJustified("[+Set] Add to Collection", TEXT_JUSTIFICATION::LEFT, 2);
@@ -3146,7 +3007,7 @@ void SongBrowser::openSongContextMenu(vec2 pos) {
             spacer->setTextColor(0xff888888);
             spacer->setTextDarkColor(0xff000000);
 
-            if(map == nullptr || map->getDifficulties().size() < 1) {
+            if(map && this->contextMenuNode.isDiff()) {
                 cmenu->addButtonJustified("[-] Remove from Collection", TEXT_JUSTIFICATION::LEFT, 3);
             }
 
@@ -3230,8 +3091,7 @@ void SongBrowser::onSongContextMenu(std::string_view text, int id) {
                 }
 
                 if(id == 2) {
-                    const u32 set = this->contextMenuNode.isSet() ? this->contextMenuNode.idx
-                                                                  : this->data.diffSet[this->contextMenuNode.idx];
+                    const u32 set = this->data.diffSet[this->contextMenuNode.idx];
                     can_add_to_collection = !std::ranges::all_of(this->data.setChildren(set), [&](u32 diff) {
                         return collection.get_maps().contains(this->data.diffMap[diff]->getMD5());
                     });
@@ -3448,15 +3308,8 @@ void SongBrowser::onSongContextMenuAction(std::string_view text, int id) {
 
     const auto getBeatmapSetHashesForSongButton = [&]() -> std::vector<MD5Hash> {
         std::vector<MD5Hash> beatmapSetHashes;
-        if(songButton.isSet()) {
-            for(const u32 diff : this->data.setChildren(songButton.idx)) {
-                beatmapSetHashes.push_back(this->data.diffMap[diff]->getMD5());
-            }
-        } else {
-            const BeatmapSet *mapset = songButtonMap->getParentSet() ? songButtonMap->getParentSet() : songButtonMap;
-            for(const auto &diff : mapset->getDifficulties()) {
-                beatmapSetHashes.push_back(diff->getMD5());
-            }
+        for(const u32 diff : this->data.setChildren(this->data.diffSet[songButton.idx])) {
+            beatmapSetHashes.push_back(this->data.diffMap[diff]->getMD5());
         }
         return beatmapSetHashes;
     };
@@ -3646,16 +3499,18 @@ bool SongBrowser::selectRandomBeatmap() {
     const DatabaseBeatmap *current = osu->getMapInterface()->getBeatmap();
     const auto setOf = [](const DatabaseBeatmap *map) { return map->getParentSet() ? map->getParentSet() : map; };
 
-    // filter songbuttons or independent diffs, other than the current song's
+    // songs other than the current one, each set once so a set that the order splits up doesn't come up more often.
+    // the last row of a set, since a set row also selects its bottom difficulty
     const auto &elements{this->carousel->getRows()};
 
     std::vector<CarouselNode> songButtons;
-    songButtons.reserve(elements.size());
-    for(const CarouselNode element : elements) {
+    Hash::flat::set<u32> sets;
+    for(auto it = elements.rbegin(); it != elements.rend(); ++it) {
+        const CarouselNode element = *it;
         if(!element.isSong() || !this->isIndependentDiff(element)) continue;
         const DatabaseBeatmap *map = this->getBeatmap(element);
         if(current != nullptr && map != nullptr && setOf(map) == setOf(current)) continue;
-        songButtons.push_back(element);
+        if(sets.insert(this->data.diffSet[element.idx]).second) songButtons.push_back(element);
     }
 
     if(songButtons.empty()) return false;
@@ -3677,26 +3532,12 @@ bool SongBrowser::selectPreviousRandomBeatmap() {
     if(history.empty()) return false;
     const DatabaseBeatmap *previousRandomBeatmap = history.back();
 
-    // select it, if we can find it (and remove it from memory)
-    for(const CarouselNode songButton : this->carousel->getRows()) {
-        if(!songButton.isSong()) continue;  // allow ALL songbuttons
-
-        CarouselNode found = this->getBeatmap(songButton) == previousRandomBeatmap ? songButton : CarouselNode{};
-        if(!found && songButton.isSet()) {
-            for(const u32 child : this->data.setChildren(songButton.idx)) {
-                if(this->data.diffMap[child] == previousRandomBeatmap) {
-                    found = CarouselNode::diff(child);
-                    break;
-                }
-            }
-        }
-        if(found) {
-            history.pop_back();
-            this->selectSongButton(found);
-            return true;
-        }
-    }
-    return false;
+    // select it, if the carousel has it (and remove it from memory)
+    const CarouselNode found = this->getDiffNodeByHash(previousRandomBeatmap->getMD5());
+    if(!found || this->data.diffMap[found.idx] != previousRandomBeatmap || !this->isDiffShown(found.idx)) return false;
+    history.pop_back();
+    this->selectSongButton(found);
+    return true;
 }
 
 void SongBrowser::playSelectedDifficulty() {
@@ -3711,7 +3552,8 @@ void SongBrowser::recreateCollectionsButtons() {
         // sanity
         if(this->curGroup == GroupType::COLLECTIONS) {
             this->carousel->clearRows();
-            this->visibleSongButtons.clear();
+            this->visibleGroups.clear();
+            this->shownDiffs.clear();
         }
 
         // (an open collection is the selection, and it may not get a button again)
@@ -3740,23 +3582,16 @@ void SongBrowser::recreateCollectionsButtons() {
         CarouselGroup &group = this->data.groups.emplace_back();
         group.name = collection.get_name();
         group.isCollection = true;
-        Hash::flat::set<u32> matched_sets;
         for(const auto &map_hash : coll_maps) {
-            auto it = this->hashToDiffButton->find(map_hash);
-            if(it == this->hashToDiffButton->end()) continue;
-
-            const u32 diff = it->second;
-            group.diffs.push_back(diff);
-            if(const u32 set = this->data.diffSet[diff]; matched_sets.insert(set).second) {
-                group.children.push_back(CarouselNode::set(set));
+            if(auto it = this->hashToDiffButton->find(map_hash); it != this->hashToDiffButton->end()) {
+                group.diffs.push_back(it->second);
             }
         }
 
-        if(group.children.empty()) {
+        if(group.diffs.empty()) {
             this->data.groups.pop_back();
             continue;
         }
-        std::ranges::sort(group.diffs);
         this->collectionButtons.push_back((u32)this->data.groups.size() - 1);
         if(group.name == openCollection) this->openGroup = CarouselNode::group(this->collectionButtons.back());
     }

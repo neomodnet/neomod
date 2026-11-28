@@ -16,6 +16,8 @@
 #include <memory>
 #include <optional>
 #include <array>
+#include <span>
+#include <vector>
 
 class BeatmapCarousel;
 class Database;
@@ -131,7 +133,7 @@ class SongBrowser final : public ScreenBackable {
     [[nodiscard]] bool isSearchMatch(CarouselNode node) const;
     [[nodiscard]] DatabaseBeatmap *getBeatmap(CarouselNode node) const;
     [[nodiscard]] ScoreGrade getGrade(CarouselNode node) const;
-    // a difficulty shown on its own instead of under its selected set (every other row is independent)
+    // a difficulty shown on its own instead of as one of its selected set (every other row is independent)
     [[nodiscard]] bool isIndependentDiff(CarouselNode node) const;
     [[nodiscard]] inline const CarouselData &getCarouselData() const { return this->data; }
     void openContextMenu(CarouselNode node, vec2 pos);
@@ -164,20 +166,17 @@ class SongBrowser final : public ScreenBackable {
     void rebuildScoreButtons();
     void updateSongButtonLayout();
 
-    enum class SetVisibility : u8 {
-        HIDDEN,        // 0 visible children
-        SINGLE_CHILD,  // 1 visible child (show child directly)
-        SHOW_PARENT    // 2+ children or parent selected (show parent+children)
-    };
-
-    [[nodiscard]] SetVisibility getSetVisibility(u32 set) const;
+    // whether the carousel has diff, as its own row or collapsed into a set row
     [[nodiscard]] bool isDiffShown(u32 diff) const;
+    // the shown difficulties of the same set next to diff, including it (a set row is these collapsed)
+    [[nodiscard]] std::span<const u32> getNeighbours(u32 diff) const;
+    [[nodiscard]] const std::vector<CarouselNode> &getRows() const;
 
     [[nodiscard]] inline bool isInSearch() const { return this->bInSearch; }
 
     [[nodiscard]] inline InfoLabel *getInfoLabel() const { return this->songInfo; }
     [[nodiscard]] CarouselNode getDiffNodeByHash(const MD5Hash &diff_hash) const;
-    [[nodiscard]] inline bool isCarouselBuilt() const { return !this->setOrder.empty(); }
+    [[nodiscard]] inline bool isCarouselBuilt() const { return !this->diffOrder.empty(); }
 
     // Map sorting/filtering
     struct MAP_SORTING_METHOD {
@@ -230,7 +229,6 @@ class SongBrowser final : public ScreenBackable {
     void onSortChange(std::string_view text, int id = -1);
 
     void rebuildAfterGroupOrSortChange(GroupType group, const std::optional<SortType> &sortMethod = std::nullopt);
-    void rebucketDifficultyCollections();
 
     void onSelectionMode();
     void onSelectionMods();
@@ -275,16 +273,13 @@ class SongBrowser final : public ScreenBackable {
         bool noPlay{false};
     };
     void select(CarouselNode node, SelOpts opts);
-    void selectSet(u32 set, SelOpts opts);
     void selectDiff(u32 diff, SelOpts opts);
     void toggleGroup(u32 group);
     void navigateCarousel(const KeyboardEvent &key);
-    bool sortSetChildren(u32 set);
-    // sorts the set difficulties and makes the bottom matching one represent the set
-    void updateSetRepresentative(u32 set);
-    void updateSetRepresentatives();
     void updateGrade(u32 diff);
-    [[nodiscard]] CarouselNode getSelectedSet() const;
+    [[nodiscard]] bool isSetSelected(u32 set) const;
+    // the position of diff in diffs (which are in carousel order), or diffs.size()
+    [[nodiscard]] size_t findDiff(std::span<const u32> diffs, u32 diff) const;
     [[nodiscard]] std::optional<f32> getNodeY(CarouselNode node) const;
     [[nodiscard]] std::vector<f32> layoutRows(const std::vector<CarouselNode> &rows) const;
 
@@ -357,9 +352,14 @@ class SongBrowser final : public ScreenBackable {
 
     // beatmap database
     CarouselData data;
-    std::vector<u32> setOrder;
+    // every difficulty in sort order, and where each one comes in it (ascending along diffOrder)
+    std::vector<u32> diffOrder;
+    std::vector<u32> diffRank;
 
-    std::vector<CarouselNode> visibleSongButtons;
+    // the groups with a row, and the difficulties the carousel has (collapsed or not) in its order:
+    // the search matches of the open group, or of everything without grouping
+    std::vector<u32> visibleGroups;
+    std::vector<u32> shownDiffs;
     class BeatmapLoadingOverlay;
     friend BeatmapLoadingOverlay;
     UIOverlay *loadingOverlay{nullptr};

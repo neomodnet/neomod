@@ -66,8 +66,9 @@ def find_binary(explicit):
     return chosen
 
 
-def beatmap(title, version, audio, n_objects, set_id=-1):
-    """minimal v14 .osu: metadata + n_objects evenly-spaced circles (500ms apart)."""
+def beatmap(title, version, audio, n_objects, set_id=-1, level=0):
+    """minimal v14 .osu: metadata + n_objects evenly-spaced circles (500ms apart). a level from 1 to 9 makes them
+    jumps instead, wider and faster with each level (so a higher level has more stars)."""
     lines = [
         "osu file format v14",
         "",
@@ -97,9 +98,10 @@ def beatmap(title, version, audio, n_objects, set_id=-1):
         "[HitObjects]",
     ]
     t = 1000
-    for _ in range(n_objects):
-        lines.append(f"256,192,{t},1,0,0:0:0:0:")
-        t += 500
+    for i in range(n_objects):
+        x = 256 + (20 * level if i % 2 else -20 * level)
+        lines.append(f"{x},192,{t},1,0,0:0:0:0:")
+        t += 500 - 40 * level
     return "\n".join(lines) + "\n"
 
 
@@ -123,6 +125,16 @@ def maps_set(datadir, folder, set_id, n_diffs):
         (d / f"diff{i:02d}.osu").write_text(
             beatmap(f"UITest {folder}", f"diff {i:02d}", "none.mp3", i, set_id)
         )
+    return d
+
+
+def maps_diffs(datadir, folder, title, diffs):
+    """a raw beatmapset folder in the data dir's maps/ drop-zone with one difficulty per (version, level), see
+    beatmap(), for the '# uitest-diffs:' directive; run_one removes it again after the script."""
+    d = datadir / "maps" / folder
+    d.mkdir(parents=True, exist_ok=True)
+    for version, level in diffs:
+        (d / f"{version}.osu").write_text(beatmap(title, version, "none.mp3", 40, level=level))
     return d
 
 
@@ -170,6 +182,8 @@ def stable_install(osu_dir, folder, set_id, n_diffs, offsets):
 def script_directives(text):
     """'# uitest-<key>: <value>' lines in a script's leading comment block:
     maps: '<folder>|<set_id>|<n_diffs>' provisions maps/<folder>/ before the run (removed after)
+    diffs: '<folder>|<title>|<version>:<level> ...' provisions maps/<folder>/ with difficulties of a level from 1 to
+           9 each, which orders them by stars (removed after)
     args: extra binary argv (e.g. an .osz path relative to the bin dir, imported like a drag/drop)
     cleanup: a maps/<folder> the script is expected to create, removed after the run
     datadir: 'fresh' runs the script on an empty data dir of its own (out/data_<script>) instead of the
@@ -321,6 +335,10 @@ def run_one(name, binary, bindir, datadir, record):
     for spec in directives.get("maps", []):
         folder, set_id, n_diffs = (s.strip() for s in spec.split("|"))
         fixture_dirs.append(maps_set(datadir, folder, int(set_id), int(n_diffs)))
+    for spec in directives.get("diffs", []):
+        folder, title, diffs = (s.strip() for s in spec.split("|"))
+        diffs = [(version, int(level)) for version, level in (d.split(":") for d in diffs.split())]
+        fixture_dirs.append(maps_diffs(datadir, folder, title, diffs))
     extra_args = [a for spec in directives.get("args", []) for a in shlex.split(spec)]
     unchanged = {d: tree_digest(bindir / d) for d in directives.get("unchanged", [])}
 

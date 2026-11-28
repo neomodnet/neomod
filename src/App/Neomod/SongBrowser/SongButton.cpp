@@ -210,7 +210,9 @@ void SongButton::updateLayoutEx() {
 SongButton *SongButton::setVisible(bool visible) {
     if(visible) {
         // update grade on children if necessary
-        if(this->node.isSet()) g_songbrowser->maybeUpdateSetGrades(this->node.idx);
+        if(this->node.isSet()) {
+            g_songbrowser->maybeUpdateSetGrades(g_songbrowser->getCarouselData().diffSet[this->node.idx]);
+        }
     } else {
         // reset visible time
         this->fVisibleFor = 0.f;
