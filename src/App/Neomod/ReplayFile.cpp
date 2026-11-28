@@ -32,6 +32,7 @@
 #include "Logging.h"
 #include "UI.h"
 #include "Replay.h"
+#include "i18n.h"
 
 #include <array>
 #include <cmath>
@@ -482,10 +483,6 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
     const std::string osr_path =
         fmt::format("{}/{}/{}-{}.osr", Mc::Paths::replays(), score.server, score.player_id, score.unix_timestamp);
     ByteBufferedFile::Writer osr(osr_path);
-    if(!osr.good()) {
-        debugLog("Cannot save replay to {}: {}", osr_path, osr.error());
-        return false;
-    }
 
     auto compressed_replay = Replay::compress_frames(score.replay);
     const MD5String compressed_replay_hash{crypto::hash::md5(compressed_replay)};
@@ -523,6 +520,7 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
 
     if(!osr.commit()) {
         debugLog("Cannot save replay to {}: {}", osr_path, osr.error());
+        if(ui) ui->getNotificationOverlay()->addToast(_("Couldn't save the replay."), ERROR_TOAST);
         return false;
     }
     return true;

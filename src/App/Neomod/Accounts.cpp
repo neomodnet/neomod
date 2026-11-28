@@ -7,6 +7,9 @@
 #include "ContainerRanges.h"
 #include "File.h"
 #include "Logging.h"
+#include "NotificationOverlay.h"
+#include "UI.h"
+#include "i18n.h"
 #include "Paths.h"
 #include "SString.h"
 
@@ -61,7 +64,9 @@ void save() {
     }
 
     io->write(Mc::Paths::cfg() + "/accounts.cfg", std::move(config), [](bool success) {
-          if(!success) debugLog("WARNING: failed to write accounts.cfg");
+          if(success) return;
+          debugLog("WARNING: failed to write accounts.cfg");
+          if(ui) ui->getNotificationOverlay()->addToast(_("Couldn't save accounts."), ERROR_TOAST);
       }).detach();
 }
 

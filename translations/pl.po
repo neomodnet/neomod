@@ -86,6 +86,10 @@ msgstr "Twórcy"
 msgid "Licenses"
 msgstr "Licencje"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "Nie udało się zapisać kont."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -269,6 +273,10 @@ msgstr "Musisz się zalogować, aby czatować!"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Wpisz kanał, do którego chcesz dołączyć (np. '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "Nie udało się zapisać kolekcji."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -282,6 +290,14 @@ msgstr "Nie wykryto nowych beatmap."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} zostało zapisane przez nowszą wersję, pomijanie"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "Nie udało się zapisać bazy danych beatmap."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "Nie udało się zapisać wyników."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4836,6 +4852,10 @@ msgstr "Średnia ocena: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "Zajmujesz #{} miejsce w lokalnym rankingu!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "Nie udało się zapisać powtórki."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5405,6 +5425,10 @@ msgstr "(Naciśnij ENTER, aby potwierdzić.)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Aktualizacje \"bleeding edge\" są dostępne tylko dla supporterów."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "Pamięć przeglądarki jest pełna, nie można zapisać zmian. Usuń kilka beatmap, aby zwolnić miejsce."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

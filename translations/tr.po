@@ -84,6 +84,10 @@ msgstr "Emeği geçenler"
 msgid "Licenses"
 msgstr "Lisanslar"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "Hesaplar kaydedilemedi."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -267,6 +271,10 @@ msgstr "Sohbet etmek için giriş yapmalısın!"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Katılmak istediğin kanalı yaz (örn. '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "Koleksiyonlar kaydedilemedi."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -280,6 +288,14 @@ msgstr "Yeni beatmap bulunamadı."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} daha yeni bir sürüm tarafından yazılmış, yok sayılıyor"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "Beatmap veritabanı kaydedilemedi."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "Skorlar kaydedilemedi."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4834,6 +4850,10 @@ msgstr "Ortalama puan: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "Yerel sıralamada #{} skoru elde ettin!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "Tekrar kaydedilemedi."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5403,6 +5423,10 @@ msgstr "(Onaylamak için ENTER'a bas.)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Deneysel sürüm güncellemeleri supporter'lara özeldir."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "Tarayıcı depolama alanı dolu, değişiklikler kaydedilemiyor. Yer açmak için bazı beatmapleri silin."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

@@ -86,6 +86,10 @@ msgstr "Авторы"
 msgid "Licenses"
 msgstr "Лицензии"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "Не удалось сохранить аккаунты."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -269,6 +273,10 @@ msgstr "Необходимо войти в аккаунт, чтобы испол
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Введите название канала (например, '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "Не удалось сохранить коллекции."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -282,6 +290,14 @@ msgstr "Новые карты не обнаружены."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} записан более новой версией, игнорируется"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "Не удалось сохранить базу данных карт."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "Не удалось сохранить результаты."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4836,6 +4852,10 @@ msgstr "Средняя оценка: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "Вы заняли #{} место в локальном рейтинге!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "Не удалось сохранить повтор."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5405,6 +5425,10 @@ msgstr "(Нажмите ENTER для подтверждения.)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Обновления тестовой ветки (bleeding edge) доступны только саппортерам."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "Хранилище браузера заполнено, изменения не могут быть сохранены. Удалите несколько карт, чтобы освободить место."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

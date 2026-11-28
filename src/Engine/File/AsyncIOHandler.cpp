@@ -225,6 +225,8 @@ class AsyncIOHandler::InternalIOContext final {
         enum OpStatus : u8 { OP_FAIL, OP_PARTIAL, OP_COMPLETE };
 
         OpStatus status{OP_FAIL};
+
+        bool commitsTmp{false};
     };
 
     void drainIoResults(const SDL_AsyncIOOutcome& outcome) {
@@ -328,7 +330,8 @@ class AsyncIOHandler::InternalIOContext final {
             return this->callbacks.finishEarly(id, {}, false);
         }
 
-        SDL_AsyncIO* handle = SDL_AsyncIOFromFile(pathStr.c_str(), "w");
+        const std::string tmpPath = File::tmpPathFor(pathStr);
+        SDL_AsyncIO* handle = SDL_AsyncIOFromFile(tmpPath.c_str(), "w");
         if(!handle) {
             debugLog("ERROR: failed to open {} for writing: {}", pathStr, SDL_GetError());
             return this->callbacks.finishEarly(id, {}, false);
@@ -343,6 +346,7 @@ class AsyncIOHandler::InternalIOContext final {
                              context)) {
             debugLog("ERROR: SDL_WriteAsyncIO failed for {}: {}", pathStr, SDL_GetError());
             SDL_CloseAsyncIO(handle, false, m_queue, nullptr);
+            File::commitTmp(pathStr, false);
 
             delete context;
             return this->callbacks.finishEarly(id, {}, false);
@@ -423,13 +427,14 @@ class AsyncIOHandler::InternalIOContext final {
         // null handle for close
         closeContext->status = status;
         closeContext->id = context->id;
+        closeContext->commitsTmp = true;
 
         // flush to make sure data reaches disk
         if(!SDL_CloseAsyncIO(context->handle, true, m_queue, closeContext)) {
             debugLog("ERROR: failed to close {}: {}", closeContext->path, SDL_GetError());
             m_activeFiles.erase(closeContext->path);
-            PERFORM_CALLBACK(this->callbacks.deliver(closeContext->id, {},
-                                                     status == OperationContext::OP_COMPLETE));  // probably not fatal?
+            File::commitTmp(closeContext->path, false);
+            PERFORM_CALLBACK(this->callbacks.deliver(closeContext->id, {}, false));
             delete closeContext;
         }
 
@@ -447,10 +452,14 @@ class AsyncIOHandler::InternalIOContext final {
             logIfCV(debug_file, "WARNING: close failed for {}: {}", context->path, SDL_GetError());
         }
 
+        bool success = context->status == OperationContext::OP_COMPLETE;
+        if(context->commitsTmp) {
+            success = File::commitTmp(context->path, success && outcome.result == SDL_ASYNCIO_COMPLETE);
+        }
+
         // we don't really propagate read errors here besides the log in
         // handleReadComplete and an empty/partially filled buffer here...
-        PERFORM_CALLBACK(this->callbacks.deliver(context->id, std::move(context->operationBuffer),
-                                                 context->status == OperationContext::OP_COMPLETE));
+        PERFORM_CALLBACK(this->callbacks.deliver(context->id, std::move(context->operationBuffer), success));
 
         delete context;
     }

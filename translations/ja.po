@@ -86,6 +86,10 @@ msgstr "クレジット"
 msgid "Licenses"
 msgstr "ライセンス"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "アカウントを保存できませんでした。"
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -269,6 +273,10 @@ msgstr "チャットするにはログインが必要です！"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "参加したいチャンネルを入力してください（例: '#osu'）:"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "コレクションを保存できませんでした。"
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -282,6 +290,14 @@ msgstr "新しいビートマップは見つかりませんでした。"
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} は新しいバージョンで書き込まれたため、無視します"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "ビートマップデータベースを保存できませんでした。"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "スコアを保存できませんでした。"
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4836,6 +4852,10 @@ msgstr "平均評価: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "ローカルランキングで #{} スコアを達成しました！"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "リプレイを保存できませんでした。"
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5405,6 +5425,10 @@ msgstr "（ENTERで確定）"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Bleeding Edge アップデートはサポーター特典です。"
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "ブラウザのストレージがいっぱいのため、変更を保存できません。ビートマップをいくつか削除して空き容量を確保してください。"
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

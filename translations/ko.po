@@ -84,6 +84,10 @@ msgstr "제작진"
 msgid "Licenses"
 msgstr "라이선스"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "계정을 저장할 수 없습니다."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -267,6 +271,10 @@ msgstr "채팅하려면 로그인해야 합니다!"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "참여할 채널을 입력하세요 (예: '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "컬렉션을 저장할 수 없습니다."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -280,6 +288,14 @@ msgstr "새 비트맵이 없습니다."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{}은(는) 더 새로운 버전에서 작성되어 무시합니다"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "비트맵 데이터베이스를 저장할 수 없습니다."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "점수를 저장할 수 없습니다."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4834,6 +4850,10 @@ msgstr "평균 평점: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "로컬 순위에서 #{}위를 달성했습니다!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "리플레이를 저장할 수 없습니다."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5403,6 +5423,10 @@ msgstr "(ENTER를 눌러 확인)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "최신 개발 버전 업데이트는 서포터 혜택입니다."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "브라우저 저장 공간이 가득 차서 변경 사항을 저장할 수 없습니다. 비트맵을 일부 삭제하여 공간을 확보하세요."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

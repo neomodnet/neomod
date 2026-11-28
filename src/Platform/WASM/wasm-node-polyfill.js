@@ -71,6 +71,15 @@ Module['preRun'].push(function() {
     }
 });
 
+Module.neomodKeepStorage = function() {
+    if(Module.neomodKeepStorage.asked || typeof navigator === 'undefined' || !navigator.storage ||
+       !navigator.storage.persist) {
+        return;
+    }
+    Module.neomodKeepStorage.asked = true;
+    navigator.storage.persist().then(function(kept) { console.log('persistent storage: ' + kept); });
+};
+
 // mount persistent filesystem at /persist/ before C++ starts
 Module['preRun'].push(function() {
     FS.mkdir('/persist');
@@ -83,6 +92,17 @@ Module['preRun'].push(function() {
         FS.mount(NODEFS, { root: dataDir }, '/persist');
     } else {
         // browser: use IDBFS backed by IndexedDB
+        // autoPersist drops the error. this hook reports each store to File.cpp instead.
+        var syncfs = IDBFS.syncfs;
+        IDBFS.syncfs = function(mount, populate, callback) {
+            syncfs(mount, populate, function(err) {
+                if(!populate) {
+                    if(err) Module.neomodKeepStorage();
+                    _neomod_stored(!err);
+                }
+                callback(err);
+            });
+        };
         addRunDependency('persist-sync');
         FS.mount(IDBFS, { autoPersist: true }, '/persist');
         FS.syncfs(true, function(err) {

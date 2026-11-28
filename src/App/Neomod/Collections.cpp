@@ -8,6 +8,9 @@
 #include "Engine.h"
 #include "Timing.h"
 #include "Logging.h"
+#include "NotificationOverlay.h"
+#include "UI.h"
+#include "i18n.h"
 #include "AsyncPool.h"
 #include "AsyncFuture.h"
 #include "Algorithms.h"
@@ -227,10 +230,6 @@ bool save_collections(std::span<const Collection> collections, std::string_view 
     const double startTime = Timing::getTimeReal();
 
     ByteBufferedFile::Writer dbw(save_path);
-    if(!dbw.good()) {
-        debugLog("Cannot save collections to {}: {}", save_path, dbw.error());
-        return false;
-    }
 
     dbw.write<u32>(COLLECTIONS_DB_VERSION);
 
@@ -255,6 +254,7 @@ bool save_collections(std::span<const Collection> collections, std::string_view 
 
     if(!dbw.commit()) {
         debugLog("Cannot save collections to {}: {}", save_path, dbw.error());
+        if(ui) ui->getNotificationOverlay()->addToast(_("Couldn't save collections."), ERROR_TOAST);
         return false;
     }
     debugLog("collections.db: saving took {:f} seconds", (Timing::getTimeReal() - startTime));

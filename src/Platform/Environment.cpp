@@ -375,7 +375,7 @@ using PageEndFn = void (*)();
 // then: the next autoPersist run is due a moment after each write, and ends after any write made during it
 EM_JS_DEPS(neomod_page_leave, "$getWasmTableEntry,$IDBFS");
 EM_JS(void, js_handle_page_leave, (PageEndFn shutdown), {
-    var leave = Module.neomodLeave = {guards: 0, persisting: false, stored: [], askedPersist: false};
+    var leave = Module.neomodLeave = {guards: 0, persisting: false, stored: []};
     IDBFS.onAutoPersistStateChanged = function(active) {
         leave.persisting = active;
         if(!active) leave.stored.splice(0).forEach(function(done) { done(); });
@@ -396,10 +396,7 @@ EM_JS(void, js_leave_guard_begin, (), {
     var leave = Module.neomodLeave;
     if(!leave) return;
     leave.guards++;
-    if(!leave.askedPersist && typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
-        leave.askedPersist = true;
-        navigator.storage.persist().then(function(kept) { console.log("persistent storage: " + kept); });
-    }
+    Module.neomodKeepStorage();
 });
 
 // autoPersist queues its run with a timer of 0 ms when a file is written, which runs before this one

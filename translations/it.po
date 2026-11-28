@@ -84,6 +84,10 @@ msgstr "Crediti"
 msgid "Licenses"
 msgstr "Licenze"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "Impossibile salvare gli account."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -267,6 +271,10 @@ msgstr "Devi accedere per usare la chat!"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Scrivi il canale a cui vuoi unirti (es. '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "Impossibile salvare le collezioni."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -280,6 +288,14 @@ msgstr "Nessuna nuova beatmap rilevata."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} è stato scritto da una versione più recente, verrà ignorato"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "Impossibile salvare il database delle beatmap."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "Impossibile salvare i punteggi."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4834,6 +4850,10 @@ msgstr "Valutazione media: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "Hai ottenuto il punteggio #{} nella classifica locale!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "Impossibile salvare il replay."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5403,6 +5423,10 @@ msgstr "(Premi INVIO per confermare.)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Gli aggiornamenti sperimentali sono un vantaggio per i supporter."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "La memoria del browser è piena, le modifiche non possono essere salvate. Elimina alcune beatmap per liberare spazio."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

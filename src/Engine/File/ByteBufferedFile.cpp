@@ -35,19 +35,6 @@ constexpr uSz NUM_FILE_LOCKS = 16;
 
 std::array<Sync::shared_mutex, NUM_FILE_LOCKS> file_locks;
 uSz path_to_lock_index(std::string_view path) noexcept { return std::hash<std::string_view>{}(path) % NUM_FILE_LOCKS; }
-
-// replaces `to` with `from` in one step, so whoever opens `to` finds the old file or the new one, never none
-// (std::filesystem::rename doesn't replace an existing file with every Windows toolchain)
-bool replace_file(const fs::path &from, const fs::path &to, std::string &error) noexcept {
-#ifdef MCENGINE_PLATFORM_WINDOWS
-    if(::MoveFileExW(from.c_str(), to.c_str(), MOVEFILE_REPLACE_EXISTING)) return true;
-    error = std::system_category().message(static_cast<int>(::GetLastError()));
-#else
-    if(::rename(from.c_str(), to.c_str()) == 0) return true;
-    error = std::generic_category().message(errno);
-#endif
-    return false;
-}
 }  // namespace
 
 namespace detail {
@@ -395,20 +382,12 @@ Writer::Writer(std::string_view writePath_param)
     : buffer(std::make_unique_for_overwrite<u8[]>(WRITE_BUFFER_SIZE)), write_path(writePath_param) {
     file_locks[path_to_lock_index(this->write_path)].lock();
 
-    this->tmp_path = this->write_path;
-    if constexpr(!Env::cfg(OS::WASM)) {
-        // on WASM/IDBFS, just write directly to the final path.
-        // the .tmp+rename pattern doesn't trigger IDBFS autoPersist, so the rename
-        // never gets synced to IndexedDB and the file is lost on next page load.
-        this->tmp_path += ".tmp";
-    }
-
     if(auto parent = Mc::getFsPath(this->write_path).parent_path(); !parent.empty()) {
         std::error_code ec;
         fs::create_directories(parent, ec);
     }
 
-    this->file = std::make_unique<std::ofstream>(Mc::getFsPath(this->tmp_path), std::ios::binary);
+    this->file = std::make_unique<std::ofstream>(Mc::getFsPath(File::tmpPathFor(this->write_path)), std::ios::binary);
     if(!this->file->is_open()) {
         this->set_error(fmt::format("Failed to open file for writing: {:s}", std::generic_category().message(errno)));
         return;
@@ -433,17 +412,8 @@ bool Writer::commit() noexcept {
             this->set_error(fmt::format("Failed to close file: {:s}", std::generic_category().message(errno)));
         }
     }
-    if(this->tmp_path == this->write_path) return this->good();
-
-    const fs::path tmp_file_path = Mc::getFsPath(this->tmp_path);
-    std::error_code ec;
-    if(this->error_flag) {
-        fs::remove(tmp_file_path, ec);
-        return false;
-    }
-    if(std::string error; !replace_file(tmp_file_path, Mc::getFsPath(this->write_path), error)) {
-        this->set_error(fmt::format("Failed to replace the file: {:s}", error));
-        fs::remove(tmp_file_path, ec);
+    if(!File::commitTmp(this->write_path, this->good())) {
+        this->set_error("Failed to replace the file");
         return false;
     }
     return true;

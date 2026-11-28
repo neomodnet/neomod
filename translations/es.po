@@ -84,6 +84,10 @@ msgstr "Créditos"
 msgid "Licenses"
 msgstr "Licencias"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "No se pudieron guardar las cuentas."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -267,6 +271,10 @@ msgstr "¡Debes iniciar sesión para chatear!"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Escribe el canal al que quieres unirte (p. ej. '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "No se pudieron guardar las colecciones."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -280,6 +288,14 @@ msgstr "No se detectaron beatmaps nuevos."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} fue escrito por una versión más reciente, se ignorará"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "No se pudo guardar la base de datos de beatmaps."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "No se pudieron guardar las puntuaciones."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4834,6 +4850,10 @@ msgstr "Valoración media: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "¡Has conseguido la puntuación #{} en el ranking local!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "No se pudo guardar la repetición."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5403,6 +5423,10 @@ msgstr "(Pulsa ENTER para confirmar.)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Las actualizaciones experimentales son una ventaja para supporters."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "El almacenamiento del navegador está lleno, no se pueden guardar los cambios. Elimina algunos beatmaps para liberar espacio."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

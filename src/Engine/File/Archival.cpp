@@ -91,24 +91,26 @@ const std::vector<u8>& Archive::Entry::getUncompressedData() const { return this
 bool Archive::Entry::extractToFile(std::string_view outputPath) const {
     if(this->bIsDirectory) return false;
 
-    File file(outputPath, File::MODE::WRITE);
-    if(!file.canWrite()) {
-        logIfCV(debug_file, "failed to create output file {:s}", outputPath);
-        return false;
-    }
+    {
+        File file(outputPath, File::MODE::WRITE);
+        if(!file.canWrite()) {
+            logIfCV(debug_file, "failed to create output file {:s}", outputPath);
+            return false;
+        }
 
-    if(this->data.empty()) {
-        logIfCV(debug_file, "Archive WARNING: extracted data for path {:s} is empty.", outputPath);
-    }
+        if(this->data.empty()) {
+            logIfCV(debug_file, "Archive WARNING: extracted data for path {:s} is empty.", outputPath);
+        }
 
-    if(!file.write(this->data)) {
-        logIfCV(debug_file, "failed to write to file {:s}", outputPath);
-        return false;
+        if(!file.write(this->data) || !file.commit()) {
+            logIfCV(debug_file, "failed to write to file {:s}", outputPath);
+            return false;
+        }
     }
 
 #ifndef _WIN32
     if(this->iPermissions != 0) {
-        chmod(file.getPath().c_str(), this->iPermissions);
+        chmod(std::string{outputPath}.c_str(), this->iPermissions);
     }
 #endif
 

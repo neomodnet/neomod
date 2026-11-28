@@ -23,6 +23,7 @@
 
 #include <iosfwd>
 #include <memory>
+#include <string>
 #include <vector>
 #include <span>
 
@@ -71,6 +72,9 @@ class File {
 
     bool write(std::span<const u8> buffer);
     bool writeLine(std::string_view line, bool insertNewline = true);
+
+    // commit the writes. returns false if write failed.
+    bool commit();
 
     std::string readLine();
     std::string readToString();
@@ -138,6 +142,11 @@ class File {
 
     // copy file from source to destination, overwriting if exists
     [[nodiscard]] static bool copy(std::string_view fromPath, std::string_view toPath);
+
+    // writers write to tmpPathFor(path), then commitTmp() replaces path with it, or deletes it if !written.
+    // returns whether path now holds the new file
+    [[nodiscard]] static std::string tmpPathFor(std::string_view path);
+    static bool commitTmp(std::string_view path, bool written);
 
     // save indexedDB for wasm, noop on other platforms
     static void flushToDisk();

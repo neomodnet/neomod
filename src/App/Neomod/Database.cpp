@@ -1975,10 +1975,6 @@ void Database::saveMaps() {
     const auto neomod_maps_db = getDBPath(DatabaseType::NEOMOD_MAPS);
 
     ByteBufferedFile::Writer maps(neomod_maps_db);
-    if(!maps.good()) {
-        debugLog("Cannot save maps to {}: {}", neomod_maps_db, maps.error());
-        return;
-    }
 
     maps.write<u32>(NEOMOD_MAPS_DB_VERSION);
 
@@ -2102,6 +2098,7 @@ void Database::saveMaps() {
 
     if(!maps.commit()) {
         debugLog("Cannot save maps to {}: {}", neomod_maps_db, maps.error());
+        if(ui) ui->getNotificationOverlay()->addToast(_("Couldn't save the beatmap database."), ERROR_TOAST);
         return;
     }
     t.update();
@@ -2649,11 +2646,6 @@ void Database::saveScores() {
 
     ByteBufferedFile::Writer dbr(neomod_scores_db);
 
-    if(!dbr.good()) {
-        debugLog("Cannot save scores to {}: {}", neomod_scores_db, dbr.error());
-        return;
-    }
-
     dbr.write_bytes(reinterpret_cast<const u8 *>("NEOSC"), 5);
     dbr.write<u32>(NEOMOD_SCORE_DB_VERSION);
 
@@ -2726,6 +2718,7 @@ void Database::saveScores() {
 
     if(!dbr.commit()) {
         debugLog("Cannot save scores to {}: {}", neomod_scores_db, dbr.error());
+        if(ui) ui->getNotificationOverlay()->addToast(_("Couldn't save scores."), ERROR_TOAST);
         return;
     }
     debugLog("Saved {:d} scores in {:f} seconds.", nb_scores, (Timing::getTimeReal() - startTime));

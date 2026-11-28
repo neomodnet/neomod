@@ -86,6 +86,10 @@ msgstr "Mitwirkende"
 msgid "Licenses"
 msgstr "Lizenzen"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "Konten konnten nicht gespeichert werden."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -269,6 +273,10 @@ msgstr "Du musst dich anmelden, um zu chatten!"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Gib den Kanal ein, dem du beitreten möchtest (z. B. '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "Sammlungen konnten nicht gespeichert werden."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -282,6 +290,14 @@ msgstr "Keine neuen Beatmaps gefunden."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} wurde von einer neueren Version geschrieben und wird ignoriert"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "Die Beatmap-Datenbank konnte nicht gespeichert werden."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "Scores konnten nicht gespeichert werden."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4836,6 +4852,10 @@ msgstr "Durchschnittliche Bewertung: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "Du hast Platz #{} in der lokalen Rangliste erreicht!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "Das Replay konnte nicht gespeichert werden."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5405,6 +5425,10 @@ msgstr "(Drücke ENTER zum Bestätigen.)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Bleeding-Edge-Updates sind ein Supporter-Vorteil."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "Der Browserspeicher ist voll, Änderungen können nicht gespeichert werden. Lösche einige Beatmaps, um Platz zu schaffen."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

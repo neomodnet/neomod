@@ -84,6 +84,10 @@ msgstr "Автори"
 msgid "Licenses"
 msgstr "Ліцензії"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "Не вдалося зберегти облікові записи."
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -267,6 +271,10 @@ msgstr "Увійдіть, щоб користуватися чатом!"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Введіть канал, до якого хочете приєднатися (напр. '#osu'):"
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "Не вдалося зберегти колекції."
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -280,6 +288,14 @@ msgstr "Нових бітмап не виявлено."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} записано новішою версією, ігнорується"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "Не вдалося зберегти базу даних бітмапів."
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "Не вдалося зберегти результати."
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4834,6 +4850,10 @@ msgstr "Середня оцінка: {:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "Ви встановили результат #{} у локальному рейтингу!"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "Не вдалося зберегти повтор."
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5403,6 +5423,10 @@ msgstr "(Натисніть ENTER для підтвердження.)"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "Оновлення експериментального каналу доступні лише сапортерам."
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "Сховище браузера заповнене, зміни не можуть бути збережені. Видаліть кілька бітмапів, щоб звільнити місце."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

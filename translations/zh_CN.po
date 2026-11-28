@@ -84,6 +84,10 @@ msgstr "制作人员"
 msgid "Licenses"
 msgstr "许可证"
 
+#: src/App/Neomod/Accounts.cpp
+msgid "Couldn't save accounts."
+msgstr "无法保存账户。"
+
 #: src/App/Neomod/BanchoLeaderboard.cpp
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Global"
@@ -267,6 +271,10 @@ msgstr "你必须登录才能聊天！"
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "输入你想加入的频道（例如 '#osu'）："
 
+#: src/App/Neomod/Collections.cpp
+msgid "Couldn't save collections."
+msgstr "无法保存收藏夹。"
+
 #: src/App/Neomod/Database.cpp
 #, c++-format
 msgid "Added {:d} new beatmapset(s)."
@@ -280,6 +288,14 @@ msgstr "未检测到新谱面。"
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} 由更新的版本写入，已忽略"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save the beatmap database."
+msgstr "无法保存谱面数据库。"
+
+#: src/App/Neomod/Database.cpp
+msgid "Couldn't save scores."
+msgstr "无法保存成绩。"
 
 #: src/App/Neomod/Editor/Commands.cpp
 #: src/App/Neomod/Editor/Panels/SampleSets.cpp
@@ -4834,6 +4850,10 @@ msgstr "平均评分：{:.1f}/10"
 msgid "You achieved the #{} score on local rankings!"
 msgstr "你在本地排行榜中取得了第 {} 名！"
 
+#: src/App/Neomod/ReplayFile.cpp
+msgid "Couldn't save the replay."
+msgstr "无法保存回放。"
+
 #: src/App/Neomod/RoomScreen.cpp
 #, c++-format
 msgid "{:.4g}x"
@@ -5403,6 +5423,10 @@ msgstr "（按 ENTER 确认。）"
 #: src/App/Neomod/UpdateHandler.cpp
 msgid "Bleeding edge updates are a supporter perk."
 msgstr "最新测试版更新是支持者专属福利。"
+
+#: src/Engine/File/File.cpp
+msgid "The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."
+msgstr "浏览器存储空间已满，无法保存更改。请删除一些谱面以释放空间。"
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

@@ -347,7 +347,8 @@ void progress(Progress progress, Renderer renderer) {
     for(const auto r : s_stoppedIn) text += fmt::format("stopped {}\n", progressName(r));
 
     File::createDirectoryRecursive(Mc::Paths::data());
-    if(File file(progressPath(), File::MODE::WRITE); !file.canWrite() || !file.writeLine(text, false)) {
+    if(File file(progressPath(), File::MODE::WRITE);
+       !file.canWrite() || !file.writeLine(text, false) || !file.commit()) {
         debugLog("WARNING: couldn't write {:s}", progressPath());
     }
 }

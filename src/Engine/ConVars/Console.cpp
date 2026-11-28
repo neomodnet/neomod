@@ -303,7 +303,7 @@ void saveEngineConfig() {
 
     File::createDirectoryRecursive(Mc::Paths::cfg());
     if(File file(path, File::MODE::WRITE);
-       !file.canWrite() || !file.writeLine(makeConfig(previous, Source::STARTUP), false)) {
+       !file.canWrite() || !file.writeLine(makeConfig(previous, Source::STARTUP), false) || !file.commit()) {
         debugLog("WARNING: couldn't write {:s}", path);
         return;
     }

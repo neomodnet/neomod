@@ -211,13 +211,11 @@ void UpdateHandler::onDownloadComplete(std::span<const u8> data, bool success, s
     // write to disk
     debugLog("UpdateHandler: Downloaded file has {:d} bytes, writing ...", data.size());
     File file(Mc::Paths::cache() + "/update.zip", File::MODE::WRITE);
-    if(!file.canWrite()) {
+    if(!file.canWrite() || !file.write(data) || !file.commit()) {
         debugLog("UpdateHandler ERROR: Can't write file!");
         this->status = STATUS_ERROR;
         return;
     }
-
-    file.write(data);
 
     debugLog("UpdateHandler: Update finished successfully.");
     this->status = STATUS_DOWNLOAD_COMPLETE;

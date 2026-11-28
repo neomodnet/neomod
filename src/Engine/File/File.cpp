@@ -23,6 +23,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <system_error>
 #include <utility>
 #include <vector>
 #include <cstdio>
@@ -1114,6 +1115,34 @@ int File::stat_c(Mc::cstr_view utf8filename, struct stat64 *buffer) noexcept {
 #endif
 }
 
+#ifdef MCENGINE_PLATFORM_WINDOWS
+#include "WinDebloatDefs.h"
+#include <windows.h>
+#endif
+
+bool File::commitTmp(std::string_view path, bool written) {
+    const std::string tmpPath = tmpPathFor(path);
+    if(tmpPath == path) return written;
+
+    const fs::path from = Mc::getFsPath(tmpPath);
+    if(written) {
+        const fs::path to = Mc::getFsPath(path);
+#ifdef MCENGINE_PLATFORM_WINDOWS
+        // because std::filesystem::rename doesn't replace files on every Windows toolchain...
+        if(::MoveFileExW(from.c_str(), to.c_str(), MOVEFILE_REPLACE_EXISTING)) return true;
+        const std::string error = std::system_category().message(static_cast<int>(::GetLastError()));
+#else
+        if(::rename(from.c_str(), to.c_str()) == 0) return true;
+        const std::string error = std::generic_category().message(errno);
+#endif
+        debugLog("File Error: Couldn't replace {:s}: {:s}", path, error);
+    }
+
+    std::error_code ec;
+    fs::remove(from, ec);
+    return false;
+}
+
 bool File::copy(std::string_view fromPath, std::string_view toPath) {
     if(fromPath.empty() || toPath.empty() || fromPath == toPath) {
         return false;
@@ -1136,6 +1165,11 @@ bool File::copy(std::string_view fromPath, std::string_view toPath) {
 //------------------------------------------------------------------------------
 // File implementation
 //------------------------------------------------------------------------------
+std::string File::tmpPathFor(std::string_view path) {
+    if constexpr(Env::cfg(OS::WASM)) return std::string{path};
+    return std::string{path} + ".tmp";
+}
+
 File::File(std::string_view filePath, MODE mode) : sFilePath(filePath), fileMode(mode), bReady(false) {
     logIfCV(debug_file, "Opening {:s}", this->sFilePath);
 
@@ -1148,7 +1182,15 @@ File::File(std::string_view filePath, MODE mode) : sFilePath(filePath), fileMode
     this->bReady = true;
 }
 
-File::~File() = default;
+File::~File() { this->commit(); }
+
+bool File::commit() {
+    if(!this->ofstream || !this->bReady) return false;
+    this->bReady = false;
+
+    this->ofstream->close();
+    return commitTmp(this->sFilePath, !this->ofstream->fail());
+}
 
 bool File::canRead() const {
     return this->bReady && this->ifstream && this->ifstream->good() && this->fileMode == MODE::READ;
@@ -1232,7 +1274,8 @@ bool File::openForWriting() {
     // create and open output file stream
     this->ofstream = std::make_unique<std::ofstream>();
     assert(this->ofstream);
-    this->ofstream->open(fsPath, std::ios::out | std::ios::trunc | std::ios::binary);
+    const fs::path tmpPath = Mc::getFsPath(tmpPathFor(this->sFilePath));
+    this->ofstream->open(tmpPath, std::ios::out | std::ios::trunc | std::ios::binary);
 
     // check if file opened successfully
     if(!this->ofstream->good()) {
@@ -1406,7 +1449,24 @@ void File::readToVector(std::vector<u8> &out) {
 }
 
 #ifdef MCENGINE_PLATFORM_WASM
+#include "App.h"
+#include "i18n.h"
+
 #include <emscripten/emscripten.h>
+
+namespace {
+bool storeFailureReported{false};
+}  // namespace
+
+extern "C" EMSCRIPTEN_KEEPALIVE void neomod_stored(bool success) {
+    if(success) {
+        storeFailureReported = false;
+    } else if(app && !std::exchange(storeFailureReported, true)) {
+        app->showNotification(
+            {_("The browser storage is full, changes can't be saved. Delete some beatmaps to free up space."),
+             NotificationPreset::ERROR});
+    }
+}
 
 void File::flushToDisk() {
     // keep the runtime alive until the async sync completes, otherwise the IDB

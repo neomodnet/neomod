@@ -301,7 +301,6 @@ class Writer {
     std::unique_ptr<u8[]> buffer;
 
     std::string write_path;
-    std::string tmp_path;
     std::unique_ptr<std::ofstream> file;
 
     uSz pos{0};
