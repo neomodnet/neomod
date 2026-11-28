@@ -281,7 +281,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     void onUIScaleToDPIChange(float oldValue, float newValue);
     void onLetterboxingChange(float oldValue, float newValue);
 
-    void onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fromMouse = false);
+    void onGameplayKey(u8 keys, bool down, u64 timestamp, bool fromMouse = false);
 
     void onUserCardChange(std::string_view new_username);
 

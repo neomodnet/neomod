@@ -1005,20 +1005,12 @@ void Osu::onKeyDown(KeyboardEvent &key) {
         if(!this->map_iface->isPaused()) {
             // gameplay keys + smoke
             {
-                GameplayKeys gameplayKeyPressed{0};
-
-                if(key == binds::LEFT_CLICK) {
-                    gameplayKeyPressed = GameplayKeys::K1;
-                } else if(key == binds::LEFT_CLICK_2) {
-                    gameplayKeyPressed = GameplayKeys::M1;
-                } else if(key == binds::RIGHT_CLICK) {
-                    gameplayKeyPressed = GameplayKeys::K2;
-                } else if(key == binds::RIGHT_CLICK_2) {
-                    gameplayKeyPressed = GameplayKeys::M2;
-                } else if(key == binds::SMOKE) {
-                    gameplayKeyPressed = GameplayKeys::Smoke;
-                }
-
+                u8 gameplayKeyPressed{0};
+                if(key == binds::LEFT_CLICK) gameplayKeyPressed |= GameplayKeys::K1;
+                if(key == binds::LEFT_CLICK_2) gameplayKeyPressed |= GameplayKeys::M1;
+                if(key == binds::RIGHT_CLICK) gameplayKeyPressed |= GameplayKeys::K2;
+                if(key == binds::RIGHT_CLICK_2) gameplayKeyPressed |= GameplayKeys::M2;
+                if(key == binds::SMOKE) gameplayKeyPressed |= GameplayKeys::Smoke;
                 if(gameplayKeyPressed > 0) {
                     this->onGameplayKey(gameplayKeyPressed, true, key.getTimestamp());
                     // consume if not failed
@@ -1161,20 +1153,12 @@ void Osu::onKeyDown(KeyboardEvent &key) {
 void Osu::onKeyUp(KeyboardEvent &key) {
     // clicks + smoke
     {
-        GameplayKeys gameplayKeyReleased{0};
-
-        if(key == binds::LEFT_CLICK) {
-            gameplayKeyReleased = GameplayKeys::K1;
-        } else if(key == binds::LEFT_CLICK_2) {
-            gameplayKeyReleased = GameplayKeys::M1;
-        } else if(key == binds::RIGHT_CLICK) {
-            gameplayKeyReleased = GameplayKeys::K2;
-        } else if(key == binds::RIGHT_CLICK_2) {
-            gameplayKeyReleased = GameplayKeys::M2;
-        } else if(key == binds::SMOKE) {
-            gameplayKeyReleased = GameplayKeys::Smoke;
-        }
-
+        u8 gameplayKeyReleased{0};
+        if(key == binds::LEFT_CLICK) gameplayKeyReleased |= GameplayKeys::K1;
+        if(key == binds::LEFT_CLICK_2) gameplayKeyReleased |= GameplayKeys::M1;
+        if(key == binds::RIGHT_CLICK) gameplayKeyReleased |= GameplayKeys::K2;
+        if(key == binds::RIGHT_CLICK_2) gameplayKeyReleased |= GameplayKeys::M2;
+        if(key == binds::SMOKE) gameplayKeyReleased |= GameplayKeys::Smoke;
         // even if not playing, update currently held keys
         if(gameplayKeyReleased > 0) {
             this->onGameplayKey(gameplayKeyReleased, false, key.getTimestamp());
@@ -2218,86 +2202,91 @@ void Osu::updateConfineCursor() {
 }
 
 // needs a separate fromMouse parameter, since M1/M2 might be bound to keyboard keys too
-void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fromMouse) {
+// keys can hold several flags, for a key bound to several actions; they act like keys pressed at the same time
+void Osu::onGameplayKey(u8 keys, bool down, u64 timestamp, bool fromMouse) {
     // always track raw physical state before keylock filtering
-    const bool is_smoke = key_flag & GameplayKeys::Smoke;
-    if(!is_smoke) {
+    // all keys of the event go in first, so a key released together with its sibling doesn't hand the hold to it
+    const u8 click_keys = keys & ~GameplayKeys::Smoke;
+    if(down)
+        this->map_iface->raw_gameplay_keys |= click_keys;
+    else
+        this->map_iface->raw_gameplay_keys &= ~click_keys;
+
+    // smoke has no keylock and doesn't click, so just add/remove it
+    if(keys & GameplayKeys::Smoke) {
         if(down)
-            this->map_iface->raw_gameplay_keys |= key_flag;
+            this->map_iface->current_keys |= GameplayKeys::Smoke;
         else
-            this->map_iface->raw_gameplay_keys &= ~key_flag;
-    }
-
-    auto held_now = this->map_iface->getKeys();
-
-    const bool changed = !(held_now & key_flag) == down;
-    if(!changed) return;
-
-    // a test's player takes over from its autoplay by pressing a key
-    if(down && !is_smoke && this->isInPlayMode() && this->getModAuto() &&
-       this->map_iface->getKind() == BeatmapInterface::PlayKind::TEST) {
-        ui->getModSelector()->toggleAuto();
-    }
-
-    if(is_smoke) {
-        // just add/remove smoke
-        this->map_iface->current_keys = down ? (held_now | GameplayKeys::Smoke) : (held_now & ~GameplayKeys::Smoke);
-        return;
-    }
-
-    // remove smoke from consideration
-    held_now &= ~GameplayKeys::Smoke;
-
-    const auto k1m1 = (GameplayKeys::K1 | GameplayKeys::M1);
-    const auto k2m2 = (GameplayKeys::K2 | GameplayKeys::M2);
-    const bool is_k1m1 = !!(key_flag & k1m1);
-    const auto group = is_k1m1 ? k1m1 : k2m2;
-
-    // always allow keyup
-    bool can_press = !down || cv::mod_no_keylock.getBool();
-    if(!can_press) {
-        can_press = !(held_now & group);
+            this->map_iface->current_keys &= ~GameplayKeys::Smoke;
     }
 
     auto *hud = this->ui_memb->getHUD();
 
-    // when a key is released with keylock active, check if a sibling in the same
-    // group is still physically held and should take over the held state.
-    // this doesn't register a new click; it only maintains hold for sliders/spinners.
-    // done before onKey so that current_keys is already correct before replay frames etc.
-    if(!down && !cv::mod_no_keylock.getBool()) {
-        const auto sibling = this->map_iface->raw_gameplay_keys & group;
-        if(sibling && !(this->map_iface->current_keys & sibling)) {
-            this->map_iface->current_keys |= sibling;
-            // manually animate input overlay
+    // with keylock, a key bound to both K1 and M1 clicks with K1, and likewise for K2 and M2
+    for(const auto key_flag : {GameplayKeys::K1, GameplayKeys::M1, GameplayKeys::K2, GameplayKeys::M2}) {
+        if(!(click_keys & key_flag)) continue;
 
-            // NOTE: stable seems bugged/inconsistent in this regard, it adds keys to the key counter even though
-            // they would not have actually resulted in a new keypress
-            // (e.g. m1d->k1d->k1u results in m1 having 2 inputs, k1 having 1 input, but only the first m1 actually did anything)
-            // but we don't do that here (we just move the held key down to the sibling but don't add any key presses to the keycounts)
-            hud->animateInputOverlay(static_cast<GameplayKeys>(sibling), true);
+        // remove smoke from consideration
+        const u8 held_now = this->map_iface->getKeys() & ~GameplayKeys::Smoke;
+
+        const bool changed = !(held_now & key_flag) == down;
+        if(!changed) continue;
+
+        // a test's player takes over from its autoplay by pressing a key
+        if(down && this->isInPlayMode() && this->getModAuto() &&
+           this->map_iface->getKind() == BeatmapInterface::PlayKind::TEST) {
+            ui->getModSelector()->toggleAuto();
         }
-    }
 
-    // NOTE: allow events even while beatmap is paused, to correctly not-continue immediately due to pressed keys
-    // debugLog("got key{} {:04b} fromMouse {} held_now {:04b} can_press {}", down ? "down" : "up",
-    //          static_cast<u8>(key_flag), fromMouse, held_now, can_press);
-    if(can_press) {
-        this->map_iface->onKey(key_flag, down, timestamp);
-    }
+        const auto k1m1 = (GameplayKeys::K1 | GameplayKeys::M1);
+        const auto k2m2 = (GameplayKeys::K2 | GameplayKeys::M2);
+        const bool is_k1m1 = !!(key_flag & k1m1);
+        const auto group = is_k1m1 ? k1m1 : k2m2;
 
-    // only skip animating if it's a mouse event and we are in unpaused gameplay, otherwise animate
-    const bool do_animate =
-        fromMouse ? !(cv::disable_mousebuttons.getBool() && this->isInPlayMode() && !this->map_iface->isPaused())
-                  : true;
+        // always allow keyup
+        bool can_press = !down || cv::mod_no_keylock.getBool();
+        if(!can_press) {
+            can_press = !(held_now & group);
+        }
 
-    // cursor anim + ripples
-    if(do_animate) {
-        if(down && can_press) {
-            hud->animateCursorExpand();
-            if(cv::draw_cursor_ripples.getBool()) hud->addCursorRipple(mouse->getPos());
-        } else if(!this->map_iface->isClickHeld()) {
-            hud->animateCursorShrink();
+        // when a key is released with keylock active, check if a sibling in the same
+        // group is still physically held and should take over the held state.
+        // this doesn't register a new click; it only maintains hold for sliders/spinners.
+        // done before onKey so that current_keys is already correct before replay frames etc.
+        if(!down && !cv::mod_no_keylock.getBool()) {
+            const auto sibling = this->map_iface->raw_gameplay_keys & group;
+            if(sibling && !(this->map_iface->current_keys & sibling)) {
+                this->map_iface->current_keys |= sibling;
+                // manually animate input overlay
+
+                // NOTE: stable seems bugged/inconsistent in this regard, it adds keys to the key counter even though
+                // they would not have actually resulted in a new keypress
+                // (e.g. m1d->k1d->k1u results in m1 having 2 inputs, k1 having 1 input, but only the first m1 actually did anything)
+                // but we don't do that here (we just move the held key down to the sibling but don't add any key presses to the keycounts)
+                hud->animateInputOverlay(static_cast<GameplayKeys>(sibling), true);
+            }
+        }
+
+        // NOTE: allow events even while beatmap is paused, to correctly not-continue immediately due to pressed keys
+        // debugLog("got key{} {:04b} fromMouse {} held_now {:04b} can_press {}", down ? "down" : "up",
+        //          static_cast<u8>(key_flag), fromMouse, held_now, can_press);
+        if(can_press) {
+            this->map_iface->onKey(key_flag, down, timestamp);
+        }
+
+        // only skip animating if it's a mouse event and we are in unpaused gameplay, otherwise animate
+        const bool do_animate =
+            fromMouse ? !(cv::disable_mousebuttons.getBool() && this->isInPlayMode() && !this->map_iface->isPaused())
+                      : true;
+
+        // cursor anim + ripples
+        if(do_animate) {
+            if(down && can_press) {
+                hud->animateCursorExpand();
+                if(cv::draw_cursor_ripples.getBool()) hud->addCursorRipple(mouse->getPos());
+            } else if(!this->map_iface->isClickHeld()) {
+                hud->animateCursorShrink();
+            }
         }
     }
 }

@@ -399,7 +399,7 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v45_02;
     v45_02.title = "45.02 (" CHANGELOG_TIMESTAMP ")";
     v45_02.changes = {
-        R"()",
+        R"(- Allowed binding multiple gameplay actions to the same key (e.g. Left Click and Smoke))",
     };
     changelogs.push_back(std::move(v45_02));
 
