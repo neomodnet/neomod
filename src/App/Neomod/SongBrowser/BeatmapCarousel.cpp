@@ -140,6 +140,7 @@ CarouselButton *BeatmapCarousel::acquireButton(CarouselNode node) {
                 button = this->buttons.emplace_back(std::make_unique<SongDifficultyButton>(*this)).get();
                 break;
             case CarouselNode::Kind::GROUP:
+            case CarouselNode::Kind::MISSING_MAPS:
             case CarouselNode::Kind::NONE:
                 button = this->buttons.emplace_back(std::make_unique<CollectionButton>(*this)).get();
                 break;

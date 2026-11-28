@@ -47,6 +47,7 @@ class MapFetcher final {
     void target_set(i32 set_id);
 
     void clear();
+    void cancel();
 
     // drive resolution/install and return the current state. call once per frame.
     const State &tick();

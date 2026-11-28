@@ -44,6 +44,11 @@ void MapFetcher::clear() {
     this->st = {};
 }
 
+void MapFetcher::cancel() {
+    if(this->st.status == Status::Working && this->set_id > 0) osu->getBeatmapInstaller()->cancel(this->set_id);
+    this->clear();
+}
+
 DatabaseBeatmap *MapFetcher::lookup() const {
     if(!this->md5.empty()) return db->getBeatmapDifficulty(this->md5);
     if(this->map_id > 0) return db->getBeatmapDifficulty(this->map_id);

@@ -100,6 +100,7 @@ class SongBrowser final : public ScreenBackable {
     [[nodiscard]] std::span<const u32> getNeighbours(u32 diff) const;
     [[nodiscard]] const std::vector<CarouselNode> &getRows() const;
     [[nodiscard]] CarouselNode getDiffNodeByHash(const MD5Hash &diff_hash) const;
+    [[nodiscard]] size_t getQueuedMissingCollectionMapsCount(u32 group) const;
     [[nodiscard]] bool isCarouselBuilt() const;
 
     using ScoreComparator = bool (*)(const FinishedScore &, const FinishedScore &);

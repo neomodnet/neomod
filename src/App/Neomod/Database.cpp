@@ -2170,7 +2170,7 @@ bool Database::importDatabase(const std::pair<DatabaseType, std::string> &db_pai
             return true;
         }
         case STABLE_COLLECTIONS:
-            return Collections::load_peppy(db_path);
+            return Collections::load_peppy(db_path, Collections::MapsOwner::NEOMOD);
         case STABLE_MAPS: {
             debugLog("tried to import external stable maps db {}, not supported", db_path);
             return false;

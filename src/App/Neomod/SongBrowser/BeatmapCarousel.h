@@ -56,7 +56,7 @@ class BeatmapCarousel final : public CBaseUIScrollView {
     bool bWindowDirty{false};
 
     std::vector<std::unique_ptr<CarouselButton>> buttons;
-    std::array<std::vector<CarouselButton *>, 4> freeButtons;
+    std::array<std::vector<CarouselButton *>, 5> freeButtons;
 
     Hash::flat::set<u32> diffsShownSinceReset;
 

@@ -5047,6 +5047,28 @@ msgstr "Розрахунок гучності ({}/{}) ..."
 msgid "Converting scores ({}/{}) ..."
 msgstr "Конвертація результатів ({}/{}) ..."
 
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+#, c++-format
+msgid "Downloading missing maps... ({} remaining)"
+msgstr "Завантаження відсутніх мап... (залишилось: {})"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "Click to cancel"
+msgstr "Натисніть, щоб скасувати"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "1 missing map"
+msgstr "Бракує 1 мапи"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+#, c++-format
+msgid "{} missing maps"
+msgstr "Відсутніх мап: {}"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "Click to download"
+msgstr "Натисніть, щоб завантажити"
+
 #: src/App/Neomod/SongBrowser/InfoLabel.cpp
 #, c++-format
 msgid "Length: {:02d}:{:02d} BPM: {} Objects: {}"
@@ -5075,6 +5097,16 @@ msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Зірки:{:.3g} * (??? pp)"
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Submitting..."
 msgstr "Надсилання..."
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Yes"
+msgstr "Так"
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "No"
+msgstr "Ні"
 
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Wobble 2"
@@ -5305,6 +5337,14 @@ msgstr "Режим FPoSu вимкнено."
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Enabled FPoSu mode."
 msgstr "Режим FPoSu увімкнено."
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Delete missing maps from collection"
+msgstr "Видалити відсутні мапи з колекції"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Really delete missing maps?"
+msgstr "Справді видалити відсутні мапи?"
 
 #: src/App/Neomod/SpectatorScreen.cpp
 #, c++-format

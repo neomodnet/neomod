@@ -21,7 +21,8 @@
 namespace Collections {
 class Collection;
 
-extern bool load_peppy(std::string_view peppy_collections_path);
+enum class MapsOwner : u8;
+extern bool load_peppy(std::string_view peppy_collections_path, MapsOwner owner);
 extern bool load_mcneomod(std::string_view neomod_collections_path);
 extern bool save_collections();
 extern bool save_collections(std::span<const Collection> collections, std::string_view save_path);
@@ -258,7 +259,7 @@ class Database final {
     static bool migrate_neosu_to_neomod();
 
    private:
-    friend bool Collections::load_peppy(std::string_view peppy_collections_path);
+    friend bool Collections::load_peppy(std::string_view peppy_collections_path, Collections::MapsOwner owner);
     friend bool Collections::load_mcneomod(std::string_view neomod_collections_path);
     friend bool Collections::save_collections();
     friend bool Collections::save_collections(std::span<const Collections::Collection> collections,

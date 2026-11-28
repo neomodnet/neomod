@@ -5047,6 +5047,28 @@ msgstr "正在计算响度 ({}/{}) ..."
 msgid "Converting scores ({}/{}) ..."
 msgstr "正在转换成绩 ({}/{}) ..."
 
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+#, c++-format
+msgid "Downloading missing maps... ({} remaining)"
+msgstr "正在下载缺失的谱面...（剩余 {} 个）"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "Click to cancel"
+msgstr "点击取消"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "1 missing map"
+msgstr "缺失 1 个谱面"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+#, c++-format
+msgid "{} missing maps"
+msgstr "缺失 {} 个谱面"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "Click to download"
+msgstr "点击下载"
+
 #: src/App/Neomod/SongBrowser/InfoLabel.cpp
 #, c++-format
 msgid "Length: {:02d}:{:02d} BPM: {} Objects: {}"
@@ -5075,6 +5097,16 @@ msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} 星级:{:.3g} * (??? pp)"
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Submitting..."
 msgstr "正在提交..."
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Yes"
+msgstr "是"
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "No"
+msgstr "否"
 
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Wobble 2"
@@ -5305,6 +5337,14 @@ msgstr "已关闭 FPoSu 模式。"
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Enabled FPoSu mode."
 msgstr "已开启 FPoSu 模式。"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Delete missing maps from collection"
+msgstr "从收藏夹中删除缺失的谱面"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Really delete missing maps?"
+msgstr "确定要删除缺失的谱面吗？"
 
 #: src/App/Neomod/SpectatorScreen.cpp
 #, c++-format

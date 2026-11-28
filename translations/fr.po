@@ -5045,6 +5045,28 @@ msgstr "Calcul de l'intensité sonore ({}/{})..."
 msgid "Converting scores ({}/{}) ..."
 msgstr "Conversion des scores ({}/{})..."
 
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+#, c++-format
+msgid "Downloading missing maps... ({} remaining)"
+msgstr "Téléchargement des maps manquantes... ({} restantes)"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "Click to cancel"
+msgstr "Cliquer pour annuler"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "1 missing map"
+msgstr "1 map manquante"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+#, c++-format
+msgid "{} missing maps"
+msgstr "{} maps manquantes"
+
+#: src/App/Neomod/SongBrowser/CollectionButton.cpp
+msgid "Click to download"
+msgstr "Cliquer pour télécharger"
+
 #: src/App/Neomod/SongBrowser/InfoLabel.cpp
 #, c++-format
 msgid "Length: {:02d}:{:02d} BPM: {} Objects: {}"
@@ -5073,6 +5095,16 @@ msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Étoiles:{:.3g} * (??? pp)"
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Submitting..."
 msgstr "Envoi..."
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Yes"
+msgstr "Oui"
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "No"
+msgstr "Non"
 
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Wobble 2"
@@ -5303,6 +5335,14 @@ msgstr "Mode FPoSu désactivé."
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Enabled FPoSu mode."
 msgstr "Mode FPoSu activé."
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Delete missing maps from collection"
+msgstr "Supprimer les maps manquantes de la collection"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "Really delete missing maps?"
+msgstr "Vraiment supprimer les maps manquantes ?"
 
 #: src/App/Neomod/SpectatorScreen.cpp
 #, c++-format

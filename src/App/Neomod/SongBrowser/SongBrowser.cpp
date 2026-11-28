@@ -144,7 +144,7 @@ struct PendingReselect {
 struct SelOpts {
     bool topChild{false};
     bool anchorEnd{false};
-    bool noPlay{false};
+    bool noAction{false};
 };
 }  // namespace
 
@@ -183,6 +183,8 @@ struct SongBrowserImpl final {
     void select(CarouselNode node);
     void select(CarouselNode node, SelOpts opts);
     void selectDiff(u32 diff, SelOpts opts);
+    void selectMissingMaps(u32 group, SelOpts opts);
+    void stopMissingDownloads();
     [[nodiscard]] bool isSelected(CarouselNode node) const;
     [[nodiscard]] bool isSetSelected(u32 set) const;
     // only difficulties can not match the search
@@ -195,6 +197,7 @@ struct SongBrowserImpl final {
     [[nodiscard]] std::span<const u32> getNeighbours(u32 diff) const;
     [[nodiscard]] const std::vector<CarouselNode> &getRows() const;
     [[nodiscard]] CarouselNode getDiffNodeByHash(const MD5Hash &diff_hash) const;
+    [[nodiscard]] size_t getQueuedMissingCollectionMapsCount(u32 group) const;
     // the position of diff in diffs (which are in carousel order), or diffs.size()
     [[nodiscard]] size_t findDiff(std::span<const u32> diffs, u32 diff) const;
     [[nodiscard]] std::optional<f32> getNodeY(CarouselNode node) const;
@@ -240,6 +243,7 @@ struct SongBrowserImpl final {
     bool rebuildSongButtons();
     void rebuildVisibleSongButtons();
     void recreateCollectionsButtons();
+    void selectLoadedMapRow();
     void initializeGroupingButtons();
     GroupList *getCollectionButtonsForGroup(GroupType group);
     void updateSongButtonLayout();
@@ -290,6 +294,8 @@ struct SongBrowserImpl final {
     void onOpenBeatmapFolderClicked();
     void onEditClicked();
     void openGroupContextMenu(vec2 pos);
+    void openMissingMapsContextMenu(vec2 pos);
+    void onMissingMapsContextMenu(std::string_view text, int id = -1);
     void onGroupContextMenu(std::string_view text, int id = -1);
     void onRenameCollectionConfirmed(std::string_view text, int id = -1);
     void onDeleteCollectionConfirmed(std::string_view text, int id = -1);
@@ -362,7 +368,7 @@ struct SongBrowserImpl final {
     bool bSongButtonsNeedSorting{false};
 
     // song browser selection state logic
-    CarouselNode selectedDiff;
+    CarouselNode selectedRow;
     CarouselNode openGroup;
     CarouselNode contextMenuNode;
 
@@ -415,6 +421,13 @@ struct SongBrowserImpl final {
 
     // drives the map_autodl/set_autodl intent flags to a terminal verdict
     MapFetcher autodl_fetcher;
+
+    // missing collection maps
+    Hash::flat::set<MD5Hash> missingQueue;
+    Hash::flat::set<MD5Hash> missingFailed;
+    MD5Hash missingCurrent{};
+    MapFetcher missingFetcher;
+    std::string missingQueueCollection;
 
     // search
     UISearchOverlay *search;
@@ -489,6 +502,9 @@ void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) { return pImpl->onG
 void SongBrowser::rebuildScoreButtons() { return pImpl->rebuildScoreButtons(); }
 std::span<const u32> SongBrowser::getNeighbours(u32 diff) const { return pImpl->getNeighbours(diff); }
 const std::vector<CarouselNode> &SongBrowser::getRows() const { return pImpl->getRows(); }
+size_t SongBrowser::getQueuedMissingCollectionMapsCount(u32 group) const {
+    return pImpl->getQueuedMissingCollectionMapsCount(group);
+}
 CarouselNode SongBrowser::getDiffNodeByHash(const MD5Hash &diff_hash) const {
     return pImpl->getDiffNodeByHash(diff_hash);
 }
@@ -1214,12 +1230,18 @@ CarouselNode SongBrowserImpl::getDiffNodeByHash(const MD5Hash &diff_hash) const 
 }
 
 bool SongBrowserImpl::isSetSelected(u32 set) const {
-    return this->selectedDiff && this->data.diffSet[this->selectedDiff.idx] == set;
+    return this->selectedRow.isDiff() && this->data.diffSet[this->selectedRow.idx] == set;
 }
 
 // never a set row: a selected set shows all of its difficulties
 bool SongBrowserImpl::isSelected(CarouselNode node) const {
-    return node && (node == this->selectedDiff || node == this->openGroup);
+    return node && (node == this->selectedRow || node == this->openGroup);
+}
+
+size_t SongBrowserImpl::getQueuedMissingCollectionMapsCount(u32 group) const {
+    if(this->data.groups[group].name != this->missingQueueCollection) return 0;
+    return Mc::ranges::count_if(this->data.groups[group].downloadableMaps,
+                                [this](const MD5Hash &md5) { return this->missingQueue.contains(md5); });
 }
 
 bool SongBrowserImpl::isSearchMatch(CarouselNode node) const {
@@ -1325,6 +1347,8 @@ void SongBrowserImpl::select(CarouselNode node, SelOpts opts) {
             return this->selectDiff(node.idx, opts);
         case CarouselNode::Kind::GROUP:
             return this->toggleGroup(node.idx);
+        case CarouselNode::Kind::MISSING_MAPS:
+            return this->selectMissingMaps(node.idx, opts);
         case CarouselNode::Kind::NONE:
             return;
     }
@@ -1332,7 +1356,7 @@ void SongBrowserImpl::select(CarouselNode node, SelOpts opts) {
 
 void SongBrowserImpl::selectDiff(u32 diff, SelOpts opts) {
     const CarouselNode node = CarouselNode::diff(diff);
-    const bool wasSelected = this->selectedDiff == node;
+    const bool wasSelected = this->selectedRow == node;
     const bool wasExpanded = this->isSetSelected(this->data.diffSet[diff]);
 
     this->updateGrade(diff);
@@ -1347,11 +1371,11 @@ void SongBrowserImpl::selectDiff(u32 diff, SelOpts opts) {
     };
     const std::optional<f32> anchorBefore = wasExpanded ? std::nullopt : anchorY();
 
-    this->selectedDiff = node;
+    this->selectedRow = node;
 
     this->rebuildSongButtons();
 
-    this->onDifficultySelected(this->data.diffMap[diff], wasSelected && !opts.noPlay);
+    this->onDifficultySelected(this->data.diffMap[diff], wasSelected && !opts.noAction);
 
     if(anchorBefore) {
         if(const std::optional<f32> anchorAfter = anchorY()) {
@@ -1359,6 +1383,32 @@ void SongBrowserImpl::selectDiff(u32 diff, SelOpts opts) {
         }
     }
     if(!this->scrollToSongButton(node)) this->scheduled_scroll_to_selected_button = ScheduledScroll::ANIMATED;
+}
+
+void SongBrowserImpl::selectMissingMaps(u32 group, SelOpts opts) {
+    const CarouselNode node = CarouselNode::missingMaps(group);
+    this->contextMenu->setVisible2(false);
+    if(this->selectedRow != node) {
+        this->selectedRow = node;
+        this->rebuildSongButtons();
+        this->scrollToSongButton(node);
+    }
+    if(opts.noAction) return;
+
+    const CarouselGroup &collection = this->data.groups[group];
+    const bool start = this->getQueuedMissingCollectionMapsCount(group) == 0;
+    this->stopMissingDownloads();
+    if(start) {
+        this->missingQueue.insert(collection.downloadableMaps.begin(), collection.downloadableMaps.end());
+        this->missingQueueCollection = collection.name;
+    }
+}
+
+void SongBrowserImpl::stopMissingDownloads() {
+    this->missingQueue.clear();
+    this->missingQueueCollection.clear();
+    this->missingFetcher.cancel();
+    this->missingCurrent = {};
 }
 
 void SongBrowserImpl::toggleGroup(u32 group) {
@@ -1443,6 +1493,26 @@ void SongBrowserImpl::tick() {
         if(!BatchDiffCalc::running() && db->batch_diffcalc_pending) {
             db->batch_diffcalc_pending = false;
             BatchDiffCalc::start_calc();
+        }
+    }
+
+    if(this->missingCurrent.empty() && !this->missingQueue.empty()) this->missingCurrent = *this->missingQueue.begin();
+    if(!this->missingCurrent.empty() && this->bInitializedBeatmaps) {
+        this->missingFetcher.target_map(0, this->missingCurrent);
+        const MapFetcher::Status status = this->missingFetcher.tick().status;
+        if(status == MapFetcher::Status::NotFound) {
+            this->missingFailed.insert(this->missingCurrent);
+            for(CarouselGroup &group : this->data.groups) std::erase(group.downloadableMaps, this->missingCurrent);
+            if(this->selectedRow.isMissingMaps() && this->data.groups[this->selectedRow.idx].downloadableMaps.empty()) {
+                this->selectLoadedMapRow();
+            }
+            this->rebuildSongButtons();
+        }
+        if(status == MapFetcher::Status::Found || status == MapFetcher::Status::NotFound) {
+            this->missingQueue.erase(this->missingCurrent);
+            if(this->missingQueue.empty()) this->missingQueueCollection.clear();
+            this->missingCurrent = {};
+            this->missingFetcher.clear();
         }
     }
 
@@ -1644,7 +1714,7 @@ void SongBrowserImpl::navigateCarousel(const KeyboardEvent &key) {
     const std::vector<CarouselNode> &rows = this->carousel->getRows();
 
     const auto move = [&](sSz dir, auto &&stops, SelOpts opts) {
-        size_t cursor = this->carousel->findRow(this->selectedDiff);
+        size_t cursor = this->carousel->findRow(this->selectedRow);
         if(cursor == rows.size()) cursor = this->carousel->findRow(this->openGroup);
         const sSz numRows = static_cast<sSz>(rows.size());
         for(sSz i = cursor == rows.size() ? (dir > 0 ? 0 : numRows - 1) : static_cast<sSz>(cursor) + dir;
@@ -1667,10 +1737,10 @@ void SongBrowserImpl::navigateCarousel(const KeyboardEvent &key) {
     const auto anyRow = [](CarouselNode) { return true; };
     const auto nextSong = [this](CarouselNode row) { return this->isIndependentDiff(row) && !keyboard->isShiftDown(); };
 
-    if(!keyboard->isAltDown() && key == KEY_DOWN) move(1, anyRow, {.topChild = true});
-    if(!keyboard->isAltDown() && key == KEY_UP) move(-1, anyRow, {});
-    if(key == KEY_LEFT && !key.isRepeat()) move(-1, nextSong, {.anchorEnd = true});
-    if(key == KEY_RIGHT && !key.isRepeat()) move(1, nextSong, {});
+    if(!keyboard->isAltDown() && key == KEY_DOWN) move(1, anyRow, {.topChild = true, .noAction = true});
+    if(!keyboard->isAltDown() && key == KEY_UP) move(-1, anyRow, {.noAction = true});
+    if(key == KEY_LEFT && !key.isRepeat()) move(-1, nextSong, {.anchorEnd = true, .noAction = true});
+    if(key == KEY_RIGHT && !key.isRepeat()) move(1, nextSong, {.noAction = true});
 
     if(key == KEY_PAGEUP) this->carousel->scrollY(static_cast<int>(this->carousel->getSize().y));
     if(key == KEY_PAGEDOWN) this->carousel->scrollY(static_cast<int>(-this->carousel->getSize().y));
@@ -1802,7 +1872,7 @@ void SongBrowserImpl::selectSelectedBeatmapSongButton() {
         return;
     }
 
-    this->select(btn, {.noPlay = true});  // if we select() it when already selected, it would start playing!
+    this->select(btn, {.noAction = true});  // if we select() it when already selected, it would start playing!
 }
 
 void SongBrowserImpl::onPlayEnd(bool quit) {
@@ -1810,7 +1880,7 @@ void SongBrowserImpl::onPlayEnd(bool quit) {
     if(!quit) {
         this->rebuildScoreButtons();
 
-        if(this->selectedDiff) this->updateGrade(this->selectedDiff.idx);
+        if(this->selectedRow.isDiff()) this->updateGrade(this->selectedRow.idx);
     }
 
     // update song info
@@ -1996,7 +2066,7 @@ void SongBrowserImpl::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     osu->getMusicTrack()->releaseMap();
     ui->getMainMenu()->clearPreloadedMaps();
 
-    this->selectedDiff = {};
+    this->selectedRow = {};
     this->openGroup = {};
     this->contextMenuNode = {};
 
@@ -2021,6 +2091,7 @@ void SongBrowserImpl::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     this->visibleGroups.clear();
     this->shownDiffs.clear();
     this->previousRandomBeatmaps.clear();
+    this->missingFailed.clear();
 
     // the score buttons point at maps of the database being reloaded too, and nothing rebuilds them when the
     // reselected map has no button afterwards: back to the empty list it starts out as
@@ -2113,7 +2184,7 @@ void SongBrowserImpl::unlinkBeatmapSet(const BeatmapSet *set) {
     }
 
     for(const u32 diff : this->data.setChildren(idx)) {
-        if(this->selectedDiff == CarouselNode::diff(diff)) this->selectedDiff = {};
+        if(this->selectedRow == CarouselNode::diff(diff)) this->selectedRow = {};
         this->hashToDiffButton.erase(this->data.diffMap[diff]->getMD5());
         this->data.diffMap[diff] = nullptr;
     }
@@ -2226,7 +2297,7 @@ SongBrowserImpl::GroupList *SongBrowserImpl::getCollectionButtonsForGroup(GroupT
 }
 
 bool SongBrowserImpl::scrollToBestButton(bool animated) {
-    const CarouselNode best = this->selectedDiff ? this->selectedDiff : this->openGroup;
+    const CarouselNode best = this->selectedRow ? this->selectedRow : this->openGroup;
     if(!best) {
         this->carousel->scrollToY(0, animated);
         return true;
@@ -2298,7 +2369,9 @@ bool SongBrowserImpl::rebuildSongButtons() {
     if(this->getCollectionButtonsForGroup(this->curGroup)) {
         for(const u32 group : this->visibleGroups) {
             rows.push_back(CarouselNode::group(group));
-            if(this->openGroup == rows.back()) addShown();
+            if(this->openGroup != rows.back()) continue;
+            addShown();
+            if(!this->data.groups[group].downloadableMaps.empty()) rows.push_back(CarouselNode::missingMaps(group));
         }
     } else {
         addShown();
@@ -3332,7 +3405,7 @@ void SongBrowserImpl::onSelectionRandom() {
 void SongBrowserImpl::onSelectionOptions() {
     soundEngine->play(osu->getSkin()->s_click_button);
 
-    if(const CarouselNode selected = this->selectedDiff ? this->selectedDiff : this->openGroup) {
+    if(const CarouselNode selected = this->selectedRow ? this->selectedRow : this->openGroup) {
         this->scrollToSongButton(selected);
 
         const vec2 heuristicSongButtonPositionAfterSmoothScrollFinishes =
@@ -3365,6 +3438,8 @@ void SongBrowserImpl::openContextMenu(CarouselNode node, vec2 pos) {
         this->openGroupContextMenu(pos);
     else if(node.isSong())
         this->openSongContextMenu(pos);
+    else if(node.isMissingMaps())
+        this->openMissingMapsContextMenu(pos);
 }
 
 void SongBrowserImpl::openSongContextMenu(vec2 pos) {
@@ -3520,8 +3595,8 @@ void SongBrowserImpl::onSongContextMenu(std::string_view text, int id) {
             spacer->setTextColor(0xff888888);
             spacer->setTextDarkColor(0xff000000);
 
-            cmenu->addButtonJustified("Yes", TEXT_JUSTIFICATION::LEFT, id);
-            cmenu->addButtonJustified("No", TEXT_JUSTIFICATION::LEFT);
+            cmenu->addButtonJustified(std::string{_("Yes")}, TEXT_JUSTIFICATION::LEFT, id);
+            cmenu->addButtonJustified(std::string{_("No")}, TEXT_JUSTIFICATION::LEFT);
         }
         cmenu->end(false, false);
         cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onDeleteBeatmapConfirmed>(this));
@@ -3623,6 +3698,53 @@ void SongBrowserImpl::openGroupContextMenu(vec2 pos) {
     cmenu->clampToBottomScreenEdge();
 }
 
+void SongBrowserImpl::openMissingMapsContextMenu(vec2 pos) {
+    auto *cmenu{this->contextMenu};
+
+    cmenu->setPos(pos);
+    cmenu->setRelPos(pos);
+    cmenu->begin(0, true);
+    cmenu->addButton("[-] " + std::string{_("Delete missing maps from collection")}, 1);
+    cmenu->end(false, false);
+    cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onMissingMapsContextMenu>(this));
+    cmenu->clampToRightScreenEdge();
+    cmenu->clampToBottomScreenEdge();
+}
+
+void SongBrowserImpl::onMissingMapsContextMenu(std::string_view /*text*/, int id) {
+    auto *cmenu{this->contextMenu};
+
+    if(id == 1 && !keyboard->isShiftDown()) {
+        cmenu->begin(0, true);
+        {
+            cmenu->addButton(std::string{_("Really delete missing maps?")})->setEnabled(false);
+            CBaseUIButton *spacer = cmenu->addButton("---");
+            spacer->setEnabled(false);
+            spacer->setTextColor(0xff888888);
+            spacer->setTextDarkColor(0xff000000);
+            cmenu->addButton(std::string{_("Yes")}, 2);
+            cmenu->addButton(std::string{_("No")});
+        }
+        cmenu->end(false, false);
+        cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onMissingMapsContextMenu>(this));
+        cmenu->clampToRightScreenEdge();
+        cmenu->clampToBottomScreenEdge();
+        return;
+    }
+    if((id != 1 && id != 2) || !this->contextMenuNode.isMissingMaps()) return;
+
+    const CarouselGroup &group = this->data.groups[this->contextMenuNode.idx];
+    if(group.name == this->missingQueueCollection) this->stopMissingDownloads();
+    auto &collection = Collections::get_or_create_collection(group.name);
+    std::vector<MD5Hash> uninstalled;
+    for(const MD5Hash &md5 : collection.get_maps()) {
+        if(!this->hashToDiffButton.contains(md5)) uninstalled.push_back(md5);
+    }
+    for(const MD5Hash &md5 : uninstalled) collection.remove_map(md5);
+    Collections::save_collections_async();
+    this->rebuildAfterSetChange();
+}
+
 void SongBrowserImpl::onGroupContextMenu(std::string_view text, int id) {
     auto *cmenu{this->contextMenu};
     const std::string_view collectionName = this->data.groups[this->contextMenuNode.idx].name;
@@ -3664,8 +3786,8 @@ void SongBrowserImpl::onGroupContextMenu(std::string_view text, int id) {
                 spacer->setEnabled(false);
                 spacer->setTextColor(0xff888888);
                 spacer->setTextDarkColor(0xff000000);
-                cmenu->addButton("Yes", 2);
-                cmenu->addButton("No");
+                cmenu->addButton(std::string{_("Yes")}, 2);
+                cmenu->addButton(std::string{_("No")});
             }
             cmenu->end(false, false);
             cmenu->setClickCallback(SA::MakeDelegate<&SongBrowserImpl::onDeleteCollectionConfirmed>(this));
@@ -3800,6 +3922,7 @@ void SongBrowserImpl::onGroupContextMenuAction(std::string_view text, int id) {
                this->collectionButtons, [&](u32 group) { return this->data.groups[group].name == collection_name; });
            it != this->collectionButtons.end() && Collections::delete_collection(collection_name)) {
             Collections::save_collections_async();
+            if(collection_name == this->missingQueueCollection) this->stopMissingDownloads();
 
             // delete UI
             if(this->openGroup == CarouselNode::group(*it)) this->openGroup = {};
@@ -3816,6 +3939,7 @@ void SongBrowserImpl::onGroupContextMenuAction(std::string_view text, int id) {
 
             if(existingCollection.rename_to(collection_name)) {
                 Collections::save_collections_async();
+                if(currentButtonName == this->missingQueueCollection) this->missingQueueCollection = collection_name;
 
                 // rename button
                 if(Mc::ranges::contains(this->collectionButtons, collectionButton)) {
@@ -3931,11 +4055,19 @@ bool SongBrowserImpl::selectPreviousRandomBeatmap() {
 }
 
 void SongBrowserImpl::playSelectedDifficulty() {
-    if(this->carousel->findRow(this->selectedDiff) < this->carousel->getRows().size()) this->select(this->selectedDiff);
+    if(this->carousel->findRow(this->selectedRow) < this->carousel->getRows().size()) this->select(this->selectedRow);
+}
+
+void SongBrowserImpl::selectLoadedMapRow() {
+    const DatabaseBeatmap *map = osu->getMapInterface()->getBeatmap();
+    this->selectedRow = map ? this->getDiffNodeByHash(map->getMD5()) : CarouselNode{};
 }
 
 void SongBrowserImpl::recreateCollectionsButtons() {
     std::string openCollection;
+    std::string missingMapsSelected;
+    std::string contextMenuCollection;
+    const CarouselNode::Kind contextMenuKind = this->contextMenuNode.kind;
 
     // reset
     {
@@ -3954,7 +4086,14 @@ void SongBrowserImpl::recreateCollectionsButtons() {
             openCollection = this->data.groups[this->openGroup.idx].name;
             this->openGroup = {};
         }
-        if(isCollection(this->contextMenuNode)) this->contextMenuNode = {};
+        if(this->selectedRow.isMissingMaps()) {
+            missingMapsSelected = this->data.groups[this->selectedRow.idx].name;
+            this->selectLoadedMapRow();
+        }
+        if(isCollection(this->contextMenuNode) || this->contextMenuNode.isMissingMaps()) {
+            contextMenuCollection = this->data.groups[this->contextMenuNode.idx].name;
+            this->contextMenuNode = {};
+        }
         this->collectionButtons.clear();
         auto &groups = this->data.groups;
         const auto firstCollection = Mc::ranges::find_if(groups, &CarouselGroup::isCollection);
@@ -3975,15 +4114,24 @@ void SongBrowserImpl::recreateCollectionsButtons() {
         for(const auto &map_hash : coll_maps) {
             if(auto it = this->hashToDiffButton.find(map_hash); it != this->hashToDiffButton.end()) {
                 group.diffs.push_back(it->second);
+            } else if(!this->missingFailed.contains(map_hash)) {
+                group.downloadableMaps.push_back(map_hash);
             }
         }
 
-        if(group.diffs.empty()) {
+        if(group.diffs.empty() && group.downloadableMaps.empty()) {
             this->data.groups.pop_back();
             continue;
         }
         this->collectionButtons.push_back((u32)this->data.groups.size() - 1);
         if(group.name == openCollection) this->openGroup = CarouselNode::group(this->collectionButtons.back());
+        if(group.name == missingMapsSelected && !group.downloadableMaps.empty()) {
+            this->selectedRow = CarouselNode::missingMaps(this->collectionButtons.back());
+        }
+        if(group.name == contextMenuCollection &&
+           (contextMenuKind == CarouselNode::Kind::GROUP || !group.downloadableMaps.empty())) {
+            this->contextMenuNode = {.kind = contextMenuKind, .idx = this->collectionButtons.back()};
+        }
     }
 
     // sort buttons by name

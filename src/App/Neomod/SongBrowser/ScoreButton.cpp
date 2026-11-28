@@ -640,8 +640,8 @@ void ScoreButton::onDeleteScoreClicked() {
             spacer->setEnabled(false);
             spacer->setTextColor(0xff888888);
             spacer->setTextDarkColor(0xff000000);
-            this->contextMenu->addButton("Yes", 1);
-            this->contextMenu->addButton("No");
+            this->contextMenu->addButton(std::string{_("Yes")}, 1);
+            this->contextMenu->addButton(std::string{_("No")});
         }
         this->contextMenu->end(false, false);
         this->contextMenu->setClickCallback(SA::MakeDelegate<&ScoreButton::onDeleteScoreConfirmed>(this));

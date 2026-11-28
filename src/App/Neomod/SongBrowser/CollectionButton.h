@@ -10,6 +10,7 @@ class CollectionButton final : public CarouselButton {
     ~CollectionButton() override = default;
 
     void draw() override;
+    void updateLayoutEx() override;
 
     [[nodiscard]] Color getActiveBackgroundColor() const override;
     [[nodiscard]] Color getInactiveBackgroundColor() const override;

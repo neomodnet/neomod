@@ -1,6 +1,7 @@
 #pragma once
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include "types.h"
+#include "MD5Hash.h"
 
 #include <span>
 #include <string>
@@ -10,10 +11,8 @@ class DatabaseBeatmap;
 typedef DatabaseBeatmap BeatmapSet;
 enum class ScoreGrade : u8;
 
-// a carousel entry: a difficulty, the collapsed difficulties of one set that are next to each other, or a group.
-// idx is a difficulty (for a SET the last of the collapsed ones) or a group in CarouselData
 struct CarouselNode {
-    enum class Kind : u8 { NONE, SET, DIFF, GROUP };
+    enum class Kind : u8 { NONE, SET, DIFF, GROUP, MISSING_MAPS };
     Kind kind{Kind::NONE};
     u32 idx{0};
 
@@ -23,10 +22,12 @@ struct CarouselNode {
     [[nodiscard]] bool isDiff() const { return this->kind == Kind::DIFF; }
     [[nodiscard]] bool isGroup() const { return this->kind == Kind::GROUP; }
     [[nodiscard]] bool isSong() const { return this->kind == Kind::SET || this->kind == Kind::DIFF; }
+    [[nodiscard]] bool isMissingMaps() const { return this->kind == Kind::MISSING_MAPS; }
 
     static CarouselNode set(u32 lastDiff) { return {.kind = Kind::SET, .idx = lastDiff}; }
     static CarouselNode diff(u32 idx) { return {.kind = Kind::DIFF, .idx = idx}; }
     static CarouselNode group(u32 idx) { return {.kind = Kind::GROUP, .idx = idx}; }
+    static CarouselNode missingMaps(u32 group) { return {.kind = Kind::MISSING_MAPS, .idx = group}; }
 };
 
 struct CarouselGroup {
@@ -35,6 +36,7 @@ struct CarouselGroup {
     std::vector<u32> diffs;
     i32 numVisibleChildren{0};
     bool isCollection{false};
+    std::vector<MD5Hash> downloadableMaps;
 };
 
 // the beatmaps the carousel is built from, as plain arrays processed by SongBrowser.

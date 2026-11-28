@@ -1,0 +1,53 @@
+# uitest-datadir: fresh
+# uitest-file: cfg/engine.cfg|language en
+# uitest-file: collections.db|\x2d\xd84\x01\x01\x00\x00\x00\x0b\x03Mix\x00\x00\x00\x00\x03\x00\x00\x00\x0b\x20aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x0b\x20bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\x0b\x20be8b3c6b7708485705d8f3401a3e06a2
+# uitest-diffs: carousel alpha|Alpha|a1:1
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+mouse_to 723 59
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 10
+mouse_to 10 10
+@wait 30
+ui_assert carousel <*Mix> | *Alpha:a1 | [2 missing]
+sendkey Down
+@wait 10
+ui_assert carousel <*Mix> | Alpha:a1 | [*2 missing]
+sendkey Down
+@wait 10
+ui_assert carousel <*Mix> | Alpha:a1 | [*2 missing]
+@wait 30
+mouse_to 1000 350
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 10
+mouse_to 900 379
+@wait 2
+mouse_down left
+@wait 1
+mouse_up left
+@wait 10
+mouse_to 900 454
+@wait 2
+mouse_down left
+@wait 1
+mouse_up left
+@wait 10
+mouse_to 10 10
+@wait 30
+ui_assert carousel <*Mix> | *Alpha:a1
+exit

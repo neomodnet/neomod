@@ -103,10 +103,10 @@ Collection& get_or_create_collection(std::string_view name) {
 }
 
 // Should only be called from db loader thread!
-bool load_peppy(std::string_view peppy_collections_path) {
+bool load_peppy(std::string_view peppy_collections_path, MapsOwner owner) {
     ByteBufferedFile::Reader peppy_collections(peppy_collections_path);
     if(peppy_collections.get_total_size() == 0) return false;
-    if(!cv::collections_legacy_enabled.getBool()) {
+    if(owner == MapsOwner::OSU_STABLE && !cv::collections_legacy_enabled.getBool()) {
         db->bytes_processed += peppy_collections.get_total_size();
         return false;
     }
@@ -134,8 +134,12 @@ bool load_peppy(std::string_view peppy_collections_path) {
             MD5String map_hash;
             (void)peppy_collections.read_hash_chars(map_hash);  // TODO: validate
 
-            collection.maps.insert(map_hash);
-            collection.peppy_maps.insert(map_hash);
+            if(owner == MapsOwner::NEOMOD) {
+                collection.add_map(map_hash);
+            } else {
+                collection.maps.insert(map_hash);
+                collection.peppy_maps.insert(map_hash);
+            }
         }
 
         u32 progress_bytes = db->bytes_processed + peppy_collections.get_total_pos();

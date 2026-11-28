@@ -398,6 +398,7 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v45_02;
     v45_02.title = "45.02 (" CHANGELOG_TIMESTAMP ")";
     v45_02.changes = {
+        R"(- Added a button to download missing collection maps)",
         R"(- Allowed binding multiple gameplay actions to the same key (e.g. Left Click and Smoke))",
         R"(- Fixed issues with common BPM calculation)",
         R"(- Improved beatmap difficulty grouping behavior in the song browser)",

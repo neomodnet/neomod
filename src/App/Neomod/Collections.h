@@ -19,7 +19,8 @@ const std::vector<Collection> &get_loaded();
 Collection &get_or_create_collection(std::string_view name);
 
 bool load_all(std::string_view neomod_collections_path, std::string_view peppy_collections_path);
-bool load_peppy(std::string_view peppy_collections_path);
+enum class MapsOwner : u8 { OSU_STABLE, NEOMOD };
+bool load_peppy(std::string_view peppy_collections_path, MapsOwner owner = MapsOwner::OSU_STABLE);
 bool load_mcneomod(std::string_view neomod_collections_path);
 void unload_all();
 bool save_collections();
@@ -41,7 +42,7 @@ class Collection {
     friend Collection &get_or_create_collection(std::string_view name);
 
     friend bool load_all(std::string_view neomod_collections_path, std::string_view peppy_collections_path);
-    friend bool load_peppy(std::string_view peppy_collections_path);
+    friend bool load_peppy(std::string_view peppy_collections_path, MapsOwner owner);
     friend bool load_mcneomod(std::string_view neomod_collections_path);
     friend void unload_all();
     friend bool save_collections();
