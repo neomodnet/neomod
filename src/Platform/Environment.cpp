@@ -54,8 +54,6 @@
 #include <iterator>
 #include <utility>
 #include <string>
-#include <sstream>
-#include <iomanip>
 #include <filesystem>
 #include <optional>
 #include <string_view>
@@ -790,23 +788,24 @@ bool Environment::unsetEnvVariable(Mc::cstr_view varToUnset) noexcept {
 }
 
 std::string Environment::encodeStringToURI(std::string_view unencodedString) noexcept {
-    std::ostringstream escaped;
-    escaped.fill('0');
-    escaped << std::hex;
+    constexpr std::string_view hex = "0123456789ABCDEF";
+    std::string escaped;
+    escaped.reserve(unencodedString.size());
 
     for(const char c : unencodedString) {
+        const auto uc = static_cast<unsigned char>(c);
         // keep alphanumerics and other accepted characters intact
-        if(std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' || c == '~' || c == '/') {
-            escaped << c;
+        if(std::isalnum(uc) || c == '-' || c == '_' || c == '.' || c == '~' || c == '/') {
+            escaped += c;
         } else {
             // any other characters are percent-encoded
-            escaped << std::uppercase;
-            escaped << '%' << std::setw(2) << int(static_cast<unsigned char>(c));
-            escaped << std::nouppercase;
+            escaped += '%';
+            escaped += hex[uc >> 4];
+            escaped += hex[uc & 0xF];
         }
     }
 
-    return escaped.str();
+    return escaped;
 }
 
 // internal path conversion helper, SDL_URLOpen needs a URL-encoded URI on Unix (because it goes to xdg-open)

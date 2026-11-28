@@ -22,7 +22,6 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <map>
 #include <numbers>
 #include <string>
@@ -807,8 +806,8 @@ void BeatmapFileTest::runCorpus(const std::string &dir) {
     }
 
     if(dumpPath) {
-        std::ofstream out(*dumpPath, std::ios::binary);
-        for(const auto &r : results) out << r.dump;
+        File out(*dumpPath, File::MODE::WRITE);
+        for(const auto &r : results) out.writeLine(r.dump, false);
         logRaw("  wrote {}", *dumpPath);
     }
 }

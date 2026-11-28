@@ -36,7 +36,7 @@ documentation and/or software.
 #define BZF_MD5_H
 
 #include <cstring>
-#include <iostream>
+#include <iosfwd>
 
 typedef unsigned char MD5BYTE;
 

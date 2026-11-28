@@ -16,7 +16,6 @@
 
 #include <cstring>
 #include <ctime>
-#include <fstream>
 
 #ifndef _WIN32
 #include <sys/stat.h>

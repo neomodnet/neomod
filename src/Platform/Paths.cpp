@@ -14,8 +14,8 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <string_view>
 
@@ -77,7 +77,11 @@ std::filesystem::path resolve_exe_path() {
     debugLog("WARNING: unsupported platform");
 #endif
     std::string sp;
-    std::ifstream("/proc/self/comm") >> sp;
+    if(FILE *comm = fopen("/proc/self/comm", "r")) {
+        std::array<char, 256> name{};
+        if(fscanf(comm, "%255s", name.data()) == 1) sp = name.data();
+        fclose(comm);
+    }
     if(!sp.empty()) return MCENGINE_DATA_DIR + sp;  // fallback to data dir + self
     return MCENGINE_DATA_DIR PACKAGE_NAME;          // fallback to data dir + package name
 #endif

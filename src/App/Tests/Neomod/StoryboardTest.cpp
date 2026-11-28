@@ -22,7 +22,6 @@
 #include <atomic>
 #include <cmath>
 #include <filesystem>
-#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -739,8 +738,8 @@ void StoryboardTest::runCorpus(const std::string &dir) {
     TEST_ASSERT_EQ(problems, 0, "every span is ordered and every sampled state is finite");
 
     if(dumpPath) {
-        std::ofstream out(*dumpPath, std::ios::binary);
-        for(const auto &r : results) out << r.dump;
+        File out(*dumpPath, File::MODE::WRITE);
+        for(const auto &r : results) out.writeLine(r.dump, false);
         logRaw("  wrote {}", *dumpPath);
     }
 }

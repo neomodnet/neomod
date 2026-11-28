@@ -4,7 +4,6 @@
 
 #include <cmath>
 #include <memory>
-#include <sstream>
 #include <utility>
 
 #include "Logging.h"

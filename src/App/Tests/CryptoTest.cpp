@@ -10,7 +10,6 @@
 #include "crypto.h"
 
 #include <array>
-#include <fstream>
 #include <span>
 #include <string>
 #include <string_view>
@@ -34,8 +33,7 @@ void CryptoTest::update() {
 
     TEST_SECTION("md5");
     TEST_ASSERT_EQ(hash::md5(""), "d41d8cd98f00b204e9800998ecf8427e", "md5 of empty string");
-    TEST_ASSERT_EQ(hash::md5(std::span<const u8>{}), "d41d8cd98f00b204e9800998ecf8427e",
-                   "md5 of empty span");
+    TEST_ASSERT_EQ(hash::md5(std::span<const u8>{}), "d41d8cd98f00b204e9800998ecf8427e", "md5 of empty span");
     TEST_ASSERT_EQ(hash::md5("abc"), "900150983cd24fb0d6963f7d28e17f72", "md5 of \"abc\"");
     TEST_ASSERT_EQ(hash::md5(fox), "9e107d9d372bb6826bd81d3542a419d6", "md5 of std::string");
     TEST_ASSERT(hash::md5(fox_bytes) == hash::md5(fox), "md5 of byte span matches string overload");
@@ -56,10 +54,7 @@ void CryptoTest::update() {
         for(size_t i = 0; i < contents.size(); i++) contents[i] = static_cast<u8>((i * 31 + 7) & 0xFF);
 
         const std::string path = "crypto_test.tmp";
-        {
-            std::ofstream file(path, std::ios::binary);
-            file.write(reinterpret_cast<const char*>(contents.data()), static_cast<std::streamsize>(contents.size()));
-        }
+        File(path, File::MODE::WRITE).write(contents);
 
         const auto md5 = hash::md5_file(path);
         TEST_ASSERT(md5.has_value(), "md5_file succeeds on readable file");

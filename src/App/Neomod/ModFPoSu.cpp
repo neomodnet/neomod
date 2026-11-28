@@ -31,8 +31,6 @@
 #include "Algorithms.h"
 
 #include <cmath>
-#include <sstream>
-#include <fstream>
 #include <list>
 #include <memory>
 
@@ -875,24 +873,16 @@ ModFPoSu3DModel::ModFPoSu3DModel(std::string_view objFilePathOrContents, Image *
             filePath.append(objFilePathOrContents);
 
             std::string stdFileContents;
-            {
-                std::ifstream f(filePath, std::ios::in | std::ios::binary);
-                if(f.good()) {
-                    f.seekg(0, std::ios::end);
-                    const std::streampos numBytes = f.tellg();
-                    f.seekg(0, std::ios::beg);
-
-                    stdFileContents.resize(numBytes);
-                    f.read(&stdFileContents[0], numBytes);
-                } else
-                    debugLog("Failed to load {:s}", objFilePathOrContents);
+            if(File f(filePath); f.canRead()) {
+                stdFileContents = f.readToString();
+            } else {
+                debugLog("Failed to load {:s}", objFilePathOrContents);
             }
             fileContents = UniString::to_utf8(stdFileContents.c_str(), stdFileContents.size());
         }
 
-        std::istringstream iss(source ? std::string{objFilePathOrContents} : fileContents);
-        std::string line;
-        while(std::getline(iss, line)) {
+        for(const std::string &line :
+            SString::split_newlines<std::string>(source ? std::string_view{objFilePathOrContents} : fileContents)) {
             if(line.starts_with("v ")) {
                 vec3 vertex{0.f};
                 vec3 rgb{0.f};

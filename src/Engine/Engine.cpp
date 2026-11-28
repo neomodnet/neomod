@@ -37,8 +37,6 @@
 #include "Console.h"
 #include "ConsoleReader.h"
 #include "LaunchArgs.h"
-
-#include <iostream>
 #include "Algorithms.h"
 
 Image *MISSING_TEXTURE{nullptr};

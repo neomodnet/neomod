@@ -10,8 +10,6 @@
 #include "Engine.h"
 #include "Matrices.h"
 
-#include <sstream>
-
 void Shader::setUniform1f(std::string_view name, float value) { writeUniform(name, UNI_1F, &value, sizeof(float)); }
 
 void Shader::setUniform1fv(std::string_view name, int count, const float *const values) {

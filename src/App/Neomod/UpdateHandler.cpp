@@ -26,8 +26,6 @@
 #include <sys/types.h>
 #endif
 
-#include <fstream>
-
 using enum UpdateHandler::STATUS;
 
 void UpdateHandler::updateCallback() { this->checkForUpdates(true); }
@@ -212,15 +210,14 @@ void UpdateHandler::onDownloadComplete(std::span<const u8> data, bool success, s
 
     // write to disk
     debugLog("UpdateHandler: Downloaded file has {:d} bytes, writing ...", data.size());
-    std::ofstream file(Mc::Paths::cache() + "/update.zip", std::ios::out | std::ios::binary);
-    if(!file.good()) {
+    File file(Mc::Paths::cache() + "/update.zip", File::MODE::WRITE);
+    if(!file.canWrite()) {
         debugLog("UpdateHandler ERROR: Can't write file!");
         this->status = STATUS_ERROR;
         return;
     }
 
-    file.write(reinterpret_cast<const char *>(data.data()), static_cast<std::streamsize>(data.size()));
-    file.close();
+    file.write(data);
 
     debugLog("UpdateHandler: Update finished successfully.");
     this->status = STATUS_DOWNLOAD_COMPLETE;
