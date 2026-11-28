@@ -19,7 +19,6 @@
 
 #include <cassert>
 #include <cerrno>
-#include <chrono>
 #include <ctime>
 #include <filesystem>
 #include <utility>
@@ -27,7 +26,6 @@
 #include <cstdio>
 
 namespace fs = std::filesystem;
-namespace chrono = std::chrono;
 
 namespace {  // static namespace
 //------------------------------------------------------------------------------
@@ -45,7 +43,7 @@ class DirectoryCache final {
 
     struct DirectoryEntry {
         Hash::unstable_ncase_stringmap<File::FILETYPE> files;  // keyed by the actual filename
-        chrono::steady_clock::time_point lastCacheAccess;
+        u64 lastCacheAccess;
         fs::file_time_type lastModified;
     };
 
@@ -75,7 +73,7 @@ class DirectoryCache final {
 
             // build new cache entry
             DirectoryEntry newEntry;
-            newEntry.lastCacheAccess = chrono::steady_clock::now();
+            newEntry.lastCacheAccess = Timing::getTicksNS();
 
             std::error_code ec;
             newEntry.lastModified = fs::last_write_time(dirPath, ec);
@@ -95,7 +93,7 @@ class DirectoryCache final {
         if(!entry) return {{}, File::FILETYPE::NONE};
 
         // update last access time
-        entry->lastCacheAccess = chrono::steady_clock::now();
+        entry->lastCacheAccess = Timing::getTicksNS();
 
         // find the case-insensitive match
         auto fileIt = entry->files.find(filename);
@@ -118,7 +116,7 @@ class DirectoryCache final {
         }
 
         // collect entries with their access times
-        std::vector<std::pair<chrono::steady_clock::time_point, decltype(this->cache)::iterator>> entries;
+        std::vector<std::pair<u64, decltype(this->cache)::iterator>> entries;
         entries.reserve(this->cache.size());
 
         for(auto it = this->cache.begin(); it != this->cache.end(); ++it)

@@ -1,5 +1,6 @@
 // Copyright (c) 2016, PG & 2025-2026 WH, All rights reserved.
 #include "OptionsOverlay.h"
+#include "Timing.h"
 
 #include "Accounts.h"
 #include "UIDropdownTextbox.h"
@@ -68,7 +69,6 @@
 #include "SoundEngine.h"
 #include "Startup.h"
 
-#include "fmt/chrono.h"
 #include "Algorithms.h"
 
 #include <atomic>
@@ -4721,7 +4721,8 @@ void OptionsOverlayImpl::save() {
         if(read_data.empty() && Environment::fileExists(cfg_name)) {
             debugLog("WARNING: read no data from previous osu.cfg!");
             // back it up just in case
-            const std::string backup_name = fmt::format("{}.{:%F}.bak", cfg_name, fmt::gmtime(std::time(nullptr)));
+            const std::string backup_name =
+                fmt::format("{}.{}.bak", cfg_name, Timing::formatUTC("%F", Timing::getUnixTime()));
             if(File::copy(cfg_name, backup_name)) {
                 debugLog("backed up {} -> {}", cfg_name, backup_name);
             }

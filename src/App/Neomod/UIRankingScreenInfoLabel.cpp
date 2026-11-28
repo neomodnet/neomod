@@ -2,7 +2,6 @@
 #include "UIRankingScreenInfoLabel.h"
 #include "Algorithms.h"
 
-#include <chrono>
 #include <utility>
 
 #include "BeatmapInterface.h"
@@ -93,7 +92,7 @@ void UIRankingScreenInfoLabel::setFromBeatmap(const DatabaseBeatmap *map) {
     this->setDiff(map ? map->getDifficultyName() : "");
     this->setMapper(map ? map->getCreator() : "");
 
-    std::time_t now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::time_t now_c = Timing::getUnixTime();
 
     this->sDate.resize(26);
     ctime_x(&now_c, this->sDate.data());

@@ -1,4 +1,5 @@
 #include "Downloader.h"
+#include "Timing.h"
 #include "DownloadHandle.h"
 
 #include "Bancho.h"
@@ -17,7 +18,6 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
-#include <chrono>
 #include <utility>
 
 namespace Downloader {
@@ -82,11 +82,11 @@ class DownloadManager {
 
     Sync::mutex queue_mutex;
     Hash::unstable_stringmap<std::weak_ptr<Request>> queue;
-    Hash::unstable_stringmap<std::chrono::steady_clock::time_point> per_host_retry_after;
+    Hash::unstable_stringmap<u64> per_host_retry_after;
 
     // when update() checks the queue again, as no start, completion or cancel has to come along before then: the
     // earliest time a queued request that didn't start yet (e.g. its host is still spaced out or rate limited) can
-    std::optional<std::chrono::steady_clock::time_point> next_check;
+    std::optional<u64> next_check;
 
     void checkAndStartNextDownload() {
         // NOTE: this->queue_mutex should already be acquired here!
@@ -94,7 +94,7 @@ class DownloadManager {
         if(this->shutting_down.load(std::memory_order_acquire)) return;
         if(this->queue.empty()) return;
 
-        auto now = std::chrono::steady_clock::now();
+        const u64 now = Timing::getTicksNS();
 
         // sweep expired entries and find next request to start
         std::shared_ptr<Request> request = nullptr;
@@ -124,7 +124,7 @@ class DownloadManager {
         if(request == nullptr) return;
 
         request->downloading.store(true, std::memory_order_release);
-        this->per_host_retry_after[request->host] = now + std::chrono::milliseconds(100);
+        this->per_host_retry_after[request->host] = now + 100 * Timing::NS_PER_MS;
 
         logIfCV(debug_network, "Downloading {:s}", request->url);
 
@@ -162,7 +162,7 @@ class DownloadManager {
 
                 Sync::scoped_lock lock(this->queue_mutex);
                 this->per_host_retry_after[request->host] =
-                    std::chrono::steady_clock::now() + std::chrono::seconds(seconds_to_wait);
+                    Timing::getTicksNS() + seconds_to_wait * Timing::NS_PER_SECOND;
             } else if(response.success) {
                 request->response_code.store(static_cast<int>(response.response_code), std::memory_order_release);
                 request->data = std::move(response.body);
@@ -202,7 +202,7 @@ class DownloadManager {
 
     void update() {
         Sync::scoped_lock lock(this->queue_mutex);
-        if(this->next_check && *this->next_check <= std::chrono::steady_clock::now()) {
+        if(this->next_check && *this->next_check <= Timing::getTicksNS()) {
             this->checkAndStartNextDownload();
         }
     }

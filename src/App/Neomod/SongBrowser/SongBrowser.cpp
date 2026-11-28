@@ -97,8 +97,6 @@
 #include <utility>
 #include <vector>
 
-#include "fmt/chrono.h"
-
 namespace neomod::sbr {
 SongBrowser *g_songbrowser{nullptr};
 }  // namespace neomod::sbr
@@ -3849,7 +3847,7 @@ void SongBrowserImpl::onGroupContextMenuAction(std::string_view text, int id) {
         std::string colNameSanitized = collection_name;
         SString::trim_inplace(colNameSanitized);
         if(colNameSanitized.empty()) {
-            colNameSanitized = fmt::format("Untitled-Collection-{:%F-%H-%M-%S}", fmt::gmtime(std::time(nullptr)));
+            colNameSanitized = "Untitled-Collection-" + Timing::formatUTC("%F-%H-%M-%S", Timing::getUnixTime());
         } else {
             Mc::ranges::replace(colNameSanitized, '\\', '_');
             Mc::ranges::replace(colNameSanitized, '/', '_');

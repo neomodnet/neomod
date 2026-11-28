@@ -1,5 +1,6 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "Editor.h"
+#include "Timing.h"
 
 #include "Bancho.h"
 #include "BanchoNetworking.h"
@@ -71,7 +72,6 @@
 
 #include <array>
 #include <cassert>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -1746,11 +1746,9 @@ void Editor::save(const std::function<void()> &then) {
         }
     }
     // the content the save overwrote is the saved document content until here, unless another program wrote the file
-    EditorHistory::record(
-        fileBefore, outside.empty() ? document.getMD5() : crypto::hash::md5(outside),
-        outside.empty() ? document.getSavedBytes() : std::span<const u8>{outside}, document.getLocation(), bytes,
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-            .count());
+    EditorHistory::record(fileBefore, outside.empty() ? document.getMD5() : crypto::hash::md5(outside),
+                          outside.empty() ? document.getSavedBytes() : std::span<const u8>{outside},
+                          document.getLocation(), bytes, Timing::getUnixTimeMS());
     document.saved(bytes);
     // the song browser reads the folder again, giving the new content the map offsets and collections
     osu->getBeatmapInstaller()->enqueue_folder(document.getLocation().folder, true);

@@ -1,5 +1,6 @@
 // Copyright (c) 2025, WH, All rights reserved.
 #include "config.h"
+#include "Timing.h"
 #include "CrashHandler.h"
 #include "Algorithms.h"
 
@@ -16,11 +17,9 @@ void init() {}
 #include "Logging.h"
 #include "Paths.h"
 
-#include "fmt/chrono.h"
 #include "fmt/format.h"
 #include "neotrace/neotrace.h"
 
-#include <chrono>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -445,8 +444,7 @@ void init() {
     const long pid = getpid();
 #endif
     s_crashesDir = Mc::Paths::data() + "/crashes";
-    s_dir = fmt::format("{}/{:%Y-%m-%d_%H-%M-%S}_{}", s_crashesDir,
-                        std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()), pid);
+    s_dir = fmt::format("{}/{}_{}", s_crashesDir, Timing::formatUTC("%Y-%m-%d_%H-%M-%S", Timing::getUnixTime()), pid);
     s_tracePath = s_dir + "/crash.txt";
 
     s_report = !Env::cfg(BUILD::DEBUG) && !has_arg(REND_HEADLESS);

@@ -34,7 +34,6 @@
 #include "Hashing.h"
 #include "i18n.h"
 
-#include "fmt/chrono.h"
 #include "Algorithms.h"
 
 #include <cstring>
@@ -1121,7 +1120,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             } else if(version < NEOMOD_MAPS_DB_VERSION) {
                 // Reading from older database version: backup just in case
                 auto backup_path =
-                    fmt::format("{}.{}-{:%F}", neomod_maps_path, version, fmt::gmtime(std::time(nullptr)));
+                    fmt::format("{}.{}-{}", neomod_maps_path, version, Timing::formatUTC("%F", Timing::getUnixTime()));
                 if(File::copy(neomod_maps_path, backup_path)) {
                     debugLog("older database {} < {}, backed up {} -> {}", version, NEOMOD_MAPS_DB_VERSION,
                              neomod_maps_path, backup_path);
@@ -2205,7 +2204,7 @@ void Database::loadScores(std::string_view dbPath) {
         return;
     } else if(db_version < NEOMOD_SCORE_DB_VERSION) {
         // Reading from older database version: backup just in case
-        auto backup_path = fmt::format("{}.{}-{:%F}", dbPath, db_version, fmt::gmtime(std::time(nullptr)));
+        auto backup_path = fmt::format("{}.{}-{}", dbPath, db_version, Timing::formatUTC("%F", Timing::getUnixTime()));
         if(File::copy(dbPath, backup_path)) {
             debugLog("older database {} < {}, backed up {} -> {}", db_version, NEOMOD_SCORE_DB_VERSION, dbPath,
                      backup_path);

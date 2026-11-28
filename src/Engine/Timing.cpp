@@ -1,23 +1,27 @@
 // Copyright (c) 2025, WH, All rights reserved.
 #include "Timing.h"
 
+#include <SDL3/SDL_time.h>
 #include <SDL3/SDL_timer.h>
 
-#include <chrono>
+#include <array>
+#include <ctime>
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
 #include "WinDebloatDefs.h"
 #include <libloaderapi.h>
 #include <winnt.h>
 #include <profileapi.h>
+#include <processthreadsapi.h>
 #include "dynutils.h"
 
 #include "ConVar.h"
 
 #include <cassert>
-#include <array>
 #elif defined(MCENGINE_PLATFORM_MACOS)
 #include <mach/thread_switch.h>
+#else
+#include <sched.h>
 #endif
 
 namespace Timing {
@@ -173,8 +177,10 @@ void yield_internal() noexcept {
     } else {
 #ifdef MCENGINE_PLATFORM_MACOS
         thread_switch(MACH_PORT_NULL, SWITCH_OPTION_DEPRESS, 1);
+#elif defined(MCENGINE_PLATFORM_WINDOWS)
+        SwitchToThread();
 #else
-        std::this_thread::yield();
+        sched_yield();
 #endif
     }
 }
@@ -183,9 +189,20 @@ void yield_internal() noexcept {
 
 u64 getTicksNS() noexcept { return SDL_GetTicksNS(); }
 
-i64 getUnixTime() noexcept {
-    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
-        .count();
+i64 getUnixTime() noexcept { return getUnixTimeMS() / 1000; }
+
+i64 getUnixTimeMS() noexcept {
+    SDL_Time ns = 0;
+    SDL_GetCurrentTime(&ns);
+    return ns / static_cast<SDL_Time>(SDL_NS_PER_MS);
+}
+
+std::string formatUTC(const char *format, i64 unixTime) {
+    const time_t time = static_cast<time_t>(unixTime);
+    struct tm tm{};
+    gmtime_x(&time, &tm);
+    std::array<char, 128> text{};
+    return {text.data(), std::strftime(text.data(), text.size(), format, &tm)};
 }
 
 }  // namespace Timing

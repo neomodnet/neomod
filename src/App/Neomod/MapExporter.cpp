@@ -16,7 +16,6 @@
 #include "AsyncPool.h"
 #include "NotificationOverlay.h"
 #include "UI.h"
-#include "fmt/chrono.h"
 #include "Algorithms.h"
 
 #include <ctime>
@@ -78,7 +77,8 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
 
                 std::string export_folder_sub =
                     single_archive
-                        ? export_folder_top + fmt::format("temp-{:%F-%H-%M-%S}/", fmt::gmtime(std::time(nullptr)))
+                        ? export_folder_top +
+                              fmt::format("temp-{}/", Timing::formatUTC("%F-%H-%M-%S", Timing::getUnixTime()))
                         : export_folder_top;
 
                 if(single_archive) {
@@ -189,8 +189,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                     if(num_added) {
                         if(tok.stop_requested()) return finish();
                         // not subfolder, toplevel
-                        const std::string export_pathname =
-                            fmt::format("{}{}", export_folder_top, toplevel_archive, fmt::gmtime(std::time(nullptr)));
+                        const std::string export_pathname = fmt::format("{}{}", export_folder_top, toplevel_archive);
 
                         update_progress_stage2(export_pathname + extSuffix);
 

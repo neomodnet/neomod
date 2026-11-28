@@ -12,8 +12,8 @@
 #include "BaseEnvironment.h"
 #include "types.h"
 
-#include <thread>
 #include <concepts>
+#include <string>
 
 #ifdef _MSC_VER
 #ifndef YieldProcessor
@@ -70,6 +70,11 @@ void sleep_ns_precise_internal(u64 ns) noexcept;
 
 // wall clock time in seconds since the unix epoch
 [[nodiscard]] i64 getUnixTime() noexcept;
+// wall clock time in milliseconds since the unix epoch
+[[nodiscard]] i64 getUnixTimeMS() noexcept;
+
+// a unix time as UTC, written with a strftime format
+[[nodiscard]] std::string formatUTC(const char *format, i64 unixTime);
 
 static constexpr forceinline INLINE_BODY u64 ticksNSToMS(u64 ns) noexcept {
     return detail::convert_time<NS_PER_MS>(ns);
@@ -161,7 +166,7 @@ class Timer {
 // thread-safe versions of gmtime, localtime, ctime
 struct tm *gmtime_x(const time_t *timer, struct tm *timebuf);
 struct tm *localtime_x(const time_t *timer, struct tm *timebuf);
-errno_t ctime_x(const time_t *timer, char* buffer);
+errno_t ctime_x(const time_t *timer, char *buffer);
 
 #else
 

@@ -1,5 +1,6 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "SkinArchive.h"
+#include "Timing.h"
 
 #include "Archival.h"
 #include "AsyncPool.h"
@@ -14,7 +15,6 @@
 #include "Skin.h"
 #include "SyncMutex.h"
 
-#include "fmt/chrono.h"
 #include "Algorithms.h"
 
 #include <atomic>
@@ -235,7 +235,7 @@ ExportResult run(const Job &job) {
 
     std::string name = job.name;
     if(name.empty() && job.mixed) {
-        name = fmt::format("random mix {:%F %H-%M-%S}", fmt::gmtime(now));
+        name = "random mix " + Timing::formatUTC("%F %H-%M-%S", now);
     } else if(name.empty()) {
         const bool filled_in = Mc::ranges::any_of(
             sources, [](const Source &source) { return source.tier == Tier::Fallback && !source.packed.empty(); });
@@ -254,7 +254,7 @@ ExportResult run(const Job &job) {
             log += fmt::format("skin: {}\n", job.skin_name);
         }
         if(!job.fallback_dir.empty()) log += fmt::format("fallback skin: {}\n", job.fallback_name);
-        log += fmt::format("exported: {:%F %T} UTC with {}\n", fmt::gmtime(now), job.version);
+        log += fmt::format("exported: {} UTC with {}\n", Timing::formatUTC("%F %T", now), job.version);
 
         for(const Tier tier : {Tier::Skin, Tier::Fallback, Tier::Default}) {
             for(const auto &source : sources) {

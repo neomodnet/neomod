@@ -1,5 +1,6 @@
 // Copyright (c) 2011, PG & 2025, WH & 2025, kiwec, All rights reserved.
 #include "ConVarHandler.h"
+#include "Timing.h"
 #include "ContainerRanges.h"
 #include "ConVar.h"
 #include "Console.h"
@@ -13,7 +14,6 @@
 
 #include "binary_embed.h"
 
-#include "fmt/chrono.h"
 #include "Algorithms.h"
 
 #include <iterator>
@@ -427,7 +427,7 @@ void ConVarHandler::ConVarBuiltins::dumpcommands(void) {
         This page was generated on {} for )" PACKAGE_NAME R"( v{:.2f}.<br>
         Use the <code>dumpcommands</code> command to regenerate it yourself.
     </p>)",
-                            fmt::gmtime(std::time(nullptr)), cv::version.getDouble()));
+                            Timing::formatUTC("%Y-%m-%d", Timing::getUnixTime()), cv::version.getDouble()));
 
     constexpr std::string_view marker = "{{CONVARS_HERE}}"sv;
     size_t pos = html_template.find(marker);
