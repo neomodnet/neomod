@@ -65,7 +65,7 @@ struct ReconcileResult {
     [[nodiscard]] std::string_view outcomeName() const;
 };
 
-#define NEOMOD_MAPS_DB_VERSION 20261022
+#define NEOMOD_MAPS_DB_VERSION 20261128
 #define NEOMOD_SCORE_DB_VERSION 20240725
 
 class Database;

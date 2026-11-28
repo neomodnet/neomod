@@ -25,6 +25,7 @@
 #include <atomic>
 #include <memory>
 #include <span>
+#include <variant>
 
 namespace cv {
 extern ConVar debug_pp;
@@ -47,11 +48,14 @@ struct ScoreResult {
 }  // namespace
 
 struct internal {
-    static void collect_outdated_db_diffs(const Sync::stop_token& stoken, std::vector<BeatmapDifficulty*>& outdiffs);
+    // outdiffs: what a calculation fills in is outdated; bpm_only: just the BPM
+    static void collect_outdated_db_diffs(const Sync::stop_token& stoken, std::vector<BeatmapDifficulty*>& outdiffs,
+                                          std::vector<BeatmapDifficulty*>& bpm_only);
     static void flush_score_results(std::span<const ScoreResult> pending);
 };
 
-void internal::collect_outdated_db_diffs(const Sync::stop_token& stoken, std::vector<BeatmapDifficulty*>& outdiffs) {
+void internal::collect_outdated_db_diffs(const Sync::stop_token& stoken, std::vector<BeatmapDifficulty*>& outdiffs,
+                                         std::vector<BeatmapDifficulty*>& bpm_only) {
     // NOTE: the order of these two locks matters to avoid lock-order-inversion, needs to match the order of other
     // occurrences where they're both locked at the same time (like Database::loadMaps, at the end)
     Sync::shared_lock sr_lock(db->star_ratings_mtx);
@@ -64,6 +68,9 @@ void internal::collect_outdated_db_diffs(const Sync::stop_token& stoken, std::ve
         if(diff->ppv2Version < DiffCalc::PP_ALGORITHM_VERSION || diff->fStarsNomod <= 0.f ||
            !db->star_ratings.contains(diff->getMD5())) {
             outdiffs.push_back(diff);
+        } else if(diff->iMostCommonBPM < 0) {
+            // an older database had calculated it differently
+            bpm_only.push_back(diff);
         }
     }
 }
@@ -111,9 +118,12 @@ struct ScoreWork {
 
 // All work for a single beatmap: optional map recalc + zero or more scores
 struct WorkItem {
+    // how much of the map to recalc: nothing, its BPM, or everything a calculation fills in
+    enum class MapCalc : u8 { NONE, BPM, ALL };
+
     MD5Hash hash;
     BeatmapDifficulty* map;
-    bool needs_map_calc;
+    MapCalc map_calc;
     std::vector<ScoreWork> scores;
 };
 
@@ -247,21 +257,28 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
 void build_work_queue(const Sync::stop_token& stoken) {
     Hash::flat::map<MD5Hash, WorkItem> work_by_hash;
     std::vector<BeatmapDifficulty*> pending_diffs_to_recalc;
+    std::vector<BeatmapDifficulty*> pending_bpm_only;
 
-    // add maps needing star rating recalc (ppv2 version outdated)
-    internal::collect_outdated_db_diffs(stoken, pending_diffs_to_recalc);
+    // add maps needing star rating recalc (ppv2 version outdated), and the ones that only have an outdated BPM
+    internal::collect_outdated_db_diffs(stoken, pending_diffs_to_recalc, pending_bpm_only);
     if(stoken.stop_requested()) return;
 
-    for(auto* diff : pending_diffs_to_recalc) {
-        if(stoken.stop_requested()) return;
-        const auto& hash = diff->getMD5();
-        auto& item = work_by_hash[hash];
-        item.hash = hash;
-        item.map = diff;
-        item.needs_map_calc = true;
-    }
+    const auto queue = [&](const std::vector<BeatmapDifficulty*>& diffs, WorkItem::MapCalc calc) {
+        for(auto* diff : diffs) {
+            if(stoken.stop_requested()) return;
+            const auto& hash = diff->getMD5();
+            auto& item = work_by_hash[hash];
+            item.hash = hash;
+            item.map = diff;
+            item.map_calc = calc;
+        }
+    };
+    queue(pending_diffs_to_recalc, WorkItem::MapCalc::ALL);
+    queue(pending_bpm_only, WorkItem::MapCalc::BPM);
+    if(stoken.stop_requested()) return;
 
-    maps_total.store(static_cast<u32>(pending_diffs_to_recalc.size()), std::memory_order_relaxed);
+    maps_total.store(static_cast<u32>(pending_diffs_to_recalc.size() + pending_bpm_only.size()),
+                     std::memory_order_relaxed);
 
     // find all scores needing PP recalc, grouped by beatmap
     u32 score_count = 0;
@@ -313,6 +330,19 @@ void build_work_queue(const Sync::stop_token& stoken) {
 
     // put maps with scores associated with them first, so scores are recalculated early instead of spread across all maps
     Mc::ranges::sort(work_queue, {}, [](const auto& work) { return work.scores.empty(); });
+}
+
+// the BPM range of one difficulty, up to its last object (its last timing point without one)
+void calc_bpm(MapResult& result, const Primitives::PRIMITIVE_CONTAINER& primitives, WorkerContext& ctx) {
+    if(primitives.timingpoints.empty()) return;
+
+    const f64 lastTime = primitives.objects.empty() ? primitives.timingpoints.back().offset
+                                                    : std::visit([](const auto& object) -> f64 { return object.time; },
+                                                                 primitives.objects.back());
+    const BPMCalc::BPMInfo bpm = BPMCalc::getBPM(primitives.timingpoints, lastTime, ctx.bpm_calc_buf);
+    result.min_bpm = bpm.min;
+    result.max_bpm = bpm.max;
+    result.avg_bpm = bpm.most_common;
 }
 
 // star ratings for every precalculated mod combination, length, object counts and BPM of one difficulty
@@ -459,13 +489,7 @@ MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONT
 
     if(stoken.stop_requested()) return result;
 
-    if(!primitives.timingpoints.empty()) {
-        ctx.bpm_calc_buf.resize(primitives.timingpoints.size());
-        BPMCalc::BPMInfo bpm = BPMCalc::getBPM(primitives.timingpoints, ctx.bpm_calc_buf);
-        result.min_bpm = bpm.min;
-        result.max_bpm = bpm.max;
-        result.avg_bpm = bpm.most_common;
-    }
+    calc_bpm(result, primitives, ctx);
 
     return result;
 }
@@ -485,7 +509,7 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
         errored_count.fetch_add(item_failed_scores, std::memory_order_relaxed);
         logFailure(primitives.error, "loadPrimitiveObjects map hash: {} map path: {}", item.map->getMD5(),
                    item.map->getFilePath());
-        if(item.needs_map_calc) {
+        if(item.map_calc != WorkItem::MapCalc::NONE) {
             errored_count.fetch_add(1, std::memory_order_relaxed);
             Sync::scoped_lock lock(results_mutex);
             map_results.push_back(MapResult{.map = item.map});
@@ -495,13 +519,18 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
         return;
     }
 
-    // process map calculation (multi-mod star ratings, BPM, object counts)
-    if(item.needs_map_calc) {
-        const MapResult result = calc_map_attributes(item.map, primitives, stoken, ctx);
-        if(stoken.stop_requested()) return;
+    // process map calculation (multi-mod star ratings, BPM, object counts), or only its BPM
+    if(item.map_calc != WorkItem::MapCalc::NONE) {
+        MapResult result{.map = item.map};
+        if(item.map_calc == WorkItem::MapCalc::ALL) {
+            result = calc_map_attributes(item.map, primitives, stoken, ctx);
+            if(stoken.stop_requested()) return;
 
-        if(result.star_ratings[StarPrecalc::NOMOD_1X_INDEX] <= 0.f) {
-            errored_count.fetch_add(1, std::memory_order_relaxed);
+            if(result.star_ratings[StarPrecalc::NOMOD_1X_INDEX] <= 0.f) {
+                errored_count.fetch_add(1, std::memory_order_relaxed);
+            }
+        } else {
+            calc_bpm(result, primitives, ctx);
         }
 
         {
@@ -722,9 +751,9 @@ void apply_results(std::span<const MapResult> results) {
             if(const f32 calculated_sr = res.star_ratings[StarPrecalc::NOMOD_1X_INDEX]; calculated_sr > 0.f) {
                 map->fStarsNomod = calculated_sr;
             }
-            map->iMinBPM = res.min_bpm != 0 ? res.min_bpm : map->iMinBPM;
-            map->iMaxBPM = res.max_bpm != 0 ? res.max_bpm : map->iMaxBPM;
-            map->iMostCommonBPM = res.avg_bpm != 0 ? res.avg_bpm : map->iMostCommonBPM;
+            map->iMinBPM = res.min_bpm >= 0 ? res.min_bpm : map->iMinBPM;
+            map->iMaxBPM = res.max_bpm >= 0 ? res.max_bpm : map->iMaxBPM;
+            map->iMostCommonBPM = res.avg_bpm >= 0 ? res.avg_bpm : map->iMostCommonBPM;
             map->ppv2Version = DiffCalc::PP_ALGORITHM_VERSION;
             if(map->type == DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY) {
                 db->peppy_overrides[map->getMD5()] = map->get_overrides();
@@ -735,6 +764,8 @@ void apply_results(std::span<const MapResult> results) {
     {
         Sync::unique_lock slk(db->star_ratings_mtx);
         for(const auto& res : results) {
+            // no star ratings calculated: what's there stays, like the values above
+            if(res.star_ratings[StarPrecalc::NOMOD_1X_INDEX] <= 0.f) continue;
             auto& ptr = db->star_ratings[res.map->getMD5()];
             if(!ptr) ptr = std::make_unique<StarPrecalc::SRArray>();
             *ptr = res.star_ratings;

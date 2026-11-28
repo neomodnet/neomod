@@ -368,9 +368,11 @@ struct BPMTuple {
     double duration;
 };
 
+// the lowest and highest BPM of a map's uninherited timing points (in time order), and the one that lasts longest up
+// to lastTime: the time of its last object, or of its last timing point without one.
 // defined in DatabaseBeatmap.cpp with explicit instantiations for the constrained set
 template <typename T>
-BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
+BPMInfo getBPM(const T &timing_points, f64 lastTime, std::vector<BPMTuple> &bpm_buffer)
     requires((std::is_same_v<T, std::vector<DB_TIMINGPOINT>> || std::is_same_v<T, std::vector<DBType::TIMINGPOINT>>) ||
              (std::is_same_v<T, FixedSizeArray<DB_TIMINGPOINT>> || std::is_same_v<T, neomod::Primitives::TimingPoints>))
 ;

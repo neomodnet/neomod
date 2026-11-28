@@ -1263,7 +1263,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     f64 fStarsNomod = neomod_maps.read<f64>();  // TODO: store as float?
 
                     i32 iMinBPM{-1}, iMaxBPM{-1}, iMostCommonBPM{-1};
-                    if(version >= 20251209) {  // prior versions had a rounding bug, force recalc
+                    // prior versions counted an uninherited point up to the next inherited one, force recalc
+                    if(version >= 20261128) {
                         iMinBPM = neomod_maps.read<i32>();
                         iMaxBPM = neomod_maps.read<i32>();
                         iMostCommonBPM = neomod_maps.read<i32>();
@@ -1441,7 +1442,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     over.online_offset = neomod_maps.read<i16>();
                     over.star_rating = neomod_maps.read<f32>();
                     over.loudness = neomod_maps.read<f32>();
-                    if(version >= 20251209) {  // only override if we have accurately calculated values
+                    if(version >= 20261128) {  // only override if we have accurately calculated values
                         over.min_bpm = neomod_maps.read<i32>();
                         over.max_bpm = neomod_maps.read<i32>();
                         over.avg_bpm = neomod_maps.read<i32>();
@@ -1672,7 +1673,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                        sizeof(DB_TIMINGPOINT) * nb_timing_points) {
                         debugLog("WARNING: failed to read timing points from beatmap {:d} !", (i + 1));
                     } else {
-                        bpm = BPMCalc::getBPM(timing_points_buffer, bpm_calculation_buffer);
+                        bpm = BPMCalc::getBPM(timing_points_buffer, duration, bpm_calculation_buffer);
                     }
                 }
 

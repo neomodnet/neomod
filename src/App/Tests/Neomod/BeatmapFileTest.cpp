@@ -414,17 +414,18 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(BeatmapFile::format(tp), "8250,-166.66666666666669,4,3,1,60,0,0", "17 digits written back");
     }
 
+    const auto point = [](f64 offset, f64 msPerBeat, bool uninherited) {
+        return DBType::TIMINGPOINT{.offset = offset,
+                                   .msPerBeat = msPerBeat,
+                                   .sampleSet = 0,
+                                   .sampleIndex = 0,
+                                   .volume = 100,
+                                   .uninherited = uninherited,
+                                   .kiai = false};
+    };
+
     TEST_SECTION("beats");
     {
-        const auto point = [](f64 offset, f64 msPerBeat, bool uninherited) {
-            return DBType::TIMINGPOINT{.offset = offset,
-                                       .msPerBeat = msPerBeat,
-                                       .sampleSet = 0,
-                                       .sampleIndex = 0,
-                                       .volume = 100,
-                                       .uninherited = uninherited,
-                                       .kiai = false};
-        };
         const Primitives::TimingPoints whole{{point(1000, 500, true), point(2000, -50, false), point(5100, 400, true)}};
         TEST_ASSERT(whole.getBeat(1000) == 0.0, "the uninherited point is beat 0");
         TEST_ASSERT(whole.getBeat(3250) == 4.5, "beats with their fraction, an inherited point doesn't count");
@@ -437,6 +438,36 @@ void BeatmapFileTest::runTests() {
 
         TEST_ASSERT(Primitives::TimingPoints{{point(0, std::nan(""), true)}}.getBeat(1000) == 0.0, "NaN beat length");
         TEST_ASSERT(Primitives::TimingPoints{}.getBeat(1000) == 0.0, "no points");
+    }
+
+    TEST_SECTION("BPM");
+    {
+        std::vector<BPMCalc::BPMTuple> buffer;
+        const auto bpm = [&](std::vector<DBType::TIMINGPOINT> points, f64 lastTime) {
+            return BPMCalc::getBPM(Primitives::TimingPoints{std::move(points)}, lastTime, buffer);
+        };
+
+        // 200 BPM around a slow bridge, each uninherited point with an inherited one right after it
+        auto info = bpm({point(13, 300, true), point(26, -100, false), point(62413, 4800, true),
+                         point(66613, -50, false), point(72013, 300, true), point(72026, -100, false)},
+                        167938);
+        TEST_ASSERT(info.most_common == 200 && info.min == 13 && info.max == 200,
+                    "an uninherited point lasts until the next uninherited one");
+        TEST_ASSERT_EQ(bpm({point(0, 600, true), point(10000, 400, true)}, 60000).most_common, 150,
+                       "the last one lasts until the last object");
+        info = bpm({point(0, 600, true), point(50000, 400, true)}, 20000);
+        TEST_ASSERT(info.most_common == 100 && info.max == 150, "nothing lasts beyond the last object");
+        TEST_ASSERT_EQ(bpm({point(5000, 600, true), point(8000, 400, true)}, 14000).most_common, 100,
+                       "the first one counts from 0");
+        TEST_ASSERT_EQ(bpm({point(0, 600, true), point(4000, 300, true)}, 4000).most_common, 100,
+                       "without objects, up to the last point");
+        TEST_ASSERT_EQ(bpm({point(0, 600, true), point(1000, 300, true)}, 2000).most_common, 200,
+                       "the faster of two that last the same");
+        info = bpm({point(0, 600, true), point(1000, 500, false), point(2000, std::nan(""), true)}, 9000);
+        TEST_ASSERT(info.most_common == 100 && info.min == 100 && info.max == 100,
+                    "an inherited point with a beat length and one that isn't a number don't count");
+        info = bpm({point(0, -100, false)}, 1000);
+        TEST_ASSERT(info.most_common == 0 && info.min == 0 && info.max == 0, "no uninherited point");
     }
 
     TEST_SECTION("hit objects");

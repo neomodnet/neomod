@@ -19,9 +19,10 @@ struct MapResult {
     u32 nb_sliders{};
     u32 nb_spinners{};
     StarPrecalc::SRArray star_ratings{};
-    i32 min_bpm{};
-    i32 max_bpm{};
-    i32 avg_bpm{};
+    // -1 if not calculated; a map without a BPM gets 0
+    i32 min_bpm{-1};
+    i32 max_bpm{-1};
+    i32 avg_bpm{-1};
 };
 
 // Start unified calculation for maps and all scores that need PP recalculation.
